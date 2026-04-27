@@ -33,11 +33,11 @@ export function HumanInterviewOverlay() {
     <BlockingInterview
       request={blockingPending}
       submitting={submitting}
-      onAnswer={async (choiceId) => {
+      onAnswer={async (choiceId, text) => {
         if (submitting) return
         setSubmitting(true)
         try {
-          await answerRequest(blockingPending.id, choiceId)
+          await answerRequest(blockingPending.id, choiceId, text)
           await queryClient.invalidateQueries({ queryKey: ['requests'] })
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : t('messages.interview.failedAnswer')
@@ -53,12 +53,26 @@ export function HumanInterviewOverlay() {
 interface BlockingInterviewProps {
   request: AgentRequest
   submitting: boolean
-  onAnswer: (choiceId: string) => void
+  onAnswer: (choiceId: string, text?: string) => void
 }
 
 function BlockingInterview({ request, submitting, onAnswer }: BlockingInterviewProps) {
   const { t } = useTranslation()
   const options = request.options ?? request.choices ?? []
+  const [textMode, setTextMode] = useState<{ choiceId: string; label: string; hint?: string } | null>(null)
+  const [customText, setCustomText] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    setTextMode(null)
+    setCustomText('')
+  }, [request.id])
+
+  useEffect(() => {
+    if (textMode && textareaRef.current) {
+      textareaRef.current.focus()
+    }
+  }, [textMode])
 
   return (
     <div
@@ -68,6 +82,7 @@ function BlockingInterview({ request, submitting, onAnswer }: BlockingInterviewP
       aria-labelledby="interview-title"
     >
       <div className={`interview-card${request.blocking ? ' interview-card-blocking' : ' interview-card-waiting'}`}>
+        <div className="interview-alert">{t('messages.overlay.actionRequired')}</div>
         <div className="interview-meta">
           <span className={request.blocking ? 'badge badge-attention' : 'badge badge-waiting'}>
             {request.blocking ? t('messages.interview.blocking') : t('messages.thread.humanAttentionBadge')}
@@ -78,22 +93,75 @@ function BlockingInterview({ request, submitting, onAnswer }: BlockingInterviewP
         <h2 id="interview-title" className="interview-title">
           {request.title && request.title !== 'Request' ? request.title : t('messages.overlay.fallbackTitle')}
         </h2>
+        <p className="interview-blocking-copy">{t('messages.overlay.blocksChat')}</p>
         <p className="interview-question">{request.question}</p>
         {request.context && (
           <p className="interview-context">{request.context}</p>
         )}
-        {options.length > 0 ? (
+        {textMode ? (
+          <div className="interview-text">
+            <textarea
+              ref={textareaRef}
+              className="interview-textarea"
+              placeholder={textMode.hint || t('messages.interview.textPlaceholder')}
+              value={customText}
+              onChange={(event) => setCustomText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  setTextMode(null)
+                  setCustomText('')
+                }
+                if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                  event.preventDefault()
+                  const answer = customText.trim()
+                  if (answer) onAnswer(textMode.choiceId, answer)
+                }
+              }}
+              rows={4}
+            />
+            <div className="interview-actions interview-actions-end">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  setTextMode(null)
+                  setCustomText('')
+                }}
+                disabled={submitting}
+              >
+                {t('messages.interview.back')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => onAnswer(textMode.choiceId, customText.trim())}
+                disabled={submitting || !customText.trim()}
+              >
+                {submitting ? t('messages.interview.sending') : t('messages.interview.sendAs', { label: textMode.label })}
+              </button>
+            </div>
+          </div>
+        ) : options.length > 0 ? (
           <div className="interview-actions">
             {options.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
                 className={`btn btn-sm ${opt.id === request.recommended_id ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => onAnswer(opt.id)}
+                onClick={() => {
+                  if (opt.requires_text) {
+                    setTextMode({ choiceId: opt.id, label: opt.label, hint: opt.text_hint })
+                    setCustomText('')
+                    return
+                  }
+                  onAnswer(opt.id)
+                }}
                 disabled={submitting}
                 title={opt.description}
               >
                 {opt.label}
+                {opt.requires_text ? <span className="interview-text-hint"> · {t('messages.interview.typeHint')}</span> : null}
               </button>
             ))}
           </div>

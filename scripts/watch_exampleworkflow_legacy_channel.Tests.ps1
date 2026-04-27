@@ -17,7 +17,7 @@ Describe 'watch_ExampleWorkflow_legacy_channel' {
       "id": "msg-1",
       "from": "reviewer",
       "channel": "ExampleWorkflow-legacy",
-      "content": "Bloqueio objetivo: o office precisa apontar para D:\\Repos\\LegacySystemOld para revisar RecursoHumano.Cadastro.aspx.cs.",
+      "content": "Bloqueio objetivo: o office precisa apontar para <REPOS_ROOT>\\LegacySystemOld para revisar RecursoHumano.Cadastro.aspx.cs.",
       "timestamp": "2026-04-19T20:11:39Z"
     }
   ]
@@ -35,7 +35,7 @@ Describe 'watch_ExampleWorkflow_legacy_channel' {
       "status": "blocked",
       "owner": "builder",
       "execution_mode": "external_workspace",
-      "workspace_path": "D:\\Repos\\.wuphf"
+      "workspace_path": "<REPOS_ROOT>\\.wuphf"
     }
   ]
 }
@@ -80,7 +80,7 @@ Describe 'watch_ExampleWorkflow_legacy_channel' {
       "id": "msg-1",
       "from": "reviewer",
       "channel": "ExampleWorkflow-legacy",
-      "content": "Bloqueio objetivo: o office precisa apontar para D:\\Repos\\LegacySystemOld para revisar RecursoHumano.Cadastro.aspx.cs.",
+      "content": "Bloqueio objetivo: o office precisa apontar para <REPOS_ROOT>\\LegacySystemOld para revisar RecursoHumano.Cadastro.aspx.cs.",
       "timestamp": "2026-04-19T20:11:39Z"
     }
   ]
@@ -98,7 +98,7 @@ Describe 'watch_ExampleWorkflow_legacy_channel' {
       "status": "blocked",
       "owner": "builder",
       "execution_mode": "external_workspace",
-      "workspace_path": "D:\\Repos\\.wuphf"
+      "workspace_path": "<REPOS_ROOT>\\.wuphf"
     }
   ]
 }
@@ -184,14 +184,14 @@ Describe 'watch_ExampleWorkflow_legacy_channel' {
       "id": "msg-20",
       "from": "reviewer",
       "channel": "ExampleWorkflow-legacy",
-      "content": "Contexto antigo: usar D:\\Repos\\LegacySystemOld.",
+      "content": "Contexto antigo: usar <REPOS_ROOT>\\LegacySystemOld.",
       "timestamp": "2026-04-19T20:10:15Z"
     },
     {
       "id": "msg-21",
       "from": "workflow-architect",
       "channel": "ExampleWorkflow-legacy",
-      "content": "Correção mais recente: antes estava D:\\Repos\\LegacySystemOld, mas o root desta sessão é D:\\Repositórios\\LegacySystemOld\\WSExampleAgreement.",
+      "content": "Correção mais recente: antes estava <REPOS_ROOT>\\LegacySystemOld, mas o root desta sessão é <REPOS_ROOT>\\LegacySystemOld\\WSExampleAgreement.",
       "timestamp": "2026-04-19T20:10:30Z"
     }
   ]
@@ -209,7 +209,7 @@ Describe 'watch_ExampleWorkflow_legacy_channel' {
       "status": "in_progress",
       "owner": "builder",
       "execution_mode": "external_workspace",
-      "workspace_path": "D:\\Repos\\LegacySystemOld"
+      "workspace_path": "<REPOS_ROOT>\\LegacySystemOld"
     }
   ]
 }
@@ -262,7 +262,7 @@ Describe 'watch_ExampleWorkflow_legacy_channel' {
       "status": "in_progress",
       "owner": "builder",
       "execution_mode": "external_workspace",
-      "workspace_path": "D:\\Repos\\LegacySystemOld"
+      "workspace_path": "<REPOS_ROOT>\\LegacySystemOld"
     }
   ]
 }

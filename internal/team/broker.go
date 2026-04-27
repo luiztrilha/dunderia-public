@@ -347,22 +347,24 @@ type messageReaction struct {
 }
 
 type channelMessage struct {
-	ID          string            `json:"id"`
-	ClientID    string            `json:"client_id,omitempty"`
-	From        string            `json:"from"`
-	Channel     string            `json:"channel,omitempty"`
-	CanDelete   bool              `json:"can_delete,omitempty"`
-	Kind        string            `json:"kind,omitempty"`
-	Source      string            `json:"source,omitempty"`
-	SourceLabel string            `json:"source_label,omitempty"`
-	EventID     string            `json:"event_id,omitempty"`
-	Title       string            `json:"title,omitempty"`
-	Content     string            `json:"content"`
-	Tagged      []string          `json:"tagged"`
-	ReplyTo     string            `json:"reply_to,omitempty"`
-	Timestamp   string            `json:"timestamp"`
-	Usage       *messageUsage     `json:"usage,omitempty"`
-	Reactions   []messageReaction `json:"reactions,omitempty"`
+	ID              string            `json:"id"`
+	ClientID        string            `json:"client_id,omitempty"`
+	From            string            `json:"from"`
+	Channel         string            `json:"channel,omitempty"`
+	CanDelete       bool              `json:"can_delete,omitempty"`
+	CanDeleteThread bool              `json:"can_delete_thread,omitempty"`
+	Kind            string            `json:"kind,omitempty"`
+	Source          string            `json:"source,omitempty"`
+	SourceLabel     string            `json:"source_label,omitempty"`
+	EventID         string            `json:"event_id,omitempty"`
+	Title           string            `json:"title,omitempty"`
+	Content         string            `json:"content"`
+	Tagged          []string          `json:"tagged"`
+	ReplyTo         string            `json:"reply_to,omitempty"`
+	ThreadCount     int               `json:"thread_count,omitempty"`
+	Timestamp       string            `json:"timestamp"`
+	Usage           *messageUsage     `json:"usage,omitempty"`
+	Reactions       []messageReaction `json:"reactions,omitempty"`
 }
 
 type messageUsage struct {
@@ -436,6 +438,9 @@ type teamTask struct {
 	PipelineID             string                       `json:"pipeline_id,omitempty"`
 	PipelineStage          string                       `json:"pipeline_stage,omitempty"`
 	ExecutionMode          string                       `json:"execution_mode,omitempty"`
+	RuntimeProvider        string                       `json:"runtime_provider,omitempty"`
+	RuntimeModel           string                       `json:"runtime_model,omitempty"`
+	ReasoningEffort        string                       `json:"reasoning_effort,omitempty"`
 	ReviewState            string                       `json:"review_state,omitempty"`
 	SourceSignalID         string                       `json:"source_signal_id,omitempty"`
 	SourceDecisionID       string                       `json:"source_decision_id,omitempty"`
@@ -1183,7 +1188,7 @@ type Broker struct {
 	officeSubscribers          map[int]chan officeChangeEvent
 	nextSubscriberID           int
 	agentStreams               map[string]*agentStreamBuffer
-	mu                         sync.Mutex
+	mu                         sync.RWMutex
 	server                     *http.Server
 	token                      string   // shared secret for authenticating requests
 	addr                       string   // actual listen address (useful when port=0)
@@ -2038,6 +2043,24 @@ func (b *Broker) ensureMessageIndexesLocked() {
 	if b.messageIndexFirstID != strings.TrimSpace(b.messages[0].ID) || b.messageIndexLastID != strings.TrimSpace(b.messages[len(b.messages)-1].ID) {
 		b.rebuildMessageIndexesLocked()
 	}
+}
+
+func (b *Broker) messageIndexesCurrentLocked() bool {
+	if len(b.messages) == 0 {
+		return b.messageIndexSize == 0 &&
+			len(b.messageIndexesByChannel) == 0 &&
+			len(b.messageSearchIndexByToken) == 0 &&
+			len(b.messageSearchIndexByAuthor) == 0 &&
+			len(b.messageIndexesByThread) == 0 &&
+			len(b.messageThreadRootByID) == 0
+	}
+	if b.messageIndexSize != len(b.messages) {
+		return false
+	}
+	if b.messageIndexesByThread == nil || b.messageSearchIndexByToken == nil || b.messageSearchIndexByAuthor == nil || b.messageThreadRootByID == nil {
+		return false
+	}
+	return b.messageIndexFirstID == strings.TrimSpace(b.messages[0].ID) && b.messageIndexLastID == strings.TrimSpace(b.messages[len(b.messages)-1].ID)
 }
 
 func messageSearchTokensForIndex(text string) []string {
@@ -3211,6 +3234,7 @@ func (b *Broker) ServeWebUI(port int) {
 	// Same-origin proxy to the broker for app API routes and onboarding wizard routes.
 	mux.Handle("/api/", b.webUIProxyHandler(brokerURL, "/api"))
 	mux.Handle("/onboarding/", b.webUIProxyHandler(brokerURL, ""))
+	mux.HandleFunc("/login", b.handleWebLogin)
 	// Token endpoint — no auth needed, same origin
 	mux.HandleFunc("/api-token", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -3859,6 +3883,114 @@ func brokerStateHistoryDir(path string) string {
 	return path + ".history"
 }
 
+type brokerStateHistoryRetention struct {
+	RetentionDays int
+	MaxSnapshots  int
+	MaxBytes      int64
+}
+
+type brokerStateHistoryEntry struct {
+	name    string
+	path    string
+	modTime time.Time
+	size    int64
+}
+
+func resolvedBrokerStateHistoryRetention() brokerStateHistoryRetention {
+	return brokerStateHistoryRetention{
+		RetentionDays: config.ResolveBrokerHistoryRetentionDays(),
+		MaxSnapshots:  config.ResolveBrokerHistoryMaxSnapshots(),
+		MaxBytes:      int64(config.ResolveBrokerHistoryMaxMB()) * 1024 * 1024,
+	}
+}
+
+func purgeBrokerStateHistoryDir(historyDir string, now time.Time, retention brokerStateHistoryRetention) error {
+	if retention.RetentionDays <= 0 && retention.MaxSnapshots <= 0 && retention.MaxBytes <= 0 {
+		return nil
+	}
+	dirEntries, err := os.ReadDir(historyDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	entries := make([]brokerStateHistoryEntry, 0, len(dirEntries))
+	for _, entry := range dirEntries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return err
+		}
+		entries = append(entries, brokerStateHistoryEntry{
+			name:    entry.Name(),
+			path:    filepath.Join(historyDir, entry.Name()),
+			modTime: info.ModTime(),
+			size:    info.Size(),
+		})
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].modTime.Equal(entries[j].modTime) {
+			return entries[i].name < entries[j].name
+		}
+		return entries[i].modTime.Before(entries[j].modTime)
+	})
+	remove := make([]bool, len(entries))
+	if retention.RetentionDays > 0 {
+		cutoff := now.Add(-time.Duration(retention.RetentionDays) * 24 * time.Hour)
+		for i, entry := range entries {
+			if entry.modTime.Before(cutoff) {
+				remove[i] = true
+			}
+		}
+	}
+	if retention.MaxSnapshots > 0 && len(entries) > retention.MaxSnapshots {
+		for i := 0; i < len(entries)-retention.MaxSnapshots; i++ {
+			remove[i] = true
+		}
+	}
+	if retention.MaxBytes > 0 {
+		var total int64
+		kept := 0
+		for i, entry := range entries {
+			if !remove[i] {
+				total += entry.size
+				kept++
+			}
+		}
+		for i, entry := range entries {
+			if total <= retention.MaxBytes || kept <= 1 || i == len(entries)-1 {
+				break
+			}
+			if remove[i] {
+				continue
+			}
+			remove[i] = true
+			total -= entry.size
+			kept--
+		}
+	}
+	remove[len(entries)-1] = false
+	var firstErr error
+	for i, entry := range entries {
+		if !remove[i] {
+			continue
+		}
+		if err := os.Remove(entry.path); err != nil && !errors.Is(err, os.ErrNotExist) && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
 func resolvedCloudBackupSettings() backup.Settings {
 	return backup.Settings{
 		Provider: config.ResolveCloudBackupProvider(),
@@ -4371,13 +4503,17 @@ func (b *Broker) saveLocked() error {
 	if err := os.MkdirAll(historyDir, 0o700); err != nil {
 		return err
 	}
-	historyName := fmt.Sprintf("%s-%06d.json", time.Now().UTC().Format("20060102T150405.000000000Z"), b.counter)
+	now := time.Now().UTC()
+	historyName := fmt.Sprintf("%s-%06d.json", now.Format("20060102T150405.000000000Z"), b.counter)
 	historyTmp := filepath.Join(historyDir, historyName+".tmp")
 	if err := os.WriteFile(historyTmp, data, 0o600); err != nil {
 		return err
 	}
 	if err := atomicReplaceBrokerStateFile(historyTmp, filepath.Join(historyDir, historyName)); err != nil {
 		return err
+	}
+	if err := purgeBrokerStateHistoryDir(historyDir, now, resolvedBrokerStateHistoryRetention()); err != nil {
+		log.Printf("broker: failed to purge local state history: %v", err)
 	}
 	settings := resolvedCloudBackupSettings()
 	if settings.Enabled() {
@@ -6477,13 +6613,13 @@ func (b *Broker) EscalateRequestIfDue(requestID string, now time.Time) (humanInt
 func (b *Broker) handleHealth(w http.ResponseWriter, r *http.Request) {
 	startedAt := time.Now()
 	lockStartedAt := time.Now()
-	b.mu.Lock()
+	b.mu.RLock()
 	lockWait := time.Since(lockStartedAt)
 	mode := b.sessionMode
 	agent := b.oneOnOneAgent
 	focus := b.focusMode
 	provider := b.runtimeProvider
-	b.mu.Unlock()
+	b.mu.RUnlock()
 	if strings.TrimSpace(provider) == "" {
 		provider = config.ResolveLLMProvider("")
 	}
@@ -8214,6 +8350,10 @@ func (b *Broker) handleConfig(w http.ResponseWriter, r *http.Request) {
 			"task_follow_up_minutes": config.ResolveTaskFollowUpInterval(),
 			"task_reminder_minutes":  config.ResolveTaskReminderInterval(),
 			"task_recheck_minutes":   config.ResolveTaskRecheckInterval(),
+			// Local broker history retention
+			"broker_history_retention_days": config.ResolveBrokerHistoryRetentionDays(),
+			"broker_history_max_snapshots":  config.ResolveBrokerHistoryMaxSnapshots(),
+			"broker_history_max_mb":         config.ResolveBrokerHistoryMaxMB(),
 			// Integrations — secret fields as booleans
 			"api_key_set":        config.ResolveAPIKey("") != "",
 			"openai_key_set":     config.ResolveOpenAIAPIKey() != "",
@@ -8259,6 +8399,9 @@ func (b *Broker) handleConfig(w http.ResponseWriter, r *http.Request) {
 			TaskFollowUp        *int    `json:"task_follow_up_minutes,omitempty"`
 			TaskReminder        *int    `json:"task_reminder_minutes,omitempty"`
 			TaskRecheck         *int    `json:"task_recheck_minutes,omitempty"`
+			BrokerHistoryDays   *int    `json:"broker_history_retention_days,omitempty"`
+			BrokerHistoryCount  *int    `json:"broker_history_max_snapshots,omitempty"`
+			BrokerHistoryMaxMB  *int    `json:"broker_history_max_mb,omitempty"`
 			// Secret fields
 			APIKey          *string `json:"api_key,omitempty"`
 			OpenAIAPIKey    *string `json:"openai_api_key,omitempty"`
@@ -8443,6 +8586,30 @@ func (b *Broker) handleConfig(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			cfg.TaskRecheckMinutes = *body.TaskRecheck
+			changed = true
+		}
+		if body.BrokerHistoryDays != nil {
+			if *body.BrokerHistoryDays < 0 {
+				http.Error(w, "broker_history_retention_days must be >= 0", http.StatusBadRequest)
+				return
+			}
+			cfg.BrokerHistoryRetentionDays = *body.BrokerHistoryDays
+			changed = true
+		}
+		if body.BrokerHistoryCount != nil {
+			if *body.BrokerHistoryCount < 0 {
+				http.Error(w, "broker_history_max_snapshots must be >= 0", http.StatusBadRequest)
+				return
+			}
+			cfg.BrokerHistoryMaxSnapshots = *body.BrokerHistoryCount
+			changed = true
+		}
+		if body.BrokerHistoryMaxMB != nil {
+			if *body.BrokerHistoryMaxMB < 0 {
+				http.Error(w, "broker_history_max_mb must be >= 0", http.StatusBadRequest)
+				return
+			}
+			cfg.BrokerHistoryMaxMB = *body.BrokerHistoryMaxMB
 			changed = true
 		}
 		// Secret fields
@@ -9738,8 +9905,9 @@ func (b *Broker) respondPostMessage(w http.ResponseWriter, msg channelMessage, t
 
 func (b *Broker) handleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		ID      string `json:"id"`
-		Channel string `json:"channel"`
+		ID           string `json:"id"`
+		Channel      string `json:"channel"`
+		DeleteThread bool   `json:"delete_thread"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -9766,6 +9934,25 @@ func (b *Broker) handleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 		break
 	}
 	if index < 0 {
+		if deletedSyntheticChannel := b.deleteSyntheticChannelMessageLocked(requestedChannel, messageID); deletedSyntheticChannel != "" {
+			b.appendActionLocked("message_deleted", "office", deletedSyntheticChannel, "you", "Deleted message", messageID)
+			total := len(b.messages)
+			if err := b.saveLocked(); err != nil {
+				b.mu.Unlock()
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			b.mu.Unlock()
+
+			b.respondPersistedMutation(w, map[string]any{
+				"ok":        true,
+				"id":        messageID,
+				"channel":   deletedSyntheticChannel,
+				"thread_id": messageID,
+				"total":     total,
+			})
+			return
+		}
 		b.mu.Unlock()
 		http.Error(w, "message not found", http.StatusNotFound)
 		return
@@ -9780,16 +9967,59 @@ func (b *Broker) handleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "message not found", http.StatusNotFound)
 		return
 	}
+	threadID := firstNonEmpty(strings.TrimSpace(b.messageThreadRootByID[msg.ID]), b.threadRootFromMessageIDLocked(msg.ID), strings.TrimSpace(msg.ID))
+
+	if body.DeleteThread {
+		deletedIDs, ok := b.messageThreadDeletableIDsLocked(channel, threadID)
+		if !ok || len(deletedIDs) == 0 {
+			b.mu.Unlock()
+			http.Error(w, "thread messages linked to active execution cannot be deleted", http.StatusConflict)
+			return
+		}
+		deletedSet := make(map[string]struct{}, len(deletedIDs))
+		for _, id := range deletedIDs {
+			deletedSet[id] = struct{}{}
+		}
+		b.pruneClosedExecutionNodesReferencingMessagesLocked(deletedSet)
+		nextMessages := make([]channelMessage, 0, len(b.messages)-len(deletedSet))
+		for _, existing := range b.messages {
+			if _, remove := deletedSet[strings.TrimSpace(existing.ID)]; remove {
+				continue
+			}
+			nextMessages = append(nextMessages, existing)
+		}
+		b.replaceMessagesLocked(nextMessages)
+		b.appendActionLocked("message_thread_deleted", "office", channel, "you", "Deleted thread", threadID)
+		total := len(b.messages)
+		if err := b.saveLocked(); err != nil {
+			b.mu.Unlock()
+			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+			return
+		}
+		b.mu.Unlock()
+
+		b.respondPersistedMutation(w, map[string]any{
+			"ok":            true,
+			"id":            messageID,
+			"channel":       channel,
+			"thread_id":     threadID,
+			"deleted_ids":   deletedIDs,
+			"deleted_count": len(deletedIDs),
+			"total":         total,
+		})
+		return
+	}
+
 	if !b.messageCanBeDeletedLocked(msg) {
 		b.mu.Unlock()
 		http.Error(w, "only leaf messages outside active execution can be deleted", http.StatusConflict)
 		return
 	}
-	threadID := firstNonEmpty(strings.TrimSpace(b.messageThreadRootByID[msg.ID]), b.threadRootFromMessageIDLocked(msg.ID), strings.TrimSpace(msg.ID))
 
 	nextMessages := make([]channelMessage, 0, len(b.messages)-1)
 	nextMessages = append(nextMessages, b.messages[:index]...)
 	nextMessages = append(nextMessages, b.messages[index+1:]...)
+	b.pruneClosedExecutionNodesReferencingMessagesLocked(map[string]struct{}{messageID: {}})
 	b.replaceMessagesLocked(nextMessages)
 	b.appendActionLocked("message_deleted", "office", channel, "you", "Deleted message", messageID)
 	total := len(b.messages)
@@ -9823,6 +10053,163 @@ func (b *Broker) messageCanBeDeletedLocked(msg channelMessage) bool {
 	return true
 }
 
+func (b *Broker) deleteSyntheticChannelMessageLocked(channel, messageID string) string {
+	messageID = strings.TrimSpace(messageID)
+	if messageID == "" || b.sharedMemory == nil {
+		return ""
+	}
+	candidateChannels := []string{}
+	if normalized := normalizeChannelSlug(channel); normalized != "" {
+		candidateChannels = append(candidateChannels, normalized)
+	} else {
+		for namespace := range b.sharedMemory {
+			if namespaceChannel, ok := channelFromMemoryNamespace(namespace); ok {
+				candidateChannels = append(candidateChannels, namespaceChannel)
+			}
+		}
+	}
+	for _, candidateChannel := range uniqueSlugs(candidateChannels) {
+		namespace := channelMemoryNamespace(candidateChannel)
+		entries := b.sharedMemory[namespace]
+		if len(entries) == 0 {
+			continue
+		}
+		key := "msg:" + messageID
+		if _, ok := entries[key]; !ok {
+			continue
+		}
+		delete(entries, key)
+		if len(entries) == 0 {
+			delete(b.sharedMemory, namespace)
+		}
+		return candidateChannel
+	}
+	return ""
+}
+
+func (b *Broker) messageThreadDeletableIDsLocked(channel, threadID string) ([]string, bool) {
+	channel = normalizeChannelSlug(channel)
+	threadID = strings.TrimSpace(threadID)
+	if channel == "" || threadID == "" {
+		return nil, false
+	}
+	indexesByRoot := b.messageIndexesByThread[channel]
+	if indexesByRoot == nil {
+		return nil, false
+	}
+	indexes := indexesByRoot[threadID]
+	if len(indexes) == 0 {
+		return nil, false
+	}
+	deletedIDs := make([]string, 0, len(indexes))
+	for _, idx := range indexes {
+		if idx < 0 || idx >= len(b.messages) {
+			continue
+		}
+		id := strings.TrimSpace(b.messages[idx].ID)
+		if id == "" {
+			continue
+		}
+		if b.messageReferencedByExecutionNodeLocked(id) {
+			return nil, false
+		}
+		deletedIDs = append(deletedIDs, id)
+	}
+	return deletedIDs, len(deletedIDs) > 0
+}
+
+func (b *Broker) messageThreadCanBeDeletedLocked(msg channelMessage) bool {
+	messageID := strings.TrimSpace(msg.ID)
+	if messageID == "" {
+		return false
+	}
+	channel := normalizeChannelSlug(msg.Channel)
+	if channel == "" {
+		channel = "general"
+	}
+	threadID := firstNonEmpty(strings.TrimSpace(b.messageThreadRootByID[messageID]), b.threadRootFromMessageIDLocked(messageID), messageID)
+	representativeID := threadID
+	if !b.messageThreadContainsIDLocked(channel, threadID, threadID) {
+		representativeID = b.messageThreadFirstMessageIDLocked(channel, threadID)
+	}
+	if representativeID != messageID {
+		return false
+	}
+	deletedIDs, ok := b.messageThreadDeletableIDsLocked(channel, threadID)
+	return ok && len(deletedIDs) > 1
+}
+
+func (b *Broker) messageThreadReplyCountLocked(msg channelMessage) int {
+	messageID := strings.TrimSpace(msg.ID)
+	if messageID == "" {
+		return 0
+	}
+	channel := normalizeChannelSlug(msg.Channel)
+	if channel == "" {
+		channel = "general"
+	}
+	rootID := firstNonEmpty(strings.TrimSpace(b.messageThreadRootByID[messageID]), b.threadRootFromMessageIDLocked(messageID), messageID)
+	if rootID == "" {
+		return 0
+	}
+	representativeID := rootID
+	if !b.messageThreadContainsIDLocked(channel, rootID, rootID) {
+		representativeID = b.messageThreadFirstMessageIDLocked(channel, rootID)
+	}
+	if representativeID != messageID {
+		return 0
+	}
+	indexesByRoot := b.messageIndexesByThread[channel]
+	if indexesByRoot == nil {
+		return 0
+	}
+	count := len(indexesByRoot[rootID]) - 1
+	if count < 0 {
+		return 0
+	}
+	return count
+}
+
+func (b *Broker) messageThreadContainsIDLocked(channel, threadID, messageID string) bool {
+	channel = normalizeChannelSlug(channel)
+	threadID = strings.TrimSpace(threadID)
+	messageID = strings.TrimSpace(messageID)
+	if channel == "" || threadID == "" || messageID == "" {
+		return false
+	}
+	indexesByRoot := b.messageIndexesByThread[channel]
+	if indexesByRoot == nil {
+		return false
+	}
+	for _, idx := range indexesByRoot[threadID] {
+		if idx >= 0 && idx < len(b.messages) && strings.TrimSpace(b.messages[idx].ID) == messageID {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *Broker) messageThreadFirstMessageIDLocked(channel, threadID string) string {
+	channel = normalizeChannelSlug(channel)
+	threadID = strings.TrimSpace(threadID)
+	if channel == "" || threadID == "" {
+		return ""
+	}
+	indexesByRoot := b.messageIndexesByThread[channel]
+	if indexesByRoot == nil {
+		return ""
+	}
+	for _, idx := range indexesByRoot[threadID] {
+		if idx < 0 || idx >= len(b.messages) {
+			continue
+		}
+		if id := strings.TrimSpace(b.messages[idx].ID); id != "" {
+			return id
+		}
+	}
+	return ""
+}
+
 func (b *Broker) messageHasRepliesLocked(messageID string) bool {
 	messageID = strings.TrimSpace(messageID)
 	if messageID == "" {
@@ -9842,9 +10229,34 @@ func (b *Broker) messageReferencedByExecutionNodeLocked(messageID string) bool {
 		return false
 	}
 	for _, node := range b.executionNodes {
+		if !executionNodeIsOpen(node) {
+			continue
+		}
 		if strings.TrimSpace(node.RootMessageID) == messageID ||
 			strings.TrimSpace(node.TriggerMessageID) == messageID ||
 			strings.TrimSpace(node.ResolvedByMessageID) == messageID {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *Broker) pruneClosedExecutionNodesReferencingMessagesLocked(messageIDs map[string]struct{}) {
+	if len(messageIDs) == 0 || len(b.executionNodes) == 0 {
+		return
+	}
+	filtered := b.executionNodes[:0]
+	for _, node := range b.executionNodes {
+		if !executionNodeReferencesAnyMessage(node, messageIDs) || executionNodeIsOpen(node) {
+			filtered = append(filtered, node)
+		}
+	}
+	b.executionNodes = filtered
+}
+
+func executionNodeReferencesAnyMessage(node executionNode, messageIDs map[string]struct{}) bool {
+	for _, id := range []string{node.RootMessageID, node.TriggerMessageID, node.ResolvedByMessageID} {
+		if _, ok := messageIDs[strings.TrimSpace(id)]; ok {
 			return true
 		}
 	}
@@ -10314,18 +10726,34 @@ func (b *Broker) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lockStartedAt := time.Now()
-	b.mu.Lock()
+	b.mu.RLock()
 	lockWait := time.Since(lockStartedAt)
-	// Auto-create DM conversation on read (user opens DM before sending)
-	if IsDMSlug(channel) && b.findChannelLocked(channel) == nil {
-		b.ensureDMConversationLocked(channel)
+	lockedForWrite := false
+	needsWriteLock := (IsDMSlug(channel) && b.findChannelLocked(channel) == nil) || !b.messageIndexesCurrentLocked()
+	if needsWriteLock {
+		b.mu.RUnlock()
+		lockStartedAt = time.Now()
+		b.mu.Lock()
+		lockWait = time.Since(lockStartedAt)
+		lockedForWrite = true
+		// Auto-create DM conversation on read (user opens DM before sending)
+		if IsDMSlug(channel) && b.findChannelLocked(channel) == nil {
+			b.ensureDMConversationLocked(channel)
+		}
+		b.ensureMessageIndexesLocked()
+	}
+	unlockMessages := func() {
+		if lockedForWrite {
+			b.mu.Unlock()
+			return
+		}
+		b.mu.RUnlock()
 	}
 	if !b.canAccessChannelLocked(accessSlug, channel) {
-		b.mu.Unlock()
+		unlockMessages()
 		http.Error(w, "channel access denied", http.StatusForbidden)
 		return
 	}
-	b.ensureMessageIndexesLocked()
 	needsViewerScope := scope != "" && viewerSlug != ""
 	needsThreadScan := threadID != ""
 	window := newMessageWindow(limit, sinceID, beforeID)
@@ -10370,7 +10798,7 @@ func (b *Broker) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		messages, hasMore = b.collectRecentChannelMessagesLocked(channel, sinceID, beforeID, limit)
+		messages, hasMore = b.collectRecentIndexedMessagesLocked(b.messageIndexesByChannel[channel], sinceID, beforeID, limit)
 	}
 
 	if messages == nil {
@@ -10391,6 +10819,8 @@ func (b *Broker) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	threadRootID = firstNonEmpty(threadRootID, b.threadRootFromMessageIDLocked(threadID), threadID)
 	for i := range result {
 		result[i].CanDelete = b.messageCanBeDeletedLocked(result[i])
+		result[i].CanDeleteThread = b.messageThreadCanBeDeletedLocked(result[i])
+		result[i].ThreadCount = b.messageThreadReplyCountLocked(result[i])
 	}
 	for _, node := range b.executionNodes {
 		if normalizeChannelSlug(node.Channel) != channel {
@@ -10403,7 +10833,7 @@ func (b *Broker) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 		copyNode.ExpectedFrom = append([]string(nil), node.ExpectedFrom...)
 		executionNodes = append(executionNodes, copyNode)
 	}
-	b.mu.Unlock()
+	unlockMessages()
 
 	taggedCount := 0
 	taggedSlug := mySlug
@@ -10643,18 +11073,32 @@ func (b *Broker) handleGetMessageThreads(w http.ResponseWriter, r *http.Request)
 			if len(indexes) <= 1 {
 				continue
 			}
-			rootFound := false
-			rootMsg := channelMessage{}
-			replyCount := 0
-			lastReplyAt := ""
+			visibleMessages := make([]channelMessage, 0, len(indexes))
 			for _, idx := range indexes {
+				if idx < 0 || idx >= len(b.messages) {
+					continue
+				}
 				msg := b.messages[idx]
 				if !b.messageAllowedForChannelReadLocked(msg) {
 					continue
 				}
+				visibleMessages = append(visibleMessages, msg)
+			}
+			if len(visibleMessages) <= 1 {
+				continue
+			}
+			rootMsg := visibleMessages[0]
+			for _, msg := range visibleMessages {
 				if strings.TrimSpace(msg.ID) == rootID {
 					rootMsg = msg
-					rootFound = true
+					break
+				}
+			}
+			replyCount := 0
+			lastReplyAt := ""
+			rootMsgID := strings.TrimSpace(rootMsg.ID)
+			for _, msg := range visibleMessages {
+				if strings.TrimSpace(msg.ID) == rootMsgID {
 					continue
 				}
 				replyCount++
@@ -10662,10 +11106,11 @@ func (b *Broker) handleGetMessageThreads(w http.ResponseWriter, r *http.Request)
 					lastReplyAt = ts
 				}
 			}
-			if !rootFound || replyCount == 0 {
+			if replyCount == 0 {
 				continue
 			}
 			rootMsg.CanDelete = b.messageCanBeDeletedLocked(rootMsg)
+			rootMsg.CanDeleteThread = b.messageThreadCanBeDeletedLocked(rootMsg)
 			summaries = append(summaries, messageThreadSummary{
 				ThreadID:    rootID,
 				Channel:     channel,
@@ -11298,6 +11743,7 @@ func (b *Broker) handleAgentLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (b *Broker) handleGetTasks(w http.ResponseWriter, r *http.Request) {
+	startedAt := time.Now()
 	statusFilter := strings.TrimSpace(r.URL.Query().Get("status"))
 	mySlug := strings.TrimSpace(r.URL.Query().Get("my_slug"))
 	viewerSlug := strings.TrimSpace(r.URL.Query().Get("viewer_slug"))
@@ -11307,19 +11753,33 @@ func (b *Broker) handleGetTasks(w http.ResponseWriter, r *http.Request) {
 		channel = "general"
 	}
 	includeDone := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_done")), "true")
+	lite := parseSearchBool(r.URL.Query().Get("lite"))
+	if strings.TrimSpace(r.URL.Query().Get("lite")) == "" && !includeDone && statusFilter == "" {
+		lite = true
+	}
 
-	b.mu.Lock()
+	lockStartedAt := time.Now()
+	b.mu.RLock()
+	lockWait := time.Since(lockStartedAt)
 	if !allChannels && !b.canAccessChannelLocked(viewerSlug, channel) {
-		b.mu.Unlock()
+		b.mu.RUnlock()
 		http.Error(w, "channel access denied", http.StatusForbidden)
 		return
 	}
-	result := b.buildOperatorTasksLocked(channel, allChannels, includeDone, statusFilter, mySlug)
-	b.mu.Unlock()
+	var result []teamTask
+	if lite {
+		result = b.buildOperatorTasksLiteLocked(channel, allChannels, includeDone, statusFilter, mySlug)
+	} else {
+		result = b.buildOperatorTasksLocked(channel, allChannels, includeDone, statusFilter, mySlug)
+	}
+	b.mu.RUnlock()
 	result = coalesceTaskView(result)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"channel": channel, "tasks": result})
+	if brokerDebugHTTPTimingEnabled() {
+		log.Printf("broker http timing path=%s channel=%s all_channels=%t lite=%t include_done=%t lock_wait=%s total=%s tasks=%d", r.URL.Path, channel, allChannels, lite, includeDone, lockWait, time.Since(startedAt), len(result))
+	}
 }
 
 func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
@@ -11336,6 +11796,9 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		TaskType         string   `json:"task_type"`
 		PipelineID       string   `json:"pipeline_id"`
 		ExecutionMode    string   `json:"execution_mode"`
+		RuntimeProvider  string   `json:"runtime_provider"`
+		RuntimeModel     string   `json:"runtime_model"`
+		ReasoningEffort  string   `json:"reasoning_effort"`
 		ReviewState      string   `json:"review_state"`
 		SourceSignalID   string   `json:"source_signal_id"`
 		SourceDecisionID string   `json:"source_decision_id"`
@@ -11374,14 +11837,17 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		validated, err := b.validateStrictTaskPlanLocked(channel, strings.TrimSpace(body.CreatedBy), []plannedTaskSpec{{
-			ExecutionKey:  body.ExecutionKey,
-			Title:         body.Title,
-			Assignee:      body.Owner,
-			Details:       body.Details,
-			TaskType:      body.TaskType,
-			ExecutionMode: body.ExecutionMode,
-			WorkspacePath: body.WorkspacePath,
-			DependsOn:     append([]string(nil), body.DependsOn...),
+			ExecutionKey:    body.ExecutionKey,
+			Title:           body.Title,
+			Assignee:        body.Owner,
+			Details:         body.Details,
+			TaskType:        body.TaskType,
+			ExecutionMode:   body.ExecutionMode,
+			RuntimeProvider: body.RuntimeProvider,
+			RuntimeModel:    body.RuntimeModel,
+			ReasoningEffort: body.ReasoningEffort,
+			WorkspacePath:   body.WorkspacePath,
+			DependsOn:       append([]string(nil), body.DependsOn...),
 		}})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusConflict)
@@ -11424,6 +11890,15 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			}
 			if executionMode := item.ExecutionMode; executionMode != "" {
 				existing.ExecutionMode = executionMode
+			}
+			if runtimeProvider := item.RuntimeProvider; runtimeProvider != "" {
+				existing.RuntimeProvider = runtimeProvider
+			}
+			if runtimeModel := item.RuntimeModel; runtimeModel != "" {
+				existing.RuntimeModel = runtimeModel
+			}
+			if reasoningEffort := item.ReasoningEffort; reasoningEffort != "" {
+				existing.ReasoningEffort = reasoningEffort
 			}
 			if reviewState := strings.TrimSpace(body.ReviewState); reviewState != "" {
 				existing.ReviewState = reviewState
@@ -11489,6 +11964,9 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			TaskType:         item.TaskType,
 			PipelineID:       strings.TrimSpace(body.PipelineID),
 			ExecutionMode:    item.ExecutionMode,
+			RuntimeProvider:  item.RuntimeProvider,
+			RuntimeModel:     item.RuntimeModel,
+			ReasoningEffort:  item.ReasoningEffort,
 			ReviewState:      firstNonEmpty(strings.TrimSpace(body.ReviewState), item.ReviewState),
 			SourceSignalID:   strings.TrimSpace(body.SourceSignalID),
 			SourceDecisionID: strings.TrimSpace(body.SourceDecisionID),
@@ -11613,6 +12091,21 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		}
 		if executionMode := strings.TrimSpace(body.ExecutionMode); executionMode != "" {
 			task.ExecutionMode = executionMode
+		}
+		if runtimeProvider, err := normalizeTaskRuntimeProvider(body.RuntimeProvider); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		} else if runtimeProvider != "" {
+			task.RuntimeProvider = runtimeProvider
+		}
+		if runtimeModel := strings.TrimSpace(body.RuntimeModel); runtimeModel != "" {
+			task.RuntimeModel = runtimeModel
+		}
+		if reasoningEffort, err := normalizeReasoningEffort(body.ReasoningEffort); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		} else if reasoningEffort != "" || strings.EqualFold(strings.TrimSpace(body.ReasoningEffort), "default") {
+			task.ReasoningEffort = reasoningEffort
 		}
 		if sourceSignalID := strings.TrimSpace(body.SourceSignalID); sourceSignalID != "" {
 			task.SourceSignalID = sourceSignalID
@@ -12016,14 +12509,17 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 		Channel   string `json:"channel"`
 		CreatedBy string `json:"created_by"`
 		Tasks     []struct {
-			ExecutionKey  string   `json:"execution_key"`
-			Title         string   `json:"title"`
-			Assignee      string   `json:"assignee"`
-			Details       string   `json:"details"`
-			TaskType      string   `json:"task_type"`
-			ExecutionMode string   `json:"execution_mode"`
-			WorkspacePath string   `json:"workspace_path"`
-			DependsOn     []string `json:"depends_on"`
+			ExecutionKey    string   `json:"execution_key"`
+			Title           string   `json:"title"`
+			Assignee        string   `json:"assignee"`
+			Details         string   `json:"details"`
+			TaskType        string   `json:"task_type"`
+			ExecutionMode   string   `json:"execution_mode"`
+			RuntimeProvider string   `json:"runtime_provider"`
+			RuntimeModel    string   `json:"runtime_model"`
+			ReasoningEffort string   `json:"reasoning_effort"`
+			WorkspacePath   string   `json:"workspace_path"`
+			DependsOn       []string `json:"depends_on"`
 		} `json:"tasks"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -12050,14 +12546,17 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 	specs := make([]plannedTaskSpec, 0, len(body.Tasks))
 	for _, item := range body.Tasks {
 		specs = append(specs, plannedTaskSpec{
-			ExecutionKey:  item.ExecutionKey,
-			Title:         item.Title,
-			Assignee:      item.Assignee,
-			Details:       item.Details,
-			TaskType:      item.TaskType,
-			ExecutionMode: item.ExecutionMode,
-			WorkspacePath: item.WorkspacePath,
-			DependsOn:     append([]string(nil), item.DependsOn...),
+			ExecutionKey:    item.ExecutionKey,
+			Title:           item.Title,
+			Assignee:        item.Assignee,
+			Details:         item.Details,
+			TaskType:        item.TaskType,
+			ExecutionMode:   item.ExecutionMode,
+			RuntimeProvider: item.RuntimeProvider,
+			RuntimeModel:    item.RuntimeModel,
+			ReasoningEffort: item.ReasoningEffort,
+			WorkspacePath:   item.WorkspacePath,
+			DependsOn:       append([]string(nil), item.DependsOn...),
 		})
 	}
 	validated, err := b.validateStrictTaskPlanLocked(channel, createdBy, specs)
@@ -12123,6 +12622,15 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 			if executionMode := strings.TrimSpace(item.ExecutionMode); executionMode != "" {
 				existing.ExecutionMode = executionMode
 			}
+			if runtimeProvider := strings.TrimSpace(item.RuntimeProvider); runtimeProvider != "" {
+				existing.RuntimeProvider = runtimeProvider
+			}
+			if runtimeModel := strings.TrimSpace(item.RuntimeModel); runtimeModel != "" {
+				existing.RuntimeModel = runtimeModel
+			}
+			if reasoningEffort := strings.TrimSpace(item.ReasoningEffort); reasoningEffort != "" {
+				existing.ReasoningEffort = reasoningEffort
+			}
 			if workspacePath := strings.TrimSpace(item.WorkspacePath); workspacePath != "" {
 				existing.WorkspacePath = workspacePath
 			}
@@ -12155,22 +12663,25 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 		}
 
 		task := teamTask{
-			ID:            finalIDs[item.PlannedID],
-			Channel:       item.Channel,
-			ExecutionKey:  item.ExecutionKey,
-			Title:         item.Title,
-			Details:       item.Details,
-			Owner:         item.Owner,
-			Status:        "open",
-			CreatedBy:     createdBy,
-			TaskType:      item.TaskType,
-			PipelineID:    item.PipelineID,
-			ExecutionMode: item.ExecutionMode,
-			ReviewState:   item.ReviewState,
-			WorkspacePath: item.WorkspacePath,
-			DependsOn:     resolvedDeps,
-			CreatedAt:     now,
-			UpdatedAt:     now,
+			ID:              finalIDs[item.PlannedID],
+			Channel:         item.Channel,
+			ExecutionKey:    item.ExecutionKey,
+			Title:           item.Title,
+			Details:         item.Details,
+			Owner:           item.Owner,
+			Status:          "open",
+			CreatedBy:       createdBy,
+			TaskType:        item.TaskType,
+			PipelineID:      item.PipelineID,
+			ExecutionMode:   item.ExecutionMode,
+			RuntimeProvider: item.RuntimeProvider,
+			RuntimeModel:    item.RuntimeModel,
+			ReasoningEffort: item.ReasoningEffort,
+			ReviewState:     item.ReviewState,
+			WorkspacePath:   item.WorkspacePath,
+			DependsOn:       resolvedDeps,
+			CreatedAt:       now,
+			UpdatedAt:       now,
 		}
 		if task.Owner != "" && len(resolvedDeps) == 0 {
 			task.Status = "in_progress"
@@ -12510,6 +13021,9 @@ type plannedTaskInput struct {
 	TaskType         string
 	PipelineID       string
 	ExecutionMode    string
+	RuntimeProvider  string
+	RuntimeModel     string
+	ReasoningEffort  string
 	ReviewState      string
 	SourceSignalID   string
 	SourceDecisionID string
@@ -12534,14 +13048,17 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 	input.SourceSignalID = strings.TrimSpace(input.SourceSignalID)
 	input.SourceDecisionID = strings.TrimSpace(input.SourceDecisionID)
 	validated, err := b.validateStrictTaskPlanLocked(channel, input.CreatedBy, []plannedTaskSpec{{
-		ExecutionKey:  input.ExecutionKey,
-		Title:         input.Title,
-		Assignee:      input.Owner,
-		Details:       input.Details,
-		TaskType:      input.TaskType,
-		ExecutionMode: input.ExecutionMode,
-		WorkspacePath: input.WorkspacePath,
-		DependsOn:     append([]string(nil), input.DependsOn...),
+		ExecutionKey:    input.ExecutionKey,
+		Title:           input.Title,
+		Assignee:        input.Owner,
+		Details:         input.Details,
+		TaskType:        input.TaskType,
+		ExecutionMode:   input.ExecutionMode,
+		RuntimeProvider: input.RuntimeProvider,
+		RuntimeModel:    input.RuntimeModel,
+		ReasoningEffort: input.ReasoningEffort,
+		WorkspacePath:   input.WorkspacePath,
+		DependsOn:       append([]string(nil), input.DependsOn...),
 	}})
 	if err != nil {
 		return teamTask{}, false, err
@@ -12586,6 +13103,15 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 		}
 		if existing.ExecutionMode == "" && item.ExecutionMode != "" {
 			existing.ExecutionMode = item.ExecutionMode
+		}
+		if existing.RuntimeProvider == "" && item.RuntimeProvider != "" {
+			existing.RuntimeProvider = item.RuntimeProvider
+		}
+		if existing.RuntimeModel == "" && item.RuntimeModel != "" {
+			existing.RuntimeModel = item.RuntimeModel
+		}
+		if existing.ReasoningEffort == "" && item.ReasoningEffort != "" {
+			existing.ReasoningEffort = item.ReasoningEffort
 		}
 		if existing.ReviewState == "" && firstNonEmpty(input.ReviewState, item.ReviewState) != "" {
 			existing.ReviewState = firstNonEmpty(input.ReviewState, item.ReviewState)
@@ -12644,6 +13170,9 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 		TaskType:         item.TaskType,
 		PipelineID:       firstNonEmpty(input.PipelineID, item.PipelineID),
 		ExecutionMode:    item.ExecutionMode,
+		RuntimeProvider:  item.RuntimeProvider,
+		RuntimeModel:     item.RuntimeModel,
+		ReasoningEffort:  item.ReasoningEffort,
 		ReviewState:      firstNonEmpty(input.ReviewState, item.ReviewState),
 		SourceSignalID:   input.SourceSignalID,
 		SourceDecisionID: input.SourceDecisionID,
@@ -13450,8 +13979,9 @@ func (b *Broker) handleGetRequests(w http.ResponseWriter, r *http.Request) {
 	}
 	viewerSlug := strings.TrimSpace(r.URL.Query().Get("viewer_slug"))
 	includeResolved := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_resolved")), "true")
+	allChannels := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("all_channels")), "true")
 	b.mu.Lock()
-	if !b.canAccessChannelLocked(viewerSlug, channel) {
+	if !allChannels && !b.canAccessChannelLocked(viewerSlug, channel) {
 		b.mu.Unlock()
 		http.Error(w, "channel access denied", http.StatusForbidden)
 		return
@@ -13462,7 +13992,11 @@ func (b *Broker) handleGetRequests(w http.ResponseWriter, r *http.Request) {
 		if reqChannel == "" {
 			reqChannel = "general"
 		}
-		if reqChannel != channel {
+		if allChannels {
+			if !b.canAccessChannelLocked(viewerSlug, reqChannel) {
+				continue
+			}
+		} else if reqChannel != channel {
 			continue
 		}
 		if !includeResolved && !requestIsActive(req) {

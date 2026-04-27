@@ -55,7 +55,7 @@ Describe 'watch_legado_channel' {
       "id": "msg-2",
       "from": "repo-auditor",
       "channel": "legado-para-novo",
-      "content": "Mapeei LegacyWeb em D:\\Repos\\LegacySystemOld\\LegacyWeb e equivalentes no frontend em D:\\Repos\\LegacySystemExternal",
+      "content": "Mapeei LegacyWeb em <REPOS_ROOT>\\LegacySystemOld\\LegacyWeb e equivalentes no frontend em <REPOS_ROOT>\\LegacySystemExternal",
       "timestamp": "2026-04-19T01:10:00Z"
     }
   ]
@@ -86,7 +86,7 @@ Describe 'watch_legado_channel' {
       "id": "msg-3",
       "from": "nex",
       "channel": "legado-para-novo",
-      "content": "Correção automática de escopo: este canal deve tratar somente a conversão entre estes caminhos:\n- D:\\Repos\\LegacySystemOld\\LegacyWeb\n- D:\\Repos\\LegacySystemOld\\WSExampleAgreement\n- D:\\Repos\\LegacySystemNew\n- D:\\Repos\\LegacySystemExternal\n\nDesconsiderem referências a DunderIA, WUPHF, StudioApp, index.legacy.html, web/src ou qualquer outro repositório fora desses quatro diretórios.",
+      "content": "Correção automática de escopo: este canal deve tratar somente a conversão entre estes caminhos:\n- <REPOS_ROOT>\\LegacySystemOld\\LegacyWeb\n- <REPOS_ROOT>\\LegacySystemOld\\WSExampleAgreement\n- <REPOS_ROOT>\\LegacySystemNew\n- <REPOS_ROOT>\\LegacySystemExternal\n\nDesconsiderem referências a DunderIA, WUPHF, StudioApp, index.legacy.html, web/src ou qualquer outro repositório fora desses quatro diretórios.",
       "timestamp": "2026-04-19T01:20:00Z"
     }
   ]

@@ -14,6 +14,9 @@ type RuntimeTask struct {
 	PipelineStage          string
 	ReviewState            string
 	ExecutionMode          string
+	RuntimeProvider        string
+	RuntimeModel           string
+	ReasoningEffort        string
 	WorkspacePath          string
 	WorktreePath           string
 	WorktreeBranch         string
@@ -286,6 +289,9 @@ func runtimeTaskFromTeamTask(task teamTask) RuntimeTask {
 		PipelineStage:          strings.TrimSpace(task.PipelineStage),
 		ReviewState:            strings.TrimSpace(task.ReviewState),
 		ExecutionMode:          strings.TrimSpace(task.ExecutionMode),
+		RuntimeProvider:        strings.TrimSpace(task.RuntimeProvider),
+		RuntimeModel:           strings.TrimSpace(task.RuntimeModel),
+		ReasoningEffort:        strings.TrimSpace(task.ReasoningEffort),
 		WorkspacePath:          strings.TrimSpace(task.WorkspacePath),
 		WorktreePath:           strings.TrimSpace(task.WorktreePath),
 		WorktreeBranch:         strings.TrimSpace(task.WorktreeBranch),

@@ -20,7 +20,7 @@ export function WorkspaceSummary() {
   const { t } = useTranslation()
   const { data: members = [] } = useOfficeMembers()
   const usageInterval = useBrokerRefetchInterval(30_000)
-  const { data: tasksData } = useOfficeTasks({ includeDone: false, fallbackMs: 30_000 })
+  const { data: tasksData } = useOfficeTasks({ includeDone: false, fallbackMs: 30_000, lite: true })
   const { data: usage } = useQuery({
     queryKey: usageKey(),
     queryFn: () => getUsage(),

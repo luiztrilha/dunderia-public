@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -242,6 +243,42 @@ func TestRunHeadlessClaudeTurn_NoResumeFlag(t *testing.T) {
 	}
 }
 
+func TestResolveHeadlessOpenClaudeCommandPrefersCmdShimOnWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows shim resolution only")
+	}
+
+	dir := t.TempDir()
+	cmdShim := filepath.Join(dir, "openclaude.cmd")
+	ps1Shim := filepath.Join(dir, "openclaude.ps1")
+	if err := os.WriteFile(cmdShim, []byte("@echo off\n"), 0o755); err != nil {
+		t.Fatalf("write cmd shim: %v", err)
+	}
+	if err := os.WriteFile(ps1Shim, []byte("exit 0\n"), 0o755); err != nil {
+		t.Fatalf("write ps1 shim: %v", err)
+	}
+
+	origLookPath := headlessClaudeLookPath
+	defer func() { headlessClaudeLookPath = origLookPath }()
+	headlessClaudeLookPath = func(file string) (string, error) {
+		return ps1Shim, nil
+	}
+
+	name, args, err := resolveHeadlessOpenClaudeCommand([]string{"--output-format", "stream-json", "--verbose"})
+	if err != nil {
+		t.Fatalf("resolve openclaude: %v", err)
+	}
+	if name != "cmd" {
+		t.Fatalf("command = %q, want cmd", name)
+	}
+	if len(args) < 3 || args[0] != "/c" || args[1] != cmdShim {
+		t.Fatalf("args = %#v, want cmd shim invocation", args)
+	}
+	if !slices.Contains(args, "--verbose") {
+		t.Fatalf("expected --verbose to be passed through, got %#v", args)
+	}
+}
+
 func TestRunHeadlessClaudeTurnUsesChannelPrimaryLinkedRepoWorkspaceAndScopedMCP(t *testing.T) {
 	recordFile := filepath.Join(t.TempDir(), "headless-claude-record.jsonl")
 	channelWorkspace := t.TempDir()
@@ -253,7 +290,7 @@ func TestRunHeadlessClaudeTurnUsesChannelPrimaryLinkedRepoWorkspaceAndScopedMCP(
 	customPath := filepath.Join(t.TempDir(), "custom-mcp.json")
 	customConfig := `{"mcpServers":{
 		"serena":{"command":"uvx","args":["serena"]},
-		"filesystem":{"command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","<REPOS_ROOT>"]},
+		"filesystem":{"command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","D:/Repos"]},
 		"megamemory-linked":{"command":"npx","args":["-y","megamemory"],"env":{"MEGAMEMORY_DB_PATH":"` + filepath.ToSlash(filepath.Join(channelWorkspace, ".megamemory", "knowledge.db")) + `"}},
 		"megamemory-other":{"command":"npx","args":["-y","megamemory"],"env":{"MEGAMEMORY_DB_PATH":"` + filepath.ToSlash(filepath.Join(otherRepo, ".megamemory", "knowledge.db")) + `"}}
 	}}`

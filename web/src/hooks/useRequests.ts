@@ -16,8 +16,8 @@ export function useRequests(): RequestsState {
   const currentChannel = useAppStore((s) => s.currentChannel)
   const refetchInterval = useBrokerRefetchInterval(5000)
   const { data, isLoading, error } = useQuery({
-    queryKey: requestsKey(currentChannel),
-    queryFn: () => getRequests(currentChannel),
+    queryKey: requestsKey(currentChannel, true),
+    queryFn: () => getRequests(currentChannel, true),
     refetchInterval,
     staleTime: 30_000,
   })

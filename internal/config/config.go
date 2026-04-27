@@ -88,12 +88,16 @@ type Config struct {
 	TaskFollowUpMinutes int    `json:"task_follow_up_minutes,omitempty"`
 	TaskReminderMinutes int    `json:"task_reminder_minutes,omitempty"`
 	TaskRecheckMinutes  int    `json:"task_recheck_minutes,omitempty"`
-	TelegramBotToken    string `json:"telegram_bot_token,omitempty"`
-	CompanyName         string `json:"company_name,omitempty"`
-	CompanyDescription  string `json:"company_description,omitempty"`
-	CompanyGoals        string `json:"company_goals,omitempty"`
-	CompanySize         string `json:"company_size,omitempty"`
-	CompanyPriority     string `json:"company_priority,omitempty"`
+	// Broker history retention controls local broker-state.json.history snapshots.
+	BrokerHistoryRetentionDays int    `json:"broker_history_retention_days,omitempty"`
+	BrokerHistoryMaxSnapshots  int    `json:"broker_history_max_snapshots,omitempty"`
+	BrokerHistoryMaxMB         int    `json:"broker_history_max_mb,omitempty"`
+	TelegramBotToken           string `json:"telegram_bot_token,omitempty"`
+	CompanyName                string `json:"company_name,omitempty"`
+	CompanyDescription         string `json:"company_description,omitempty"`
+	CompanyGoals               string `json:"company_goals,omitempty"`
+	CompanySize                string `json:"company_size,omitempty"`
+	CompanyPriority            string `json:"company_priority,omitempty"`
 }
 
 // NormalizeActionProvider returns a supported action provider or the empty string.
@@ -128,6 +132,12 @@ func NormalizeWebSearchProvider(value string) string {
 
 const (
 	MemoryBackendNone = "none"
+)
+
+const (
+	DefaultBrokerHistoryRetentionDays = 7
+	DefaultBrokerHistoryMaxSnapshots  = 200
+	DefaultBrokerHistoryMaxMB         = 256
 )
 
 // ActiveBlueprint returns the preferred operation blueprint/template id.
@@ -1031,4 +1041,42 @@ func resolveTaskInterval(envKey, legacyEnvKey string, fromConfig func(Config) in
 		minutes = 2
 	}
 	return minutes
+}
+
+func ResolveBrokerHistoryRetentionDays() int {
+	return resolveLocalRetentionInt(
+		"WUPHF_BROKER_HISTORY_RETENTION_DAYS",
+		func(cfg Config) int { return cfg.BrokerHistoryRetentionDays },
+		DefaultBrokerHistoryRetentionDays,
+	)
+}
+
+func ResolveBrokerHistoryMaxSnapshots() int {
+	return resolveLocalRetentionInt(
+		"WUPHF_BROKER_HISTORY_MAX_SNAPSHOTS",
+		func(cfg Config) int { return cfg.BrokerHistoryMaxSnapshots },
+		DefaultBrokerHistoryMaxSnapshots,
+	)
+}
+
+func ResolveBrokerHistoryMaxMB() int {
+	return resolveLocalRetentionInt(
+		"WUPHF_BROKER_HISTORY_MAX_MB",
+		func(cfg Config) int { return cfg.BrokerHistoryMaxMB },
+		DefaultBrokerHistoryMaxMB,
+	)
+}
+
+func resolveLocalRetentionInt(envKey string, fromConfig func(Config) int, defaultValue int) int {
+	if raw := strings.TrimSpace(os.Getenv(envKey)); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 0 {
+			return n
+		}
+	}
+	if cfg, err := Load(); err == nil {
+		if n := fromConfig(cfg); n > 0 {
+			return n
+		}
+	}
+	return defaultValue
 }

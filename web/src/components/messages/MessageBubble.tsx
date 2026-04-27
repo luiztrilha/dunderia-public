@@ -29,6 +29,7 @@ interface MessageBubbleProps {
   threadParentLabel?: string
   attentionLabel?: string
   canDelete?: boolean
+  canDeleteThread?: boolean
   onDeleted?: (message: Message) => void | Promise<void>
 }
 
@@ -38,6 +39,10 @@ function compactRoleLabel(role?: string | null): string | null {
   const firstSegment = trimmed.split(/[,.;\n]/)[0]?.trim() || trimmed
   if (firstSegment.length <= 44) return firstSegment
   return `${firstSegment.slice(0, 41).trimEnd()}...`
+}
+
+function isMessageNotFoundError(error: unknown): boolean {
+  return error instanceof Error && /message not found/i.test(error.message)
 }
 
 export function MessageBubble({
@@ -50,6 +55,7 @@ export function MessageBubble({
   threadParentLabel,
   attentionLabel,
   canDelete = false,
+  canDeleteThread = false,
   onDeleted,
 }: MessageBubbleProps) {
   const { t } = useTranslation()
@@ -77,6 +83,53 @@ export function MessageBubble({
           await onDeleted?.(message)
           showNotice(t('messages.bubble.deleteSuccess'), 'success')
         } catch (e) {
+          if (isMessageNotFoundError(e)) {
+            dispatchChannelMessageDeleted(targetChannel, message.id, { threadId: message.thread_id ?? message.id })
+            await queryClient.invalidateQueries({ queryKey: ['message-threads'] })
+            dispatchChannelMessagesRefresh(targetChannel, { forceFull: true })
+            await onDeleted?.(message)
+            showNotice(t('messages.bubble.deleteSuccess'), 'success')
+            return
+          }
+          const error = e instanceof Error ? e.message : t('messages.bubble.deleteFailedFallback')
+          showNotice(t('messages.bubble.deleteFailed', { error }), 'error')
+        } finally {
+          setIsDeleting(false)
+        }
+      },
+    })
+  }
+
+  const requestDeleteThread = () => {
+    if (isDeleting) return
+    confirm({
+      title: t('messages.bubble.deleteThreadConfirmTitle'),
+      message: t('messages.bubble.deleteThreadConfirmBody', { count: message.thread_count ?? 0 }),
+      confirmLabel: t('messages.bubble.deleteThreadAction'),
+      danger: true,
+      onConfirm: async () => {
+        setIsDeleting(true)
+        try {
+          const response = await deleteMessage(message.id, targetChannel, { deleteThread: true })
+          const deletedIDs = response.deleted_ids && response.deleted_ids.length > 0
+            ? response.deleted_ids
+            : [message.id]
+          for (const deletedID of deletedIDs) {
+            dispatchChannelMessageDeleted(targetChannel, deletedID, { threadId: response.thread_id })
+          }
+          await queryClient.invalidateQueries({ queryKey: ['message-threads'] })
+          dispatchChannelMessagesRefresh(targetChannel, { forceFull: true })
+          await onDeleted?.(message)
+          showNotice(t('messages.bubble.deleteThreadSuccess'), 'success')
+        } catch (e) {
+          if (isMessageNotFoundError(e)) {
+            dispatchChannelMessageDeleted(targetChannel, message.id, { threadId: message.thread_id ?? message.id })
+            await queryClient.invalidateQueries({ queryKey: ['message-threads'] })
+            dispatchChannelMessagesRefresh(targetChannel, { forceFull: true })
+            await onDeleted?.(message)
+            showNotice(t('messages.bubble.deleteThreadSuccess'), 'success')
+            return
+          }
           const error = e instanceof Error ? e.message : t('messages.bubble.deleteFailedFallback')
           showNotice(t('messages.bubble.deleteFailed', { error }), 'error')
         } finally {
@@ -125,6 +178,7 @@ export function MessageBubble({
   const hasThreadLink = (message.thread_count ?? 0) > 0 && onThreadClick
   const hasReplyAction = !!onReply
   const hasDeleteAction = canDelete
+  const hasDeleteThreadAction = canDeleteThread
   const threadRole = getThreadRole(message)
   const threadId = message.thread_id ?? message.id
   const targetChannel = message.channel || currentChannel
@@ -143,25 +197,45 @@ export function MessageBubble({
       </div>
 
       {/* Content */}
-      <div className={`message-content${hasDeleteAction ? ' message-content-has-visual-action' : ''}`}>
-        {hasDeleteAction ? (
+      <div className={`message-content${hasDeleteAction || hasDeleteThreadAction ? ' message-content-has-visual-action' : ''}`}>
+        {hasDeleteAction || hasDeleteThreadAction ? (
           <div className="message-visual-actions">
-            <button
-              type="button"
-              className="message-visual-action message-visual-action-delete"
-              onClick={requestDelete}
-              aria-label={t('messages.bubble.deleteAria')}
-              title={t('messages.bubble.deleteAction')}
-              disabled={isDeleting}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 6h18" />
-                <path d="M8 6V4h8v2" />
-                <path d="m19 6-1 14H6L5 6" />
-                <path d="M10 11v6" />
-                <path d="M14 11v6" />
-              </svg>
-            </button>
+            {hasDeleteThreadAction ? (
+              <button
+                type="button"
+                className="message-visual-action message-visual-action-delete"
+                onClick={requestDeleteThread}
+                aria-label={t('messages.bubble.deleteThreadAria')}
+                title={t('messages.bubble.deleteThreadAction')}
+                disabled={isDeleting}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 6h16" />
+                  <path d="M9 6V4h6v2" />
+                  <path d="m18 6-.8 14H6.8L6 6" />
+                  <path d="M10 11h4" />
+                  <path d="M10 15h4" />
+                </svg>
+              </button>
+            ) : null}
+            {hasDeleteAction ? (
+              <button
+                type="button"
+                className="message-visual-action message-visual-action-delete"
+                onClick={requestDelete}
+                aria-label={t('messages.bubble.deleteAria')}
+                title={t('messages.bubble.deleteAction')}
+                disabled={isDeleting}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="m19 6-1 14H6L5 6" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                </svg>
+              </button>
+            ) : null}
           </div>
         ) : null}
         {threadParentLabel ? (

@@ -108,9 +108,11 @@
   "messages": {
     "composer": {
       "placeholder": "Mensagem em #{{channel}}",
+      "blockedPlaceholder": "Responda à pergunta em destaque para continuar",
       "sendAria": "Enviar mensagem",
       "failedSend": "Falha ao enviar mensagem",
       "interviewBlock": "Responda à entrevista acima para enviar mensagens.",
+      "blockedByInterview": "O chat está pausado até você responder a pergunta destacada.",
       "statusDraft": "Rascunho salvo localmente.",
       "statusSending": "Persistindo mensagem no broker...",
       "statusPersisted": "Mensagem persistida.",
@@ -149,10 +151,15 @@
       "replyAction": "Responder",
       "reactionFailed": "Falha na reação: {{error}}",
       "deleteAction": "Excluir",
+      "deleteThreadAction": "Excluir thread",
       "deleteAria": "Excluir mensagem",
+      "deleteThreadAria": "Excluir thread inteira",
       "deleteConfirmTitle": "Excluir esta mensagem?",
       "deleteConfirmBody": "Isso remove a mensagem da timeline e de qualquer thread aberta.",
+      "deleteThreadConfirmTitle": "Excluir a thread inteira?",
+      "deleteThreadConfirmBody": "Isso remove a mensagem raiz e {{count}} mensagens filhas. A ação não pode ser desfeita.",
       "deleteSuccess": "Mensagem excluída",
+      "deleteThreadSuccess": "Thread excluída",
       "deleteFailed": "Falha ao excluir: {{error}}",
       "deleteFailedFallback": "Falha ao excluir"
     },
@@ -169,6 +176,10 @@
         "showAutomationBurst_one": "Mostrar {{count}} update",
         "showAutomationBurst_other": "Mostrar {{count}} updates",
         "hideAutomationBurst": "Ocultar updates",
+        "rootOnlyEyebrow": "somente conversas principais",
+        "rootOnlyTitle": "As mensagens recentes são respostas.",
+        "rootOnlyBody": "Carregue histórico antigo para ver as mensagens pai deste canal.",
+        "loadParentMessages": "Carregar mensagens pai",
         "emptyEyebrow": "calmaria antes da reunião",
         "emptyTitle": "#{{channel}} está vazio. Por enquanto.",
         "emptyBody": "É aqui que seus agentes vão debater, assumir tarefas e mostrar progresso. O foco é trabalho visível, não orquestração oculta.",
@@ -188,6 +199,7 @@
     },
     "thread": {
       "title": "Thread",
+      "backToFeed": "Voltar ao feed",
       "closeAria": "Fechar thread",
       "loading": "Carregando thread...",
       "refreshing": "Atualizando thread...",
@@ -235,6 +247,8 @@
       "typeHint": "digitar"
     },
     "overlay": {
+      "actionRequired": "Ação necessária",
+      "blocksChat": "Essa pergunta bloqueia novas mensagens até ser respondida.",
       "fromBadge": "@{{from}}",
       "fallbackTitle": "Entrada humana necessária",
       "noChoices": "Nenhuma opção disponível. Abra o app Solicitações para responder.",
@@ -570,7 +584,7 @@
       },
       "placeholders": {
         "nexRegistration": "(definido pelo registro da workspace)",
-        "customMCPConfig": "<REPOS_ROOT>/dunderia/mcp/dunderia-mcp-settings.json",
+        "customMCPConfig": "D:/Repos/dunderia/mcp/dunderia-mcp-settings.json",
         "cloudBackupBucket": "dunderia-backups",
         "cloudBackupPrefix": "office-a/config"
       },
@@ -579,6 +593,9 @@
     "intervals": {
       "title": "Intervalos de Sondagem",
       "description": "Com que frequência processos em segundo plano verificam atualizações. Todos os valores em minutos. Mínimo de 2 minutos.",
+      "groups": {
+        "history": "Purge de histórico local"
+      },
       "fields": {
         "insights": {
           "label": "Insights",
@@ -595,6 +612,18 @@
         "recheck": {
           "label": "Re-verificação de Tarefa",
           "hint": "Reavaliação de progresso"
+        },
+        "historyDays": {
+          "label": "Reter histórico por dias",
+          "hint": "Apaga snapshots do broker-state mais antigos que este limite"
+        },
+        "historySnapshots": {
+          "label": "Máximo de snapshots",
+          "hint": "Mantém somente os arquivos locais mais recentes do histórico"
+        },
+        "historyMaxMB": {
+          "label": "Tamanho máximo do histórico (MB)",
+          "hint": "Remove snapshots antigos quando o histórico local passar deste tamanho"
         }
       },
       "saveLabel": "Salvar intervalos"
@@ -646,7 +675,10 @@
         "insightsInterval": "Intervalo de sondagem de insights",
         "taskFollowup": "Intervalo de follow-up de tarefa",
         "taskReminder": "Intervalo de lembrete de tarefa",
-        "taskRecheck": "Intervalo de re-verificação de tarefa"
+        "taskRecheck": "Intervalo de re-verificação de tarefa",
+        "historyRetentionDays": "Retenção do histórico do broker em dias",
+        "historyMaxSnapshots": "Limite de snapshots do histórico do broker",
+        "historyMaxMB": "Limite de tamanho do histórico do broker"
       }
     },
     "danger": {
@@ -866,7 +898,7 @@
         "detailsPlaceholder": "Contexto curto para a nova tarefa",
         "executionMode": "Modo de execução",
         "workspacePath": "Workspace path",
-        "workspacePathPlaceholder": "D:\\Repos\\LegacySystemNew",
+        "workspacePathPlaceholder": "<REPOS_ROOT>\\LegacySystemNew",
         "channelHint": "Novas tarefas são criadas em #{{channel}}.",
         "create": "Criar tarefa",
         "creating": "Criando...",

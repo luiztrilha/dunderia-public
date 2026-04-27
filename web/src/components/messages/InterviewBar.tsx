@@ -103,6 +103,9 @@ export function InterviewBar() {
 
   return (
     <div className={`interview-bar${current.blocking ? ' interview-bar-blocking' : ' interview-bar-waiting'}`} role="region" aria-label={t('messages.interview.regionAria')}>
+      {current.blocking ? (
+        <div className="interview-bar-alert">{t('messages.overlay.actionRequired')}</div>
+      ) : null}
       <div className="interview-bar-head">
         <span className={current.blocking ? 'badge badge-attention' : 'badge badge-waiting'}>
           {current.blocking ? t('messages.interview.blocking') : t('messages.thread.humanAttentionBadge')}
@@ -151,6 +154,9 @@ export function InterviewBar() {
         {current.title && current.title !== 'Request' && (
           <div className="interview-bar-title">{current.title}</div>
         )}
+        {current.blocking ? (
+          <div className="interview-bar-blocking-copy">{t('messages.overlay.blocksChat')}</div>
+        ) : null}
         <div className="interview-bar-question">{current.question}</div>
         {current.context && (
           <div className="interview-bar-context">{current.context}</div>

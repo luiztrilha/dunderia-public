@@ -334,6 +334,50 @@ func TestStudioChannelSnapshotsSortByAttentionBeforeTaskLoad(t *testing.T) {
 	}
 }
 
+func TestStudioChannelSnapshotsIgnoreTerminalTaskBlockersForAttention(t *testing.T) {
+	now := time.Now().UTC()
+	state := studioDevConsoleState{
+		Channels: []teamChannel{
+			{Slug: "general", Name: "General", Members: []string{"ceo", "builder"}},
+		},
+		Tasks: []teamTask{
+			{
+				ID:            "task-done-owner",
+				Channel:       "general",
+				Title:         "Closed owner mismatch",
+				Owner:         "human",
+				Status:        "done",
+				ExecutionMode: "external_workspace",
+				WorkspacePath: "Z:\\missing\\workspace",
+				CreatedAt:     now.Add(-5 * time.Minute).Format(time.RFC3339),
+				UpdatedAt:     now.Add(-4 * time.Minute).Format(time.RFC3339),
+			},
+			{
+				ID:            "task-canceled-env",
+				Channel:       "general",
+				Title:         "Canceled degraded workspace",
+				Owner:         "human",
+				Status:        "canceled",
+				ExecutionMode: "external_workspace",
+				WorkspacePath: "Z:\\missing\\workspace",
+				CreatedAt:     now.Add(-3 * time.Minute).Format(time.RFC3339),
+				UpdatedAt:     now.Add(-2 * time.Minute).Format(time.RFC3339),
+			},
+		},
+	}
+
+	tasks := studioTaskSnapshotsFromTasks(state.Tasks)
+	blockers := buildStudioBlockersFromState(state)
+	channels := studioChannelSnapshotsFromState(state, tasks, nil, blockers)
+	general := findStudioChannelBySlug(channels, "general")
+	if general == nil {
+		t.Fatalf("expected general channel snapshot, got %+v", channels)
+	}
+	if general.AttentionCount != 0 || len(general.Attention) != 0 || len(general.Blockers) != 0 {
+		t.Fatalf("expected terminal task blockers to be hidden from channel attention, got %+v", general)
+	}
+}
+
 func TestHandleStudioDevConsoleActionRetriesTask(t *testing.T) {
 	restore := useStudioDevConsoleStatePath(t)
 	defer restore()

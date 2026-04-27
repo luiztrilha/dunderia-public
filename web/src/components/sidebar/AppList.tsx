@@ -16,7 +16,7 @@ export function AppList({ compact = false }: AppListProps) {
   const currentApp = useAppStore((s) => s.currentApp)
   const setCurrentApp = useAppStore((s) => s.setCurrentApp)
   const refetchInterval = useBrokerRefetchInterval(10_000)
-  const tasksQuery = useOfficeTasks({ includeDone: false, fallbackMs: 10_000 })
+  const tasksQuery = useOfficeTasks({ includeDone: false, fallbackMs: 10_000, lite: true })
   const deliveriesQuery = useQuery({
     queryKey: deliveriesKey(false),
     queryFn: () => getDeliveries({ includeDone: false }),

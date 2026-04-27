@@ -185,6 +185,159 @@ func (b *Broker) buildOperatorTasksLocked(channel string, allChannels, includeDo
 	return result
 }
 
+func (b *Broker) buildOperatorTasksLiteLocked(channel string, allChannels, includeDone bool, statusFilter, mySlug string) []teamTask {
+	result := make([]teamTask, 0, len(b.tasks)+len(b.requests)+len(b.executionNodes))
+	requestRoots := make(map[string]struct{}, len(b.requests))
+
+	for _, task := range b.tasks {
+		if !allChannels && normalizeChannelSlug(task.Channel) != channel {
+			continue
+		}
+		if taskIsTerminal(&task) && !includeDone && statusFilter == "" {
+			continue
+		}
+		if statusFilter != "" && strings.TrimSpace(task.Status) != statusFilter {
+			continue
+		}
+		if mySlug != "" && strings.TrimSpace(task.Owner) != "" && strings.TrimSpace(task.Owner) != mySlug {
+			continue
+		}
+		copyTask := task
+		copyTask.SourceTaskID = firstNonEmpty(copyTask.SourceTaskID, derivedSourceTaskID(copyTask))
+		result = append(result, copyTask)
+	}
+
+	includeHuman := mySlug == "" || mySlug == "human" || mySlug == "you"
+	if !includeHuman {
+		return result
+	}
+
+	for _, req := range b.requests {
+		if !requestIsActive(req) {
+			continue
+		}
+		reqChannel := normalizeChannelSlug(req.Channel)
+		if reqChannel == "" {
+			reqChannel = "general"
+		}
+		if !allChannels && reqChannel != channel {
+			continue
+		}
+		viewTask := liteHumanActionTaskFromRequest(req)
+		if viewTask.ID == "" {
+			continue
+		}
+		if statusFilter != "" && strings.TrimSpace(viewTask.Status) != statusFilter {
+			continue
+		}
+		result = append(result, viewTask)
+		if threadRoot := firstNonEmpty(b.threadRootFromMessageIDLocked(strings.TrimSpace(req.ReplyTo)), strings.TrimSpace(req.ReplyTo)); threadRoot != "" {
+			requestRoots[reqChannel+"|"+threadRoot] = struct{}{}
+		}
+	}
+
+	for _, node := range b.executionNodes {
+		if !node.AwaitingHumanInput || !executionNodeIsOpen(node) {
+			continue
+		}
+		nodeChannel := normalizeChannelSlug(node.Channel)
+		if nodeChannel == "" {
+			nodeChannel = "general"
+		}
+		if !allChannels && nodeChannel != channel {
+			continue
+		}
+		threadRoot := firstNonEmpty(strings.TrimSpace(node.RootMessageID), strings.TrimSpace(node.TriggerMessageID))
+		if threadRoot != "" {
+			if _, ok := requestRoots[nodeChannel+"|"+threadRoot]; ok {
+				continue
+			}
+		}
+		viewTask := liteHumanActionTaskFromExecutionNode(node)
+		if viewTask.ID == "" {
+			continue
+		}
+		if statusFilter != "" && strings.TrimSpace(viewTask.Status) != statusFilter {
+			continue
+		}
+		result = append(result, viewTask)
+	}
+
+	return result
+}
+
+func liteHumanActionTaskFromRequest(req humanInterview) teamTask {
+	channel := normalizeChannelSlug(req.Channel)
+	if channel == "" {
+		channel = "general"
+	}
+	title := strings.TrimSpace(req.Title)
+	if title == "" || title == "Request" {
+		title = truncateSummary(strings.TrimSpace(req.Question), 96)
+	}
+	if title == "" {
+		title = "Human response needed"
+	}
+	status := strings.TrimSpace(req.RecommendationStatus)
+	if status == "" {
+		status = "none"
+	}
+	return teamTask{
+		ID:                     "human-request-" + strings.TrimSpace(req.ID),
+		Channel:                channel,
+		ExecutionKey:           "human-request|" + strings.TrimSpace(req.ID),
+		Title:                  title,
+		Details:                strings.TrimSpace(req.Context),
+		Owner:                  "human",
+		Status:                 "pending",
+		CreatedBy:              strings.TrimSpace(req.From),
+		ThreadID:               strings.TrimSpace(req.ReplyTo),
+		TaskType:               "human_action",
+		Blocked:                req.Blocking,
+		CreatedAt:              strings.TrimSpace(req.CreatedAt),
+		UpdatedAt:              strings.TrimSpace(req.UpdatedAt),
+		AwaitingHuman:          true,
+		AwaitingHumanSince:     firstNonEmpty(strings.TrimSpace(req.UpdatedAt), strings.TrimSpace(req.CreatedAt)),
+		AwaitingHumanReason:    strings.TrimSpace(req.Question),
+		AwaitingHumanRequestID: strings.TrimSpace(req.ID),
+		AwaitingHumanSource:    "request",
+		RecommendedResponder:   "game-master",
+		RecommendationStatus:   status,
+		RecommendationTaskID:   strings.TrimSpace(req.RecommendationTaskID),
+		SourceMessageID:        strings.TrimSpace(req.ReplyTo),
+		SourceRequestID:        strings.TrimSpace(req.ID),
+		SourceTaskID:           strings.TrimSpace(req.SourceTaskID),
+		HumanOptions:           append([]interviewOption(nil), req.Options...),
+		HumanRecommendedID:     strings.TrimSpace(req.RecommendedID),
+	}
+}
+
+func liteHumanActionTaskFromExecutionNode(node executionNode) teamTask {
+	channel := normalizeChannelSlug(node.Channel)
+	if channel == "" {
+		channel = "general"
+	}
+	return teamTask{
+		ID:                  "human-node-" + strings.TrimSpace(node.ID),
+		Channel:             channel,
+		ExecutionKey:        "human-node|" + strings.TrimSpace(node.ID),
+		Title:               "Human follow-up needed",
+		Details:             strings.TrimSpace(node.AwaitingHumanReason),
+		Owner:               "human",
+		Status:              "pending",
+		CreatedBy:           firstNonEmpty(strings.TrimSpace(node.OwnerAgent), "system"),
+		ThreadID:            firstNonEmpty(strings.TrimSpace(node.RootMessageID), strings.TrimSpace(node.TriggerMessageID)),
+		TaskType:            "human_action",
+		CreatedAt:           strings.TrimSpace(node.CreatedAt),
+		UpdatedAt:           strings.TrimSpace(node.UpdatedAt),
+		AwaitingHuman:       true,
+		AwaitingHumanSince:  strings.TrimSpace(node.AwaitingHumanSince),
+		AwaitingHumanReason: strings.TrimSpace(node.AwaitingHumanReason),
+		AwaitingHumanSource: "execution_node",
+		SourceMessageID:     firstNonEmpty(strings.TrimSpace(node.RootMessageID), strings.TrimSpace(node.TriggerMessageID)),
+	}
+}
+
 func applyDeliveryProgress(task *teamTask, progressByDelivery map[string]deliveryView) {
 	if task == nil {
 		return
@@ -829,7 +982,7 @@ func deliveryWorkspaceCandidateScore(path, artifactKind string) int {
 
 func deliveryRepositoryPriority(token string) int {
 	switch {
-	case strings.HasPrefix(token, "legacyweb"),
+	case strings.HasPrefix(token, "LegacyWeb"),
 		strings.HasPrefix(token, "legacyticketweb"),
 		strings.HasPrefix(token, "publicportalweb"),
 		strings.HasPrefix(token, "sharedsystemswebforms"),

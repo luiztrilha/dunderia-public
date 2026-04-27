@@ -1390,6 +1390,9 @@ func studioChannelAttentionGroupsFromState(state studioDevConsoleState, blockers
 	}
 
 	for _, blocker := range blockers {
+		if !studioBlockerBacksActiveTask(blocker, taskByID) {
+			continue
+		}
 		add(
 			blocker.Channel,
 			"blocker|"+strings.TrimSpace(blocker.Kind)+"|"+studioNormalizeAttentionText(blocker.Summary)+"|"+studioNormalizeAttentionText(blocker.WaitingOn),
@@ -1480,6 +1483,18 @@ func studioChannelAttentionGroupsFromState(state studioDevConsoleState, blockers
 	return out
 }
 
+func studioBlockerBacksActiveTask(blocker studioBlocker, taskByID map[string]teamTask) bool {
+	taskID := strings.TrimSpace(blocker.TaskID)
+	if taskID == "" {
+		return true
+	}
+	task, ok := taskByID[taskID]
+	if !ok {
+		return true
+	}
+	return !taskIsTerminal(&task)
+}
+
 func studioRecentSubstantiveMessagesByChannel(messages []channelMessage) map[string]studioMessageSnapshot {
 	out := make(map[string]studioMessageSnapshot)
 	for i := len(messages) - 1; i >= 0; i-- {
@@ -1534,6 +1549,10 @@ func studioChannelSnapshotsFromState(state studioDevConsoleState, tasks []studio
 	attentionByChannel := studioChannelAttentionGroupsFromState(state, blockers)
 	lastSubstantiveByChannel := make(map[string]studioMessageSnapshot)
 	lastDecisionByChannel := make(map[string]officeDecisionRecord)
+	taskByID := make(map[string]teamTask, len(state.Tasks))
+	for _, task := range state.Tasks {
+		taskByID[strings.TrimSpace(task.ID)] = task
+	}
 
 	for _, task := range tasks {
 		channel := normalizeChannelSlug(task.Channel)
@@ -1576,6 +1595,9 @@ func studioChannelSnapshotsFromState(state studioDevConsoleState, tasks []studio
 		workspaceCountByChannel[normalizeChannelSlug(ws.Channel)]++
 	}
 	for _, blocker := range blockers {
+		if !studioBlockerBacksActiveTask(blocker, taskByID) {
+			continue
+		}
 		channel := normalizeChannelSlug(blocker.Channel)
 		blockersByChannel[channel] = append(blockersByChannel[channel], blocker.Kind)
 	}

@@ -98,6 +98,55 @@ func TestBrokerPersistsAndReloadsState(t *testing.T) {
 	}
 }
 
+func TestBrokerGetRequestsAllChannelsIncludesAccessibleBlockingRequests(t *testing.T) {
+	b := NewBroker()
+	b.mu.Lock()
+	ensureTestMemberAccess(b, "general", "human", "Human")
+	ensureTestMemberAccess(b, "engineering", "human", "Human")
+	b.requests = []humanInterview{
+		{
+			ID:        "req-general",
+			From:      "ceo",
+			Channel:   "general",
+			Question:  "General question?",
+			Blocking:  true,
+			Status:    "pending",
+			CreatedAt: "2026-04-27T10:00:00Z",
+		},
+		{
+			ID:        "req-engineering",
+			From:      "eng",
+			Channel:   "engineering",
+			Question:  "Engineering question?",
+			Blocking:  true,
+			Status:    "pending",
+			CreatedAt: "2026-04-27T10:01:00Z",
+		},
+	}
+	b.mu.Unlock()
+
+	req := httptest.NewRequest(http.MethodGet, "/requests?channel=general&viewer_slug=human&all_channels=true", nil)
+	rec := httptest.NewRecorder()
+	b.handleGetRequests(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var payload struct {
+		Requests []humanInterview `json:"requests"`
+		Pending  *humanInterview  `json:"pending"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(payload.Requests) != 2 {
+		t.Fatalf("expected requests from all accessible channels, got %d", len(payload.Requests))
+	}
+	if payload.Pending == nil || payload.Pending.ID != "req-general" {
+		t.Fatalf("expected first blocking request as pending, got %#v", payload.Pending)
+	}
+}
+
 func TestBrokerConfigAcceptsOneActionProvider(t *testing.T) {
 	oldPathFn := brokerStatePath
 	tmpDir := t.TempDir()
@@ -357,7 +406,7 @@ func TestBrokerResetPreservesConfiguredChannels(t *testing.T) {
 	b.mu.Lock()
 	b.channels = []teamChannel{
 		{Slug: "general", Name: "General", Members: []string{"ceo", "builder"}},
-		{Slug: "ExampleWorkflow-legacy", Name: "ExampleWorkflow Legacy", Members: []string{"ceo", "builder"}},
+		{Slug: "exampleworkflow-legacy", Name: "ExampleWorkflow Legacy", Members: []string{"ceo", "builder"}},
 		{Slug: "dm-builder", Name: "Builder DM", Members: []string{"ceo", "builder"}},
 	}
 	b.members = append(b.members, officeMember{Slug: "builder", Name: "Builder"})
@@ -371,14 +420,14 @@ func TestBrokerResetPreservesConfiguredChannels(t *testing.T) {
 	foundDM := false
 	for _, ch := range b.channels {
 		switch normalizeChannelSlug(ch.Slug) {
-		case "ExampleWorkflow-legacy":
+		case "exampleworkflow-legacy":
 			foundLegacy = true
 		case "builder__human", "dm-builder":
 			foundDM = true
 		}
 	}
 	if !foundLegacy {
-		t.Fatalf("expected reset to preserve custom channel ExampleWorkflow-legacy; got channels=%+v", b.channels)
+		t.Fatalf("expected reset to preserve custom channel exampleworkflow-legacy; got channels=%+v", b.channels)
 	}
 	if !foundDM {
 		t.Fatalf("expected reset to preserve DM channel; got channels=%+v", b.channels)
@@ -1124,6 +1173,410 @@ func TestBrokerDeleteMessageRemovesHumanLeafAndUpdatesThreads(t *testing.T) {
 	}
 	if len(summaries.Threads) != 0 {
 		t.Fatalf("expected thread summaries to drop removed leaf thread, got %+v", summaries.Threads)
+	}
+}
+
+func TestBrokerDeleteMessageRemovesSyntheticChannelMemoryMessage(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	b.mu.Lock()
+	if b.sharedMemory == nil {
+		b.sharedMemory = make(map[string]map[string]string)
+	}
+	namespace := channelMemoryNamespace("general")
+	b.sharedMemory[namespace] = map[string]string{
+		"msg:msg-synthetic-delete": encodePrivateMemoryNote(privateMemoryNote{
+			Title:     "Recovered message",
+			Content:   "Recovered from channel memory",
+			Author:    "ceo",
+			CreatedAt: "2026-04-27T10:00:00Z",
+		}),
+	}
+	if err := b.saveLocked(); err != nil {
+		b.mu.Unlock()
+		t.Fatalf("save broker state: %v", err)
+	}
+	b.mu.Unlock()
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	messagesReq, _ := http.NewRequest(http.MethodGet, base+"/messages?channel=general&viewer_slug=human&limit=10", nil)
+	messagesReq.Header.Set("Authorization", "Bearer "+b.Token())
+	messagesResp, err := http.DefaultClient.Do(messagesReq)
+	if err != nil {
+		t.Fatalf("list synthetic messages: %v", err)
+	}
+	defer messagesResp.Body.Close()
+	if messagesResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(messagesResp.Body)
+		t.Fatalf("expected 200 listing synthetic messages, got %d: %s", messagesResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var messagesResult struct {
+		Messages []channelMessage `json:"messages"`
+	}
+	if err := json.NewDecoder(messagesResp.Body).Decode(&messagesResult); err != nil {
+		t.Fatalf("decode synthetic messages: %v", err)
+	}
+	if len(messagesResult.Messages) != 1 || messagesResult.Messages[0].ID != "msg-synthetic-delete" {
+		t.Fatalf("expected synthetic message before delete, got %+v", messagesResult.Messages)
+	}
+
+	deleteBody, _ := json.Marshal(map[string]string{
+		"id":      "msg-synthetic-delete",
+		"channel": "general",
+	})
+	deleteReq, _ := http.NewRequest(http.MethodDelete, base+"/messages", bytes.NewReader(deleteBody))
+	deleteReq.Header.Set("Authorization", "Bearer "+b.Token())
+	deleteReq.Header.Set("Content-Type", "application/json")
+	deleteResp, err := http.DefaultClient.Do(deleteReq)
+	if err != nil {
+		t.Fatalf("delete synthetic message request failed: %v", err)
+	}
+	defer deleteResp.Body.Close()
+	if deleteResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(deleteResp.Body)
+		t.Fatalf("expected 200 deleting synthetic message, got %d: %s", deleteResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+
+	messagesReqAfter, _ := http.NewRequest(http.MethodGet, base+"/messages?channel=general&viewer_slug=human&limit=10", nil)
+	messagesReqAfter.Header.Set("Authorization", "Bearer "+b.Token())
+	messagesRespAfter, err := http.DefaultClient.Do(messagesReqAfter)
+	if err != nil {
+		t.Fatalf("list synthetic messages after delete: %v", err)
+	}
+	defer messagesRespAfter.Body.Close()
+	if messagesRespAfter.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(messagesRespAfter.Body)
+		t.Fatalf("expected 200 listing messages after delete, got %d: %s", messagesRespAfter.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var messagesAfter struct {
+		Messages []channelMessage `json:"messages"`
+	}
+	if err := json.NewDecoder(messagesRespAfter.Body).Decode(&messagesAfter); err != nil {
+		t.Fatalf("decode messages after synthetic delete: %v", err)
+	}
+	if len(messagesAfter.Messages) != 0 {
+		t.Fatalf("expected synthetic message to be removed, got %+v", messagesAfter.Messages)
+	}
+}
+
+func TestBrokerDeleteThreadRemovesRootAndDescendants(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	root, err := b.PostMessage("you", "general", "Root topic", nil, "")
+	if err != nil {
+		t.Fatalf("post root: %v", err)
+	}
+	reply, err := b.PostMessage("builder", "general", "First child", nil, root.ID)
+	if err != nil {
+		t.Fatalf("post reply: %v", err)
+	}
+	grandchild, err := b.PostMessage("ceo", "general", "Nested child", nil, reply.ID)
+	if err != nil {
+		t.Fatalf("post grandchild: %v", err)
+	}
+	otherRoot, err := b.PostMessage("you", "general", "Keep this root", nil, "")
+	if err != nil {
+		t.Fatalf("post other root: %v", err)
+	}
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	deleteBody, _ := json.Marshal(map[string]any{
+		"id":            root.ID,
+		"channel":       "general",
+		"delete_thread": true,
+	})
+	deleteReq, _ := http.NewRequest(http.MethodDelete, base+"/messages", bytes.NewReader(deleteBody))
+	deleteReq.Header.Set("Authorization", "Bearer "+b.Token())
+	deleteReq.Header.Set("Content-Type", "application/json")
+	deleteResp, err := http.DefaultClient.Do(deleteReq)
+	if err != nil {
+		t.Fatalf("delete thread request failed: %v", err)
+	}
+	defer deleteResp.Body.Close()
+	if deleteResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(deleteResp.Body)
+		t.Fatalf("expected 200 deleting thread, got %d: %s", deleteResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+
+	var deleteResult struct {
+		OK           bool     `json:"ok"`
+		ID           string   `json:"id"`
+		ThreadID     string   `json:"thread_id"`
+		DeletedIDs   []string `json:"deleted_ids"`
+		DeletedCount int      `json:"deleted_count"`
+		Total        int      `json:"total"`
+	}
+	if err := json.NewDecoder(deleteResp.Body).Decode(&deleteResult); err != nil {
+		t.Fatalf("decode delete thread response: %v", err)
+	}
+	if !deleteResult.OK || deleteResult.ID != root.ID || deleteResult.ThreadID != root.ID || deleteResult.DeletedCount != 3 || deleteResult.Total != 1 {
+		t.Fatalf("unexpected delete thread response: %+v", deleteResult)
+	}
+	wantDeleted := map[string]bool{root.ID: true, reply.ID: true, grandchild.ID: true}
+	for _, id := range deleteResult.DeletedIDs {
+		delete(wantDeleted, id)
+	}
+	if len(wantDeleted) != 0 {
+		t.Fatalf("delete response missing removed IDs: %+v", wantDeleted)
+	}
+
+	messagesReq, _ := http.NewRequest(http.MethodGet, base+"/messages?channel=general", nil)
+	messagesReq.Header.Set("Authorization", "Bearer "+b.Token())
+	messagesResp, err := http.DefaultClient.Do(messagesReq)
+	if err != nil {
+		t.Fatalf("messages read after thread delete failed: %v", err)
+	}
+	defer messagesResp.Body.Close()
+	if messagesResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(messagesResp.Body)
+		t.Fatalf("expected 200 reading messages after thread delete, got %d: %s", messagesResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var messagesResult struct {
+		Messages []channelMessage `json:"messages"`
+	}
+	if err := json.NewDecoder(messagesResp.Body).Decode(&messagesResult); err != nil {
+		t.Fatalf("decode messages after thread delete: %v", err)
+	}
+	if len(messagesResult.Messages) != 1 || messagesResult.Messages[0].ID != otherRoot.ID {
+		t.Fatalf("expected only unrelated root after thread delete, got %+v", messagesResult.Messages)
+	}
+}
+
+func TestBrokerDeleteThreadAllowsAnsweredExecutionReferences(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	root, err := b.PostMessage("you", "general", "Root topic", nil, "")
+	if err != nil {
+		t.Fatalf("post root: %v", err)
+	}
+	trigger, err := b.PostMessage("ceo", "general", "Question", nil, root.ID)
+	if err != nil {
+		t.Fatalf("post trigger: %v", err)
+	}
+	resolution, err := b.PostMessage("you", "general", "Answer", nil, trigger.ID)
+	if err != nil {
+		t.Fatalf("post resolution: %v", err)
+	}
+
+	b.mu.Lock()
+	b.executionNodes = append(b.executionNodes, executionNode{
+		ID:                  "node-answered-delete-thread",
+		Channel:             "general",
+		RootMessageID:       root.ID,
+		TriggerMessageID:    trigger.ID,
+		ResolvedByMessageID: resolution.ID,
+		Status:              "answered",
+	})
+	if err := b.saveLocked(); err != nil {
+		b.mu.Unlock()
+		t.Fatalf("save broker state: %v", err)
+	}
+	b.mu.Unlock()
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	deleteBody, _ := json.Marshal(map[string]any{
+		"id":            root.ID,
+		"channel":       "general",
+		"delete_thread": true,
+	})
+	deleteReq, _ := http.NewRequest(http.MethodDelete, base+"/messages", bytes.NewReader(deleteBody))
+	deleteReq.Header.Set("Authorization", "Bearer "+b.Token())
+	deleteReq.Header.Set("Content-Type", "application/json")
+	deleteResp, err := http.DefaultClient.Do(deleteReq)
+	if err != nil {
+		t.Fatalf("delete answered thread request failed: %v", err)
+	}
+	defer deleteResp.Body.Close()
+	if deleteResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(deleteResp.Body)
+		t.Fatalf("expected 200 deleting thread linked only to answered execution, got %d: %s", deleteResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.executionNodes) != 0 {
+		t.Fatalf("expected answered execution node referencing deleted thread to be pruned, got %+v", b.executionNodes)
+	}
+}
+
+func TestBrokerDeleteThreadAllowsFirstVisibleMessageWhenThreadRootIsMissing(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	const missingRootID = "task-missing-root"
+	first, err := b.PostMessage("backend", "general", "First visible child", nil, missingRootID)
+	if err != nil {
+		t.Fatalf("post first visible child: %v", err)
+	}
+	second, err := b.PostMessage("ceo", "general", "Nested child", nil, first.ID)
+	if err != nil {
+		t.Fatalf("post nested child: %v", err)
+	}
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	messagesReq, _ := http.NewRequest(http.MethodGet, base+"/messages?channel=general&viewer_slug=human&limit=10", nil)
+	messagesReq.Header.Set("Authorization", "Bearer "+b.Token())
+	messagesResp, err := http.DefaultClient.Do(messagesReq)
+	if err != nil {
+		t.Fatalf("list messages with missing root: %v", err)
+	}
+	defer messagesResp.Body.Close()
+	if messagesResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(messagesResp.Body)
+		t.Fatalf("expected 200 listing messages, got %d: %s", messagesResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var messagesResult struct {
+		Messages []channelMessage `json:"messages"`
+	}
+	if err := json.NewDecoder(messagesResp.Body).Decode(&messagesResult); err != nil {
+		t.Fatalf("decode messages with missing root: %v", err)
+	}
+	if len(messagesResult.Messages) != 2 {
+		t.Fatalf("expected two messages, got %+v", messagesResult.Messages)
+	}
+	if !messagesResult.Messages[0].CanDeleteThread || messagesResult.Messages[0].ThreadCount != 1 {
+		t.Fatalf("expected first visible child to represent deletable thread, got %+v", messagesResult.Messages[0])
+	}
+	if messagesResult.Messages[1].CanDeleteThread {
+		t.Fatalf("expected nested child not to represent the thread, got %+v", messagesResult.Messages[1])
+	}
+
+	threadsReq, _ := http.NewRequest(http.MethodGet, base+"/messages/threads?channel=general&viewer_slug=human", nil)
+	threadsReq.Header.Set("Authorization", "Bearer "+b.Token())
+	threadsResp, err := http.DefaultClient.Do(threadsReq)
+	if err != nil {
+		t.Fatalf("list thread summaries with missing root: %v", err)
+	}
+	defer threadsResp.Body.Close()
+	if threadsResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(threadsResp.Body)
+		t.Fatalf("expected 200 listing thread summaries, got %d: %s", threadsResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var summaries struct {
+		Threads []messageThreadSummary `json:"threads"`
+	}
+	if err := json.NewDecoder(threadsResp.Body).Decode(&summaries); err != nil {
+		t.Fatalf("decode thread summaries with missing root: %v", err)
+	}
+	if len(summaries.Threads) != 1 || summaries.Threads[0].ThreadID != missingRootID || summaries.Threads[0].Message.ID != first.ID || summaries.Threads[0].ReplyCount != 1 {
+		t.Fatalf("expected missing-root thread summary to use first visible message, got %+v", summaries.Threads)
+	}
+
+	deleteBody, _ := json.Marshal(map[string]any{
+		"id":            first.ID,
+		"channel":       "general",
+		"delete_thread": true,
+	})
+	deleteReq, _ := http.NewRequest(http.MethodDelete, base+"/messages", bytes.NewReader(deleteBody))
+	deleteReq.Header.Set("Authorization", "Bearer "+b.Token())
+	deleteReq.Header.Set("Content-Type", "application/json")
+	deleteResp, err := http.DefaultClient.Do(deleteReq)
+	if err != nil {
+		t.Fatalf("delete missing-root thread request failed: %v", err)
+	}
+	defer deleteResp.Body.Close()
+	if deleteResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(deleteResp.Body)
+		t.Fatalf("expected 200 deleting missing-root thread, got %d: %s", deleteResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var deleteResult struct {
+		DeletedIDs []string `json:"deleted_ids"`
+	}
+	if err := json.NewDecoder(deleteResp.Body).Decode(&deleteResult); err != nil {
+		t.Fatalf("decode missing-root delete response: %v", err)
+	}
+	if len(deleteResult.DeletedIDs) != 2 {
+		t.Fatalf("expected both visible messages deleted, got %+v; second was %s", deleteResult.DeletedIDs, second.ID)
+	}
+}
+
+func TestBrokerDeleteThreadRejectsOpenExecutionReferences(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	root, err := b.PostMessage("you", "general", "Root topic", nil, "")
+	if err != nil {
+		t.Fatalf("post root: %v", err)
+	}
+	trigger, err := b.PostMessage("ceo", "general", "Question", nil, root.ID)
+	if err != nil {
+		t.Fatalf("post trigger: %v", err)
+	}
+
+	b.mu.Lock()
+	b.executionNodes = append(b.executionNodes, executionNode{
+		ID:               "node-open-delete-thread",
+		Channel:          "general",
+		RootMessageID:    root.ID,
+		TriggerMessageID: trigger.ID,
+		Status:           "pending",
+	})
+	if err := b.saveLocked(); err != nil {
+		b.mu.Unlock()
+		t.Fatalf("save broker state: %v", err)
+	}
+	b.mu.Unlock()
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	deleteBody, _ := json.Marshal(map[string]any{
+		"id":            root.ID,
+		"channel":       "general",
+		"delete_thread": true,
+	})
+	deleteReq, _ := http.NewRequest(http.MethodDelete, base+"/messages", bytes.NewReader(deleteBody))
+	deleteReq.Header.Set("Authorization", "Bearer "+b.Token())
+	deleteReq.Header.Set("Content-Type", "application/json")
+	deleteResp, err := http.DefaultClient.Do(deleteReq)
+	if err != nil {
+		t.Fatalf("delete open thread request failed: %v", err)
+	}
+	defer deleteResp.Body.Close()
+	if deleteResp.StatusCode != http.StatusConflict {
+		raw, _ := io.ReadAll(deleteResp.Body)
+		t.Fatalf("expected 409 deleting thread linked to open execution, got %d: %s", deleteResp.StatusCode, strings.TrimSpace(string(raw)))
 	}
 }
 
@@ -4023,16 +4476,16 @@ func TestEnsurePlannedTaskDoesNotReuseMismatchedExplicitWorkspace(t *testing.T) 
 
 	workspaceRoot := t.TempDir()
 	dunderiaRepo := filepath.Join(workspaceRoot, "dunderia")
-	targetRepo := filepath.Join(workspaceRoot, "ExampleAzureRepo")
+	targetRepo := filepath.Join(workspaceRoot, "LegacyWebAzure")
 	initUsableGitWorktree(t, dunderiaRepo)
 	initUsableGitWorktree(t, targetRepo)
 
 	b := NewBroker()
-	ensureTestMemberAccess(b, "ExampleWorkflow-web-azure", "ceo", "CEO")
-	ensureTestMemberAccess(b, "ExampleWorkflow-web-azure", "reviewer", "Reviewer")
+	ensureTestMemberAccess(b, "exampleworkflow-web-azure", "ceo", "CEO")
+	ensureTestMemberAccess(b, "exampleworkflow-web-azure", "reviewer", "Reviewer")
 	b.tasks = []teamTask{{
 		ID:        "task-old",
-		Channel:   "ExampleWorkflow-web-azure",
+		Channel:   "exampleworkflow-web-azure",
 		Title:     "Revisao tecnica abrangente da base DunderIA",
 		Details:   "Produzir relatorio .md priorizado.",
 		Owner:     "reviewer",
@@ -4044,8 +4497,8 @@ func TestEnsurePlannedTaskDoesNotReuseMismatchedExplicitWorkspace(t *testing.T) 
 	}}
 
 	task, reused, err := b.EnsurePlannedTask(plannedTaskInput{
-		Channel:       "ExampleWorkflow-web-azure",
-		Title:         "Revisao tecnica abrangente da base ExampleAzureRepo",
+		Channel:       "exampleworkflow-web-azure",
+		Title:         "Revisao tecnica abrangente da base LegacyWebAzure",
 		Details:       "Produzir relatorio .md priorizado.",
 		Owner:         "reviewer",
 		CreatedBy:     "ceo",
@@ -4598,7 +5051,7 @@ func TestBrokerEnsurePlannedTaskPromotesMentionedSiblingRepoToExternalWorkspace(
 
 	workspaceRoot := t.TempDir()
 	currentRepo := filepath.Join(workspaceRoot, "dunderia")
-	legacyRepo := filepath.Join(workspaceRoot, "ExampleWorkflowLegacyWeb")
+	legacyRepo := filepath.Join(workspaceRoot, "LegacySystem")
 	targetRepo := filepath.Join(workspaceRoot, "LegacySystemNew")
 	initUsableGitWorktree(t, currentRepo)
 	initUsableGitWorktree(t, legacyRepo)
@@ -4649,10 +5102,10 @@ func TestBrokerPostMessageSuppressesRepeatedBlockedNoDeltaAgentStatus(t *testing
 	b := NewBroker()
 	ensureTestMemberAccess(b, "general", "ceo", "CEO")
 	ensureTestMemberAccess(b, "general", "builder", "Builder")
-	if _, err := b.PostMessage("builder", "general", "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que o office me entregar um worktree gravável apontando para `D:\\Repositórios\\LegacySystemNew`, eu implemento o slice.", []string{"ceo"}, "msg-root"); err != nil {
+	if _, err := b.PostMessage("builder", "general", "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que o office me entregar um worktree gravável apontando para `<REPOS_ROOT>\\LegacySystemNew`, eu implemento o slice.", []string{"ceo"}, "msg-root"); err != nil {
 		t.Fatalf("first post: %v", err)
 	}
-	msg, err := b.PostMessage("builder", "general", "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que o office me entregar um worktree gravável apontando para `D:\\Repositórios\\LegacySystemNew`, eu implemento o slice.", []string{"ceo"}, "msg-root")
+	msg, err := b.PostMessage("builder", "general", "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que o office me entregar um worktree gravável apontando para `<REPOS_ROOT>\\LegacySystemNew`, eu implemento o slice.", []string{"ceo"}, "msg-root")
 	if err != nil {
 		t.Fatalf("second post: %v", err)
 	}
@@ -4672,7 +5125,7 @@ func TestChannelTasksCoalescesSemanticDuplicates(t *testing.T) {
 			ID:            "task-1162",
 			Channel:       "legado-para-novo",
 			Title:         "Implementar GET legado de cidades por UF no LegacySystemNew",
-			Details:       "Preciso de um worktree gravável apontando para D:\\Repositórios\\LegacySystemNew para implementar e validar RetornaCidadesUF.",
+			Details:       "Preciso de um worktree gravável apontando para <REPOS_ROOT>\\LegacySystemNew para implementar e validar RetornaCidadesUF.",
 			Owner:         "builder",
 			Status:        "blocked",
 			TaskType:      "feature",
@@ -6618,7 +7071,7 @@ func TestBrokerSyncTaskWorktreeUsesChannelLinkedRepoInsteadOfDunderiaWorktree(t 
 	b := NewBroker()
 	b.channels = []teamChannel{
 		{
-			Slug: "ExampleWorkflow-web-legado",
+			Slug: "exampleworkflow-web-legado",
 			Name: "Fluxo Exemplo Web Legado",
 			LinkedRepos: []linkedRepoRef{
 				{RepoPath: repoPath, Primary: true},
@@ -6627,7 +7080,7 @@ func TestBrokerSyncTaskWorktreeUsesChannelLinkedRepoInsteadOfDunderiaWorktree(t 
 	}
 	task := &teamTask{
 		ID:             "task-3177",
-		Channel:        "ExampleWorkflow-web-legado",
+		Channel:        "exampleworkflow-web-legado",
 		Title:          "Revisar rota GET de movimentacoes financeiras",
 		Owner:          "ceo",
 		Status:         "in_progress",
@@ -6888,12 +7341,12 @@ func TestHandleChannelsRemoveProtectedChannelRequiresForce(t *testing.T) {
 	b := NewBroker()
 	b.channels = []teamChannel{
 		{Slug: "general", Name: "general", Protected: true},
-		{Slug: "ExampleWorkflow-web-legado", Name: "ExampleWorkflow Web Legado", Protected: true},
+		{Slug: "exampleworkflow-web-legado", Name: "ExampleWorkflow Web Legado", Protected: true},
 	}
 	b.members = append(b.members, officeMember{Slug: "ceo", Name: "CEO"}, officeMember{Slug: "you", Name: "You"})
 
 	handler := b.requireAuth(b.handleChannels)
-	body := bytes.NewBufferString(`{"action":"remove","slug":"ExampleWorkflow-web-legado"}`)
+	body := bytes.NewBufferString(`{"action":"remove","slug":"exampleworkflow-web-legado"}`)
 	req := httptest.NewRequest(http.MethodPost, "/channels", body)
 	req.Header.Set("Authorization", "Bearer "+b.Token())
 	req.Header.Set("Content-Type", "application/json")
@@ -6906,11 +7359,11 @@ func TestHandleChannelsRemoveProtectedChannelRequiresForce(t *testing.T) {
 		raw, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected 403 for protected channel, got %d: %s", resp.StatusCode, raw)
 	}
-	if found := b.findChannelLocked("ExampleWorkflow-web-legado"); found == nil {
+	if found := b.findChannelLocked("exampleworkflow-web-legado"); found == nil {
 		t.Fatal("expected protected channel to remain when remove attempted without force")
 	}
 
-	body = bytes.NewBufferString(`{"action":"remove","slug":"ExampleWorkflow-web-legado","force":true,"purge":true,"confirm":"confirm:ExampleWorkflow-web-legado"}`)
+	body = bytes.NewBufferString(`{"action":"remove","slug":"exampleworkflow-web-legado","force":true,"purge":true,"confirm":"confirm:exampleworkflow-web-legado"}`)
 	req = httptest.NewRequest(http.MethodPost, "/channels", body)
 	req.Header.Set("Authorization", "Bearer "+b.Token())
 	req.Header.Set("Content-Type", "application/json")
@@ -6923,7 +7376,7 @@ func TestHandleChannelsRemoveProtectedChannelRequiresForce(t *testing.T) {
 		raw, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected 200 when forcing protected channel remove, got %d: %s", resp.StatusCode, raw)
 	}
-	if found := b.findChannelLocked("ExampleWorkflow-web-legado"); found != nil {
+	if found := b.findChannelLocked("exampleworkflow-web-legado"); found != nil {
 		t.Fatalf("expected channel to be removed with force=true, found=%+v", found)
 	}
 }
@@ -6941,7 +7394,7 @@ func TestHandleChannelsCreateUserChannelMarksProtected(t *testing.T) {
 	b.members = append(b.members, officeMember{Slug: "ceo", Name: "CEO"}, officeMember{Slug: "you", Name: "You"})
 
 	handler := b.requireAuth(b.handleChannels)
-	body := bytes.NewBufferString(`{"action":"create","slug":"migracao-ExampleWorkflow","name":"Migração ExampleWorkflow","description":"Controle de migração","created_by":"you","members":["you"]}`)
+	body := bytes.NewBufferString(`{"action":"create","slug":"migration-exampleworkflow","name":"Migração ExampleWorkflow","description":"Controle de migração","created_by":"you","members":["you"]}`)
 	req := httptest.NewRequest(http.MethodPost, "/channels", body)
 	req.Header.Set("Authorization", "Bearer "+b.Token())
 	req.Header.Set("Content-Type", "application/json")
@@ -6955,7 +7408,7 @@ func TestHandleChannelsCreateUserChannelMarksProtected(t *testing.T) {
 		t.Fatalf("expected 200 creating custom channel, got %d: %s", resp.StatusCode, raw)
 	}
 
-	ch := b.findChannelLocked("migracao-ExampleWorkflow")
+	ch := b.findChannelLocked("migration-exampleworkflow")
 	if ch == nil {
 		t.Fatal("expected channel to be created")
 	}
@@ -6963,7 +7416,7 @@ func TestHandleChannelsCreateUserChannelMarksProtected(t *testing.T) {
 		t.Fatalf("expected newly created user channel to be protected: %+v", ch)
 	}
 
-	body = bytes.NewBufferString(`{"action":"remove","slug":"migracao-ExampleWorkflow"}`)
+	body = bytes.NewBufferString(`{"action":"remove","slug":"migration-exampleworkflow"}`)
 	req = httptest.NewRequest(http.MethodPost, "/channels", body)
 	req.Header.Set("Authorization", "Bearer "+b.Token())
 	req.Header.Set("Content-Type", "application/json")
@@ -6986,7 +7439,7 @@ func TestNormalizeLoadedStateLockedRecoversPublicChannelsFromChannelStore(t *tes
 	b.members = append(b.members, officeMember{Slug: "you", Name: "You"})
 
 	stored, err := b.channelStore.Create(channel.Channel{
-		Slug:        "migracao-ExampleWorkflow",
+		Slug:        "migration-exampleworkflow",
 		Name:        "Migração Fluxo Exemplo Web",
 		Type:        channel.ChannelTypePublic,
 		CreatedBy:   "you",
@@ -7004,7 +7457,7 @@ func TestNormalizeLoadedStateLockedRecoversPublicChannelsFromChannelStore(t *tes
 
 	b.normalizeLoadedStateLocked()
 
-	ch := b.findChannelLocked("migracao-ExampleWorkflow")
+	ch := b.findChannelLocked("migration-exampleworkflow")
 	if ch == nil {
 		t.Fatal("expected channel to be recovered from channel_store")
 	}
@@ -7035,7 +7488,7 @@ func TestNormalizeLoadedStateLockedRecoversPublicChannelsFromChannelStore(t *tes
 	}
 	found := false
 	for _, listed := range channelList.Channels {
-		if listed.Slug == "migracao-ExampleWorkflow" {
+		if listed.Slug == "migration-exampleworkflow" {
 			found = true
 			break
 		}
@@ -8077,7 +8530,7 @@ func TestHandlePostTaskLinksWorkspacePathToChannel(t *testing.T) {
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
 	defer func() { brokerStatePath = oldPathFn }()
 
-	repo := filepath.Join(tmpDir, "LegacySystemExternal")
+	repo := filepath.Join(tmpDir, "LegacyWebExternal")
 	initUsableGitWorktree(t, repo)
 
 	b := NewBroker()

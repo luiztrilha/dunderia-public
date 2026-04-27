@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/nex-crm/wuphf/internal/config"
@@ -97,6 +98,7 @@ func configShow(ctx *SlashContext) error {
 	sb.WriteString(fmt.Sprintf("  Minimax:   %s\n", maskKey(cfg.MinimaxAPIKey)))
 	sb.WriteString(fmt.Sprintf("  Brave:     %s\n", maskKey(cfg.BraveAPIKey)))
 	sb.WriteString(fmt.Sprintf("  Blueprint: %s\n", blueprint))
+	sb.WriteString(fmt.Sprintf("  Broker history: %dd / %d snapshots / %d MB\n", config.ResolveBrokerHistoryRetentionDays(), config.ResolveBrokerHistoryMaxSnapshots(), config.ResolveBrokerHistoryMaxMB()))
 	if legacy := strings.TrimSpace(cfg.Pack); legacy != "" && legacy != blueprint {
 		sb.WriteString(fmt.Sprintf("  Legacy pack: %s\n", legacy))
 	}
@@ -200,9 +202,27 @@ func configSet(ctx *SlashContext, key, value string) error {
 		cfg.CompanySize = value
 	case "company_priority":
 		cfg.CompanyPriority = value
+	case "broker_history_retention_days":
+		n, ok := parseNonNegativeConfigInt(ctx, key, value)
+		if !ok {
+			return nil
+		}
+		cfg.BrokerHistoryRetentionDays = n
+	case "broker_history_max_snapshots":
+		n, ok := parseNonNegativeConfigInt(ctx, key, value)
+		if !ok {
+			return nil
+		}
+		cfg.BrokerHistoryMaxSnapshots = n
+	case "broker_history_max_mb":
+		n, ok := parseNonNegativeConfigInt(ctx, key, value)
+		if !ok {
+			return nil
+		}
+		cfg.BrokerHistoryMaxMB = n
 	default:
 		ctx.AddMessage("system", "Unknown config key: "+key+
-			"\nValid keys: api_key, composio_api_key, action_provider, web_search_provider, workspace_id, workspace_slug, memory_backend, cloud_backup_provider, cloud_backup_bucket, cloud_backup_prefix, llm_provider, gemini_api_key, anthropic_api_key, openai_api_key, minimax_api_key, brave_api_key, blueprint, template, operation_template, pack (legacy alias), team_lead_slug, dev_url, default_format, company_name, company_description, company_goals, company_size, company_priority")
+			"\nValid keys: api_key, composio_api_key, action_provider, web_search_provider, workspace_id, workspace_slug, memory_backend, cloud_backup_provider, cloud_backup_bucket, cloud_backup_prefix, llm_provider, gemini_api_key, anthropic_api_key, openai_api_key, minimax_api_key, brave_api_key, blueprint, template, operation_template, pack (legacy alias), team_lead_slug, dev_url, default_format, company_name, company_description, company_goals, company_size, company_priority, broker_history_retention_days, broker_history_max_snapshots, broker_history_max_mb")
 		return nil
 	}
 
@@ -211,6 +231,15 @@ func configSet(ctx *SlashContext, key, value string) error {
 	}
 	ctx.AddMessage("system", fmt.Sprintf("Set %s = %s", key, value))
 	return nil
+}
+
+func parseNonNegativeConfigInt(ctx *SlashContext, key, value string) (int, bool) {
+	n, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || n < 0 {
+		ctx.AddMessage("system", fmt.Sprintf("Invalid value for %s. Use a non-negative integer.", key))
+		return 0, false
+	}
+	return n, true
 }
 
 // cmdDetect checks for installed AI platform CLIs.

@@ -400,6 +400,12 @@ func (l *Launcher) headlessTurnProviderKind(slug string, channel ...string) stri
 		kind = l.memberEffectiveProviderKind(slug)
 	}
 	if task := l.headlessTaskForExecution(slug, channel...); task != nil {
+		if runtimeProvider := strings.TrimSpace(task.RuntimeProvider); runtimeProvider != "" {
+			return normalizeProviderKind(runtimeProvider)
+		}
+		if inferred := inferRuntimeProviderFromModel(task.RuntimeModel); inferred != "" {
+			return inferred
+		}
 		switch strings.ToLower(strings.TrimSpace(task.ExecutionMode)) {
 		case "local_worktree", "external_workspace":
 			return provider.KindCodex
@@ -1379,8 +1385,11 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 		"--color", "never",
 		"--json",
 	)
-	if model := strings.TrimSpace(config.ResolveCodexModel(l.cwd)); model != "" {
+	if model := strings.TrimSpace(l.headlessCodexModel(slug, turnChannel)); model != "" {
 		args = append(args, "--model", model)
+	}
+	if effort := strings.TrimSpace(l.headlessCodexReasoningEffort(slug, turnChannel)); effort != "" {
+		args = append(args, "-c", fmt.Sprintf("model_reasoning_effort=%s", tomlQuote(effort)))
 	}
 	for _, override := range overrides {
 		args = append(args, "-c", override)
@@ -1550,7 +1559,7 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 	}
 	l.updateHeadlessProgress(slug, "idle", "idle", summary, metrics, turnChannel)
 	if l.broker != nil && (result.Usage.InputTokens != 0 || result.Usage.OutputTokens != 0 || result.Usage.CacheReadTokens != 0 || result.Usage.CacheCreationTokens != 0 || result.Usage.CostUSD != 0) {
-		l.broker.RecordAgentUsage(slug, config.ResolveCodexModel(l.cwd), result.Usage)
+		l.broker.RecordAgentUsage(slug, l.headlessCodexModel(slug, turnChannel), result.Usage)
 	}
 	if text := strings.TrimSpace(firstNonEmpty(result.FinalMessage, result.LastPlainLine)); text != "" {
 		appendHeadlessCodexLog(slug, "result: "+text)
@@ -2063,6 +2072,51 @@ func (l *Launcher) headlessTurnChannel(slug string, channel ...string) string {
 	}
 	if task := l.headlessTaskForExecution(slug, channel...); task != nil {
 		return normalizeChannelSlug(task.Channel)
+	}
+	return ""
+}
+
+func (l *Launcher) headlessCodexModel(slug string, channel ...string) string {
+	if l != nil {
+		if task := l.headlessTaskForExecution(slug, channel...); task != nil {
+			if model := strings.TrimSpace(task.RuntimeModel); model != "" {
+				explicitProvider := ""
+				if strings.TrimSpace(task.RuntimeProvider) != "" {
+					explicitProvider = normalizeProviderKind(task.RuntimeProvider)
+				}
+				inferredProvider := inferRuntimeProviderFromModel(model)
+				if explicitProvider == provider.KindCodex || (explicitProvider == "" && (inferredProvider == "" || inferredProvider == provider.KindCodex)) {
+					return model
+				}
+			}
+		}
+		if l.broker != nil {
+			binding := l.broker.MemberProviderBinding(slug)
+			if model := strings.TrimSpace(binding.Model); model != "" {
+				explicitProvider := ""
+				if strings.TrimSpace(binding.Kind) != "" {
+					explicitProvider = normalizeProviderKind(binding.Kind)
+				}
+				inferredProvider := inferRuntimeProviderFromModel(model)
+				if explicitProvider == provider.KindCodex || (explicitProvider == "" && inferredProvider == provider.KindCodex) {
+					return model
+				}
+			}
+		}
+		return config.ResolveCodexModel(l.cwd)
+	}
+	return config.ResolveCodexModel("")
+}
+
+func (l *Launcher) headlessCodexReasoningEffort(slug string, channel ...string) string {
+	if l == nil {
+		return ""
+	}
+	if task := l.headlessTaskForExecution(slug, channel...); task != nil {
+		effort, err := normalizeReasoningEffort(task.ReasoningEffort)
+		if err == nil {
+			return effort
+		}
 	}
 	return ""
 }

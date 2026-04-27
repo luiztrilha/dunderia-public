@@ -108,9 +108,11 @@
   "messages": {
     "composer": {
       "placeholder": "Message #{{channel}}",
+      "blockedPlaceholder": "Answer the highlighted question to continue",
       "sendAria": "Send message",
       "failedSend": "Failed to send message",
       "interviewBlock": "Answer the interview above to send messages.",
+      "blockedByInterview": "Chat is paused until you answer the highlighted question.",
       "statusDraft": "Draft saved locally.",
       "statusSending": "Persisting message to the broker...",
       "statusPersisted": "Message persisted.",
@@ -149,10 +151,15 @@
       "replyAction": "Reply",
       "reactionFailed": "Reaction failed: {{error}}",
       "deleteAction": "Delete",
+      "deleteThreadAction": "Delete thread",
       "deleteAria": "Delete message",
+      "deleteThreadAria": "Delete entire thread",
       "deleteConfirmTitle": "Delete this message?",
       "deleteConfirmBody": "This removes the message from the timeline and any open thread view.",
+      "deleteThreadConfirmTitle": "Delete the entire thread?",
+      "deleteThreadConfirmBody": "This removes the root message and {{count}} child messages. This cannot be undone.",
       "deleteSuccess": "Message deleted",
+      "deleteThreadSuccess": "Thread deleted",
       "deleteFailed": "Delete failed: {{error}}",
       "deleteFailedFallback": "Delete failed"
     },
@@ -169,6 +176,10 @@
         "showAutomationBurst_one": "Show {{count}} update",
         "showAutomationBurst_other": "Show {{count}} updates",
         "hideAutomationBurst": "Hide updates",
+        "rootOnlyEyebrow": "parent messages only",
+        "rootOnlyTitle": "Recent messages are replies.",
+        "rootOnlyBody": "Load older history to see this channel's parent messages.",
+        "loadParentMessages": "Load parent messages",
         "emptyEyebrow": "quiet before the standup",
         "emptyTitle": "#{{channel}} is empty. For now.",
         "emptyBody": "This is where your agents will argue, claim tasks, and show progress. The point is visible work, not hidden orchestration.",
@@ -188,6 +199,7 @@
     },
     "thread": {
       "title": "Thread",
+      "backToFeed": "Back to feed",
       "closeAria": "Close thread",
       "loading": "Loading thread...",
       "refreshing": "Refreshing thread...",
@@ -235,6 +247,8 @@
       "typeHint": "type"
     },
     "overlay": {
+      "actionRequired": "Action required",
+      "blocksChat": "This question blocks new messages until it is answered.",
       "fromBadge": "@{{from}}",
       "fallbackTitle": "Human input required",
       "noChoices": "No choices provided. Open the Requests app to respond.",
@@ -570,7 +584,7 @@
       },
       "placeholders": {
         "nexRegistration": "(set by workspace registration)",
-        "customMCPConfig": "<REPOS_ROOT>/dunderia/mcp/dunderia-mcp-settings.json",
+        "customMCPConfig": "D:/Repos/dunderia/mcp/dunderia-mcp-settings.json",
         "cloudBackupBucket": "dunderia-backups",
         "cloudBackupPrefix": "office-a/config"
       },
@@ -579,6 +593,9 @@
     "intervals": {
       "title": "Polling Intervals",
       "description": "How often background processes check for updates. All values in minutes. Minimum 2 minutes.",
+      "groups": {
+        "history": "Local history purge"
+      },
       "fields": {
         "insights": {
           "label": "Insights",
@@ -595,6 +612,18 @@
         "recheck": {
           "label": "Task Recheck",
           "hint": "Progress re-evaluation"
+        },
+        "historyDays": {
+          "label": "Retain history for days",
+          "hint": "Deletes broker-state history snapshots older than this"
+        },
+        "historySnapshots": {
+          "label": "Max history snapshots",
+          "hint": "Keeps only the newest local broker-state history files"
+        },
+        "historyMaxMB": {
+          "label": "Max history size (MB)",
+          "hint": "Trims oldest snapshots when local history exceeds this size"
         }
       },
       "saveLabel": "Save intervals"
@@ -646,7 +675,10 @@
         "insightsInterval": "Insights poll interval",
         "taskFollowup": "Task follow-up interval",
         "taskReminder": "Task reminder interval",
-        "taskRecheck": "Task recheck interval"
+        "taskRecheck": "Task recheck interval",
+        "historyRetentionDays": "Broker history retention days",
+        "historyMaxSnapshots": "Broker history snapshot limit",
+        "historyMaxMB": "Broker history size limit"
       }
     },
     "danger": {
@@ -866,7 +898,7 @@
         "detailsPlaceholder": "Short context for the new task",
         "executionMode": "Execution mode",
         "workspacePath": "Workspace path",
-        "workspacePathPlaceholder": "D:\\Repos\\LegacySystemNew",
+        "workspacePathPlaceholder": "<REPOS_ROOT>\\LegacySystemNew",
         "channelHint": "New tasks are created in #{{channel}}.",
         "create": "Create task",
         "creating": "Creating...",

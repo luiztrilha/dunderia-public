@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -458,7 +459,10 @@ func pollUsage() tea.Cmd {
 
 func pollTasks(channel string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := newBrokerRequest(http.MethodGet, "http://127.0.0.1:7890/tasks?channel="+channel, nil)
+		values := url.Values{}
+		values.Set("channel", channel)
+		values.Set("lite", "true")
+		req, err := newBrokerRequest(http.MethodGet, "http://127.0.0.1:7890/tasks?"+values.Encode(), nil)
 		if err != nil {
 			return channelTasksMsg{}
 		}

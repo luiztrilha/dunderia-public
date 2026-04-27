@@ -5,16 +5,16 @@ export function normalizeChannelKey(channel?: string | null): string {
   return trimmed ? trimmed : 'general'
 }
 
-export function officeTasksKey(includeDone = false): QueryKey {
-  return ['office-tasks', includeDone ? 'include-done' : 'active-only']
+export function officeTasksKey(includeDone = false, lite = false): QueryKey {
+  return ['office-tasks', includeDone ? 'include-done' : 'active-only', lite ? 'lite' : 'full']
 }
 
-export function channelTasksKey(channel: string, includeDone = false): QueryKey {
-  return ['tasks', normalizeChannelKey(channel), includeDone ? 'include-done' : 'active-only']
+export function channelTasksKey(channel: string, includeDone = false, lite = false): QueryKey {
+  return ['tasks', normalizeChannelKey(channel), includeDone ? 'include-done' : 'active-only', lite ? 'lite' : 'full']
 }
 
-export function requestsKey(channel?: string | null): QueryKey {
-  return ['requests', normalizeChannelKey(channel)]
+export function requestsKey(channel?: string | null, allChannels = false): QueryKey {
+  return ['requests', allChannels ? 'all' : normalizeChannelKey(channel)]
 }
 
 export function deliveriesKey(includeDone = false): QueryKey {

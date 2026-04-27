@@ -114,8 +114,8 @@ func TestBuildDeliveriesLockedAggregatesArtifactsAndPendingHuman(t *testing.T) {
 		Owner:         "builder",
 		Status:        "review",
 		ThreadID:      "msg-1",
-		WorkspacePath: "D:\\Repos\\ExampleDataRepo",
-		WorktreePath:  "D:\\Repos\\worktrees\\migration-report",
+		WorkspacePath: "<REPOS_ROOT>\\ExampleDataRepo",
+		WorktreePath:  "<REPOS_ROOT>\\worktrees\\migration-report",
 		CreatedAt:     "2026-04-23T11:55:00Z",
 		UpdatedAt:     "2026-04-23T12:04:00Z",
 	}}
@@ -151,7 +151,7 @@ func TestBuildDeliveriesLockedAggregatesArtifactsAndPendingHuman(t *testing.T) {
 	if delivery.ProgressBasis != "3 of 4 milestones complete" {
 		t.Fatalf("unexpected progress basis %q", delivery.ProgressBasis)
 	}
-	if delivery.WorkspacePath != "D:\\Repos\\ExampleDataRepo" {
+	if delivery.WorkspacePath != "<REPOS_ROOT>\\ExampleDataRepo" {
 		t.Fatalf("expected workspace path to prefer repo workspace, got %q", delivery.WorkspacePath)
 	}
 	if len(delivery.Artifacts) < 3 {
@@ -174,7 +174,7 @@ func TestBuildDeliveriesLockedPrefersBusinessWorkspaceOverHelperReposAndDunderia
 			Owner:         "builder",
 			Status:        "in_progress",
 			PipelineID:    "bugfix",
-			WorkspacePath: "D:\\Repositórios\\scripts",
+			WorkspacePath: "<REPOS_ROOT>\\scripts",
 			UpdatedAt:     "2026-04-24T13:26:54Z",
 		},
 		{
@@ -194,7 +194,7 @@ func TestBuildDeliveriesLockedPrefersBusinessWorkspaceOverHelperReposAndDunderia
 			Owner:         "builder",
 			Status:        "blocked",
 			PipelineID:    "bugfix",
-			WorkspacePath: "D:\\Repos\\LegacySystemOld",
+			WorkspacePath: "<REPOS_ROOT>\\LegacySystemOld",
 			UpdatedAt:     "2026-04-24T12:26:54Z",
 		},
 	}
@@ -203,7 +203,7 @@ func TestBuildDeliveriesLockedPrefersBusinessWorkspaceOverHelperReposAndDunderia
 	if len(deliveries) != 1 {
 		t.Fatalf("expected 1 delivery bucket, got %#v", deliveries)
 	}
-	if deliveries[0].WorkspacePath != "D:\\Repos\\LegacySystemOld" {
+	if deliveries[0].WorkspacePath != "<REPOS_ROOT>\\LegacySystemOld" {
 		t.Fatalf("expected business repo workspace to win, got %q", deliveries[0].WorkspacePath)
 	}
 }
@@ -223,7 +223,7 @@ func TestBuildDeliveriesLockedPrefersDunderiaWorktreeOverHelperWorkspaceWhenNoBu
 			Owner:         "watchdog",
 			Status:        "canceled",
 			PipelineID:    "bugfix",
-			WorkspacePath: "D:\\Repositórios\\scripts",
+			WorkspacePath: "<REPOS_ROOT>\\scripts",
 			UpdatedAt:     "2026-04-24T14:54:58Z",
 		},
 		{
@@ -260,7 +260,7 @@ func TestBuildDeliveriesLockedUsesChannelLinkedRepoWhenTaskHasNoRepository(t *te
 			Name: "Fluxo Exemplo Web Azure",
 			LinkedRepos: []linkedRepoRef{
 				{
-					RepoPath: "D:\\Repos\\ExampleAzureRepo",
+					RepoPath: "<REPOS_ROOT>\\ExampleAzureRepo",
 					Primary:  true,
 				},
 			},
@@ -283,7 +283,7 @@ func TestBuildDeliveriesLockedUsesChannelLinkedRepoWhenTaskHasNoRepository(t *te
 	if len(deliveries) != 1 {
 		t.Fatalf("expected 1 delivery bucket, got %#v", deliveries)
 	}
-	if deliveries[0].WorkspacePath != "D:\\Repos\\ExampleAzureRepo" {
+	if deliveries[0].WorkspacePath != "<REPOS_ROOT>\\ExampleAzureRepo" {
 		t.Fatalf("expected channel linked repo to win, got %q", deliveries[0].WorkspacePath)
 	}
 }

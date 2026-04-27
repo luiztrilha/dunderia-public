@@ -57,6 +57,10 @@ export function Composer() {
   const handleSend = useCallback(async () => {
     const trimmed = text.trim()
     if (!trimmed || isSending) return
+    if (blockingPending) {
+      showNotice(t('messages.composer.interviewBlock'), 'info')
+      return
+    }
 
     // Handle slash commands
     if (trimmed.startsWith('/')) {
@@ -92,7 +96,7 @@ export function Composer() {
       }
       showNotice(message, 'error')
     }
-  }, [text, isSending, currentChannel, setActiveThreadId, setActiveThreadReplyTo, queryClient, clearComposer, sendMessage, t])
+  }, [text, isSending, blockingPending, currentChannel, setActiveThreadId, setActiveThreadReplyTo, queryClient, clearComposer, sendMessage, t])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (acItems.length > 0) {
@@ -156,21 +160,28 @@ export function Composer() {
         onItems={handleAcItems}
         onPick={pickAutocomplete}
       />
+      {blockingPending ? (
+        <div className="composer-blocker" role="status">
+          <span className="composer-blocker-label">{t('messages.overlay.actionRequired')}</span>
+          <span className="composer-blocker-copy">{t('messages.composer.blockedByInterview')}</span>
+        </div>
+      ) : null}
       <div className={composerInnerClassName}>
         <textarea
           ref={textareaRef}
           className="composer-input"
-          placeholder={t('messages.composer.placeholder', { channel: currentChannel })}
+          placeholder={blockingPending ? t('messages.composer.blockedPlaceholder') : t('messages.composer.placeholder', { channel: currentChannel })}
           value={text}
           onChange={(e) => { setText(e.target.value); setCaret(e.target.selectionStart ?? 0); handleInput() }}
           onKeyDown={handleKeyDown}
           onKeyUp={syncCaret}
           onClick={syncCaret}
+          disabled={Boolean(blockingPending)}
           rows={1}
         />
         <button
           className="composer-send"
-          disabled={!text.trim() || isSending}
+          disabled={!text.trim() || isSending || Boolean(blockingPending)}
           onClick={handleSend}
           aria-label={t('messages.composer.sendAria')}
         >

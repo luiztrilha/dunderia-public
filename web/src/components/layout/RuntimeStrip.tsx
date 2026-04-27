@@ -8,7 +8,7 @@ import { useOfficeTasks } from '../../hooks/useTasks'
  */
 export function RuntimeStrip() {
   const { data: members = [] } = useOfficeMembers()
-  const { data: tasksData } = useOfficeTasks({ includeDone: false, fallbackMs: 15_000 })
+  const { data: tasksData } = useOfficeTasks({ includeDone: false, fallbackMs: 15_000, lite: true })
   const { pending } = useRequests()
 
   const active = members.filter((m) => {

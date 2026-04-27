@@ -1375,6 +1375,76 @@ func TestHandleTeamBroadcastDefaultsToLatestTaggedChannelAndThread(t *testing.T)
 	}
 }
 
+func TestHandleTeamBroadcastRejectsAgentRootChannelMessage(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	ctx := context.Background()
+
+	b := team.NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	ensureBrokerMembers(t, ctx, "fe")
+
+	result, _, err := handleTeamBroadcast(ctx, nil, TeamBroadcastArgs{
+		Channel: "general",
+		MySlug:  "fe",
+		Content: "Starting a new top-level topic from an agent should be blocked.",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamBroadcast returned transport error: %v", err)
+	}
+	if result == nil || !result.IsError {
+		t.Fatalf("expected tool error result, got %+v", result)
+	}
+	text := textFromResult(t, result)
+	if !strings.Contains(text, "reply_to_id required") {
+		t.Fatalf("expected reply_to_id guidance, got %q", text)
+	}
+
+	var messages brokerMessagesResponse
+	if err := brokerGetJSON(ctx, "/messages?channel=general&limit=10", &messages); err != nil {
+		t.Fatalf("fetch messages: %v", err)
+	}
+	if len(messages.Messages) != 0 {
+		t.Fatalf("expected no root message to be created, got %+v", messages.Messages)
+	}
+}
+
+func TestHandleTeamStatusRejectsAgentRootChannelStatus(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	ctx := context.Background()
+
+	b := team.NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	ensureBrokerMembers(t, ctx, "fe")
+
+	result, _, err := handleTeamStatus(ctx, nil, TeamStatusArgs{
+		Channel: "general",
+		MySlug:  "fe",
+		Status:  "still checking files",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamStatus returned transport error: %v", err)
+	}
+	if result == nil || !result.IsError {
+		t.Fatalf("expected tool error result, got %+v", result)
+	}
+	text := textFromResult(t, result)
+	if !strings.Contains(text, "reply_to_id required") {
+		t.Fatalf("expected reply_to_id guidance, got %q", text)
+	}
+}
+
 func TestHandleTeamPollDefaultsToLatestTaggedChannel(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	ctx := context.Background()
@@ -1677,13 +1747,16 @@ func TestHandleTeamPlanCreatesDependentBlockedTasks(t *testing.T) {
 		Channel: "general",
 		MySlug:  "ceo",
 		Tasks: []struct {
-			Title         string   `json:"title" jsonschema:"Task title"`
-			Assignee      string   `json:"assignee" jsonschema:"Agent slug to own this task"`
-			Details       string   `json:"details,omitempty" jsonschema:"Optional task details"`
-			TaskType      string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
-			ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
-			WorkspacePath string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`
-			DependsOn     []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
+			Title           string   `json:"title" jsonschema:"Task title"`
+			Assignee        string   `json:"assignee" jsonschema:"Agent slug to own this task"`
+			Details         string   `json:"details,omitempty" jsonschema:"Optional task details"`
+			TaskType        string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
+			ExecutionMode   string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
+			RuntimeProvider string   `json:"runtime_provider,omitempty" jsonschema:"Optional runtime for this task turn. One of: claude-code, codex, gemini, gemini-vertex, ollama, openclaude. Empty inherits the assignee default."`
+			RuntimeModel    string   `json:"runtime_model,omitempty" jsonschema:"Optional model for this task turn, such as gpt-5.5, gpt-5.4, gpt-5.4-mini, claude-sonnet-4-6, or gemini-2.5-pro."`
+			ReasoningEffort string   `json:"reasoning_effort,omitempty" jsonschema:"Optional reasoning effort for Codex/OpenAI runtimes: default, low, medium, high, or xhigh."`
+			WorkspacePath   string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`
+			DependsOn       []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
 		}{
 			{Title: "Research competitors", Assignee: "research"},
 			{Title: "Write positioning copy", Assignee: "marketing", DependsOn: []string{"Research competitors"}},
@@ -1717,7 +1790,9 @@ func TestHandleTeamPlanCreatesDependentBlockedTasks(t *testing.T) {
 }
 
 func TestHandleTeamPlanPreservesTaskMetadata(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 
 	b := team.NewBroker()
 	if err := b.StartOnPort(0); err != nil {
@@ -1728,24 +1803,30 @@ func TestHandleTeamPlanPreservesTaskMetadata(t *testing.T) {
 	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
 	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
 
-	_, _, err := handleTeamPlan(context.Background(), nil, TeamPlanArgs{
+	planResult, _, err := handleTeamPlan(context.Background(), nil, TeamPlanArgs{
 		Channel: "general",
 		MySlug:  "ceo",
 		Tasks: []struct {
-			Title         string   `json:"title" jsonschema:"Task title"`
-			Assignee      string   `json:"assignee" jsonschema:"Agent slug to own this task"`
-			Details       string   `json:"details,omitempty" jsonschema:"Optional task details"`
-			TaskType      string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
-			ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
-			WorkspacePath string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`
-			DependsOn     []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
+			Title           string   `json:"title" jsonschema:"Task title"`
+			Assignee        string   `json:"assignee" jsonschema:"Agent slug to own this task"`
+			Details         string   `json:"details,omitempty" jsonschema:"Optional task details"`
+			TaskType        string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
+			ExecutionMode   string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
+			RuntimeProvider string   `json:"runtime_provider,omitempty" jsonschema:"Optional runtime for this task turn. One of: claude-code, codex, gemini, gemini-vertex, ollama, openclaude. Empty inherits the assignee default."`
+			RuntimeModel    string   `json:"runtime_model,omitempty" jsonschema:"Optional model for this task turn, such as gpt-5.5, gpt-5.4, gpt-5.4-mini, claude-sonnet-4-6, or gemini-2.5-pro."`
+			ReasoningEffort string   `json:"reasoning_effort,omitempty" jsonschema:"Optional reasoning effort for Codex/OpenAI runtimes: default, low, medium, high, or xhigh."`
+			WorkspacePath   string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`
+			DependsOn       []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
 		}{
-			{Title: "Build the studio control plane", Assignee: "eng", TaskType: "feature", ExecutionMode: "local_worktree"},
 			{Title: "Package the launch slate", Assignee: "gtm", TaskType: "launch", ExecutionMode: "office"},
+			{Title: "Build the studio control plane", Assignee: "eng", TaskType: "feature", ExecutionMode: "local_worktree", DependsOn: []string{"Package the launch slate"}},
 		},
 	})
 	if err != nil {
 		t.Fatalf("handleTeamPlan: %v", err)
+	}
+	if planResult != nil && planResult.IsError {
+		t.Fatalf("handleTeamPlan tool error: %s", textFromResult(t, planResult))
 	}
 
 	var result brokerTasksResponse
@@ -1787,13 +1868,16 @@ func TestHandleTeamPlanPreservesExternalWorkspacePath(t *testing.T) {
 		Channel: "general",
 		MySlug:  "ceo",
 		Tasks: []struct {
-			Title         string   `json:"title" jsonschema:"Task title"`
-			Assignee      string   `json:"assignee" jsonschema:"Agent slug to own this task"`
-			Details       string   `json:"details,omitempty" jsonschema:"Optional task details"`
-			TaskType      string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
-			ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
-			WorkspacePath string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`
-			DependsOn     []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
+			Title           string   `json:"title" jsonschema:"Task title"`
+			Assignee        string   `json:"assignee" jsonschema:"Agent slug to own this task"`
+			Details         string   `json:"details,omitempty" jsonschema:"Optional task details"`
+			TaskType        string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
+			ExecutionMode   string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
+			RuntimeProvider string   `json:"runtime_provider,omitempty" jsonschema:"Optional runtime for this task turn. One of: claude-code, codex, gemini, gemini-vertex, ollama, openclaude. Empty inherits the assignee default."`
+			RuntimeModel    string   `json:"runtime_model,omitempty" jsonschema:"Optional model for this task turn, such as gpt-5.5, gpt-5.4, gpt-5.4-mini, claude-sonnet-4-6, or gemini-2.5-pro."`
+			ReasoningEffort string   `json:"reasoning_effort,omitempty" jsonschema:"Optional reasoning effort for Codex/OpenAI runtimes: default, low, medium, high, or xhigh."`
+			WorkspacePath   string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`
+			DependsOn       []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
 		}{
 			{Title: title, Assignee: "repo-auditor", ExecutionMode: "external_workspace", WorkspacePath: workspace},
 		},

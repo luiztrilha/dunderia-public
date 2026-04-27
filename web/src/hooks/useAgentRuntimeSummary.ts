@@ -10,7 +10,7 @@ import { useChannelTasks } from './useTasks'
 export function useAgentRuntimeSummary(channel: string) {
   const { data: officeMembers = [] } = useOfficeMembers()
   const { data: channelMembers = [] } = useChannelMembers(channel)
-  const { data: tasksData } = useChannelTasks(channel, { includeDone: false, fallbackMs: 5000 })
+  const { data: tasksData } = useChannelTasks(channel, { includeDone: false, fallbackMs: 5000, lite: true })
 
   const { data: messagesData } = useQuery({
     queryKey: runtimeSummaryKey('messages', channel),

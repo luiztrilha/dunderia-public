@@ -190,6 +190,9 @@ type brokerTaskSummary struct {
 	TaskType         string   `json:"task_type"`
 	PipelineStage    string   `json:"pipeline_stage"`
 	ExecutionMode    string   `json:"execution_mode"`
+	RuntimeProvider  string   `json:"runtime_provider"`
+	RuntimeModel     string   `json:"runtime_model"`
+	ReasoningEffort  string   `json:"reasoning_effort"`
 	ReviewState      string   `json:"review_state"`
 	SourceSignalID   string   `json:"source_signal_id"`
 	SourceDecisionID string   `json:"source_decision_id"`
@@ -214,7 +217,7 @@ type TeamBroadcastArgs struct {
 	MySlug    string   `json:"my_slug,omitempty" jsonschema:"Agent slug sending the message. Defaults to WUPHF_AGENT_SLUG."`
 	Tagged    []string `json:"tagged,omitempty" jsonschema:"Optional list of tagged agent slugs who should respond"`
 	ReplyToID string   `json:"reply_to_id,omitempty" jsonschema:"Reply in-thread to a specific message ID when continuing a narrow discussion"`
-	NewTopic  bool     `json:"new_topic,omitempty" jsonschema:"Set true only when this genuinely needs to start a new top-level thread"`
+	NewTopic  bool     `json:"new_topic,omitempty" jsonschema:"Deprecated for shared channels: agent channel messages still require reply_to_id; only human messages may start top-level threads."`
 }
 
 type TeamReactArgs struct {
@@ -297,18 +300,21 @@ type TeamRuntimeStateArgs struct {
 }
 
 type TeamTaskArgs struct {
-	Action        string   `json:"action" jsonschema:"One of: create, claim, assign, complete, review, approve, block, release, reconcile, cancel"`
-	Channel       string   `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
-	ID            string   `json:"id,omitempty" jsonschema:"Task ID for non-create actions"`
-	Title         string   `json:"title,omitempty" jsonschema:"Task title when creating a task"`
-	Details       string   `json:"details,omitempty" jsonschema:"For complete, review, block, or reconcile: required structured handoff with ## Task Report and ## Downstream Context. Use ## Blockers on block and ## Review Findings when recording review output. Mark separate follow-up work with New Demand: yes."`
-	Owner         string   `json:"owner,omitempty" jsonschema:"Owner slug for claim or assign"`
-	ThreadID      string   `json:"thread_id,omitempty" jsonschema:"Related thread or message id"`
-	TaskType      string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
-	ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
-	WorkspacePath string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`
-	DependsOn     []string `json:"depends_on,omitempty" jsonschema:"Task IDs this task must wait for before starting (create action only)"`
-	MySlug        string   `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	Action          string   `json:"action" jsonschema:"One of: create, claim, assign, complete, review, approve, block, release, reconcile, cancel"`
+	Channel         string   `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
+	ID              string   `json:"id,omitempty" jsonschema:"Task ID for non-create actions"`
+	Title           string   `json:"title,omitempty" jsonschema:"Task title when creating a task"`
+	Details         string   `json:"details,omitempty" jsonschema:"For complete, review, block, or reconcile: required structured handoff with ## Task Report and ## Downstream Context. Use ## Blockers on block and ## Review Findings when recording review output. Mark separate follow-up work with New Demand: yes."`
+	Owner           string   `json:"owner,omitempty" jsonschema:"Owner slug for claim or assign"`
+	ThreadID        string   `json:"thread_id,omitempty" jsonschema:"Related thread or message id"`
+	TaskType        string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
+	ExecutionMode   string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
+	RuntimeProvider string   `json:"runtime_provider,omitempty" jsonschema:"Optional runtime for this task turn. One of: claude-code, codex, gemini, gemini-vertex, ollama, openclaude. Empty inherits the assignee default."`
+	RuntimeModel    string   `json:"runtime_model,omitempty" jsonschema:"Optional model for this task turn, such as gpt-5.5, gpt-5.4, gpt-5.4-mini, claude-sonnet-4-6, or gemini-2.5-pro. Empty inherits the assignee/default model."`
+	ReasoningEffort string   `json:"reasoning_effort,omitempty" jsonschema:"Optional reasoning effort for Codex/OpenAI runtimes: default, low, medium, high, or xhigh."`
+	WorkspacePath   string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`
+	DependsOn       []string `json:"depends_on,omitempty" jsonschema:"Task IDs this task must wait for before starting (create action only)"`
+	MySlug          string   `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
 }
 
 type TeamChannelsArgs struct{}
@@ -369,13 +375,16 @@ type TeamMemberArgs struct {
 type TeamPlanArgs struct {
 	Channel string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
 	Tasks   []struct {
-		Title         string   `json:"title" jsonschema:"Task title"`
-		Assignee      string   `json:"assignee" jsonschema:"Agent slug to own this task"`
-		Details       string   `json:"details,omitempty" jsonschema:"Optional task details"`
-		TaskType      string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
-		ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
-		WorkspacePath string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`
-		DependsOn     []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
+		Title           string   `json:"title" jsonschema:"Task title"`
+		Assignee        string   `json:"assignee" jsonschema:"Agent slug to own this task"`
+		Details         string   `json:"details,omitempty" jsonschema:"Optional task details"`
+		TaskType        string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
+		ExecutionMode   string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
+		RuntimeProvider string   `json:"runtime_provider,omitempty" jsonschema:"Optional runtime for this task turn. One of: claude-code, codex, gemini, gemini-vertex, ollama, openclaude. Empty inherits the assignee default."`
+		RuntimeModel    string   `json:"runtime_model,omitempty" jsonschema:"Optional model for this task turn, such as gpt-5.5, gpt-5.4, gpt-5.4-mini, claude-sonnet-4-6, or gemini-2.5-pro."`
+		ReasoningEffort string   `json:"reasoning_effort,omitempty" jsonschema:"Optional reasoning effort for Codex/OpenAI runtimes: default, low, medium, high, or xhigh."`
+		WorkspacePath   string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`
+		DependsOn       []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
 	} `json:"tasks" jsonschema:"List of tasks to create in dependency order"`
 	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
 }
@@ -718,6 +727,9 @@ func handleTeamBroadcast(ctx context.Context, _ *mcp.CallToolRequest, args TeamB
 	replyTo := strings.TrimSpace(args.ReplyToID)
 	if replyTo == "" && !args.NewTopic {
 		replyTo = location.ReplyToID
+	}
+	if !isOneOnOneMode() && replyTo == "" {
+		return toolError(fmt.Errorf("reply_to_id required: channel messages from agents must reply in-thread; only human messages may start top-level channel threads")), nil, nil
 	}
 
 	if !isOneOnOneMode() {
@@ -1075,12 +1087,18 @@ func handleTeamStatus(ctx context.Context, _ *mcp.CallToolRequest, args TeamStat
 	if err != nil {
 		return toolError(err), nil, nil
 	}
-	channel := resolveConversationChannel(ctx, slug, args.Channel)
+	location := resolveConversationContext(ctx, slug, args.Channel, "")
+	channel := location.Channel
+	replyTo := strings.TrimSpace(location.ReplyToID)
+	if !isOneOnOneMode() && replyTo == "" {
+		return toolError(fmt.Errorf("reply_to_id required: status updates from agents must stay inside the current thread")), nil, nil
+	}
 	if err := brokerPostJSON(ctx, "/messages", map[string]any{
-		"channel": channel,
-		"from":    slug,
-		"content": "[STATUS] " + args.Status,
-		"tagged":  []string{},
+		"channel":  channel,
+		"from":     slug,
+		"content":  "[STATUS] " + args.Status,
+		"tagged":   []string{},
+		"reply_to": replyTo,
 	}, nil); err != nil {
 		return toolError(err), nil, nil
 	}
@@ -1245,6 +1263,15 @@ func handleTeamTask(ctx context.Context, _ *mcp.CallToolRequest, args TeamTaskAr
 	if executionMode := strings.TrimSpace(args.ExecutionMode); executionMode != "" {
 		payload["execution_mode"] = executionMode
 	}
+	if runtimeProvider := strings.TrimSpace(args.RuntimeProvider); runtimeProvider != "" {
+		payload["runtime_provider"] = runtimeProvider
+	}
+	if runtimeModel := strings.TrimSpace(args.RuntimeModel); runtimeModel != "" {
+		payload["runtime_model"] = runtimeModel
+	}
+	if reasoningEffort := strings.TrimSpace(args.ReasoningEffort); reasoningEffort != "" {
+		payload["reasoning_effort"] = reasoningEffort
+	}
 	if workspacePath := strings.TrimSpace(args.WorkspacePath); workspacePath != "" {
 		payload["workspace_path"] = workspacePath
 	}
@@ -1264,14 +1291,17 @@ func handleTeamTask(ctx context.Context, _ *mcp.CallToolRequest, args TeamTaskAr
 
 	var result struct {
 		Task struct {
-			ID             string `json:"id"`
-			Title          string `json:"title"`
-			Owner          string `json:"owner"`
-			Status         string `json:"status"`
-			ExecutionMode  string `json:"execution_mode"`
-			WorkspacePath  string `json:"workspace_path"`
-			WorktreePath   string `json:"worktree_path"`
-			WorktreeBranch string `json:"worktree_branch"`
+			ID              string `json:"id"`
+			Title           string `json:"title"`
+			Owner           string `json:"owner"`
+			Status          string `json:"status"`
+			ExecutionMode   string `json:"execution_mode"`
+			RuntimeProvider string `json:"runtime_provider"`
+			RuntimeModel    string `json:"runtime_model"`
+			ReasoningEffort string `json:"reasoning_effort"`
+			WorkspacePath   string `json:"workspace_path"`
+			WorktreePath    string `json:"worktree_path"`
+			WorktreeBranch  string `json:"worktree_branch"`
 		} `json:"task"`
 	}
 	if err := brokerPostJSON(ctx, "/tasks", payload, &result); err != nil {
@@ -1283,6 +1313,12 @@ func handleTeamTask(ctx context.Context, _ *mcp.CallToolRequest, args TeamTaskAr
 	}
 	if branch := strings.TrimSpace(result.Task.WorktreeBranch); branch != "" {
 		text += " · branch " + branch
+	}
+	if model := strings.TrimSpace(result.Task.RuntimeModel); model != "" {
+		text += " · model " + model
+	}
+	if effort := strings.TrimSpace(result.Task.ReasoningEffort); effort != "" {
+		text += " · reasoning " + effort
 	}
 	if path := strings.TrimSpace(preferredWorkspacePath(result.Task.WorkspacePath, result.Task.WorktreePath)); path != "" {
 		text += " · working_directory " + path
@@ -1458,17 +1494,20 @@ func convertRuntimeTasks(tasks []brokerTaskSummary) []team.RuntimeTask {
 	out := make([]team.RuntimeTask, 0, len(tasks))
 	for _, task := range tasks {
 		out = append(out, team.RuntimeTask{
-			ID:             task.ID,
-			Title:          task.Title,
-			Owner:          task.Owner,
-			Status:         task.Status,
-			PipelineStage:  task.PipelineStage,
-			ReviewState:    task.ReviewState,
-			ExecutionMode:  task.ExecutionMode,
-			WorkspacePath:  task.WorkspacePath,
-			WorktreePath:   task.WorktreePath,
-			WorktreeBranch: task.WorktreeBranch,
-			Blocked:        task.Blocked,
+			ID:              task.ID,
+			Title:           task.Title,
+			Owner:           task.Owner,
+			Status:          task.Status,
+			PipelineStage:   task.PipelineStage,
+			ReviewState:     task.ReviewState,
+			ExecutionMode:   task.ExecutionMode,
+			RuntimeProvider: task.RuntimeProvider,
+			RuntimeModel:    task.RuntimeModel,
+			ReasoningEffort: task.ReasoningEffort,
+			WorkspacePath:   task.WorkspacePath,
+			WorktreePath:    task.WorktreePath,
+			WorktreeBranch:  task.WorktreeBranch,
+			Blocked:         task.Blocked,
 		})
 	}
 	return out
@@ -1487,6 +1526,12 @@ func formatTaskRuntimeLine(task brokerTaskSummary) string {
 	}
 	if task.ExecutionMode != "" {
 		line += " · " + task.ExecutionMode
+	}
+	if task.RuntimeModel != "" {
+		line += " · model " + task.RuntimeModel
+	}
+	if task.ReasoningEffort != "" {
+		line += " · reasoning " + task.ReasoningEffort
 	}
 	if branch := strings.TrimSpace(task.WorktreeBranch); branch != "" {
 		line += " · branch " + branch
@@ -1540,24 +1585,30 @@ func handleTeamPlan(ctx context.Context, _ *mcp.CallToolRequest, args TeamPlanAr
 	}
 
 	type planItem struct {
-		Title         string   `json:"title"`
-		Assignee      string   `json:"assignee"`
-		Details       string   `json:"details,omitempty"`
-		TaskType      string   `json:"task_type,omitempty"`
-		ExecutionMode string   `json:"execution_mode,omitempty"`
-		WorkspacePath string   `json:"workspace_path,omitempty"`
-		DependsOn     []string `json:"depends_on,omitempty"`
+		Title           string   `json:"title"`
+		Assignee        string   `json:"assignee"`
+		Details         string   `json:"details,omitempty"`
+		TaskType        string   `json:"task_type,omitempty"`
+		ExecutionMode   string   `json:"execution_mode,omitempty"`
+		RuntimeProvider string   `json:"runtime_provider,omitempty"`
+		RuntimeModel    string   `json:"runtime_model,omitempty"`
+		ReasoningEffort string   `json:"reasoning_effort,omitempty"`
+		WorkspacePath   string   `json:"workspace_path,omitempty"`
+		DependsOn       []string `json:"depends_on,omitempty"`
 	}
 	items := make([]planItem, 0, len(args.Tasks))
 	for _, t := range args.Tasks {
 		items = append(items, planItem{
-			Title:         strings.TrimSpace(t.Title),
-			Assignee:      strings.TrimSpace(t.Assignee),
-			Details:       strings.TrimSpace(t.Details),
-			TaskType:      strings.TrimSpace(t.TaskType),
-			ExecutionMode: strings.TrimSpace(t.ExecutionMode),
-			WorkspacePath: strings.TrimSpace(t.WorkspacePath),
-			DependsOn:     t.DependsOn,
+			Title:           strings.TrimSpace(t.Title),
+			Assignee:        strings.TrimSpace(t.Assignee),
+			Details:         strings.TrimSpace(t.Details),
+			TaskType:        strings.TrimSpace(t.TaskType),
+			ExecutionMode:   strings.TrimSpace(t.ExecutionMode),
+			RuntimeProvider: strings.TrimSpace(t.RuntimeProvider),
+			RuntimeModel:    strings.TrimSpace(t.RuntimeModel),
+			ReasoningEffort: strings.TrimSpace(t.ReasoningEffort),
+			WorkspacePath:   strings.TrimSpace(t.WorkspacePath),
+			DependsOn:       t.DependsOn,
 		})
 	}
 

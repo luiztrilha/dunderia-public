@@ -14,8 +14,16 @@ import {
   flattenThreadTree,
 } from '../../lib/messageThreads'
 import { useDurableMessageComposer } from '../../hooks/useDurableMessageComposer'
+import { useRequests } from '../../hooks/useRequests'
 import { getHumanAttentionNodes, getHumanAttentionReason } from '../../lib/threadAttention'
 import { useVirtualWindow } from '../../lib/virtualWindow'
+
+const MAX_THREAD_LEVEL_INDEX = 2
+
+type InlineThreadProps = {
+  threadId: string
+  mode?: 'inline' | 'focus'
+}
 
 function getDisplayName(message: Message, members: { slug: string; name?: string }[]): string {
   if (message.from === 'you' || message.from === 'human') return message.from
@@ -23,7 +31,7 @@ function getDisplayName(message: Message, members: { slug: string; name?: string
   return member?.name ?? message.from
 }
 
-export function InlineThread({ threadId }: { threadId: string }) {
+export function InlineThread({ threadId, mode = 'inline' }: InlineThreadProps) {
   const { t } = useTranslation()
   const currentChannel = useAppStore((s) => s.currentChannel)
   const setActiveThreadId = useAppStore((s) => s.setActiveThreadId)
@@ -32,7 +40,8 @@ export function InlineThread({ threadId }: { threadId: string }) {
   const { data: officeMembers = [] } = useOfficeMembers()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesRef = useRef<HTMLDivElement>(null)
-  const shouldStickToBottomRef = useRef(true)
+  const shouldStickToBottomRef = useRef(mode !== 'focus')
+  const focusInitialScrollThreadRef = useRef<string | null>(null)
   const [expandedAutomationGroups, setExpandedAutomationGroups] = useState<Record<string, boolean>>({})
   const {
     data: replies = [],
@@ -71,6 +80,7 @@ export function InlineThread({ threadId }: { threadId: string }) {
   const humanAttentionNodes = useMemo(() => getHumanAttentionNodes(executionNodes), [executionNodes])
   const humanAttentionReason = useMemo(() => getHumanAttentionReason(executionNodes), [executionNodes])
   const memberSlugs = useMemo(() => officeMembers.map((member) => member.slug), [officeMembers])
+  const { blockingPending } = useRequests()
 
   const {
     text,
@@ -109,17 +119,30 @@ export function InlineThread({ threadId }: { threadId: string }) {
 
   useEffect(() => {
     setExpandedAutomationGroups({})
-  }, [threadId])
+    shouldStickToBottomRef.current = mode !== 'focus'
+    focusInitialScrollThreadRef.current = null
+  }, [threadId, mode])
 
   useEffect(() => {
-    if (messagesRef.current && shouldStickToBottomRef.current) {
-      messagesRef.current.scrollTop = messagesRef.current.scrollHeight
+    const node = messagesRef.current
+    if (!node) return
+    if (shouldStickToBottomRef.current) {
+      node.scrollTop = node.scrollHeight
+      return
     }
-  }, [displayNodes.length, expandedAutomationGroups])
+    if (mode === 'focus' && displayNodes.length > 0 && focusInitialScrollThreadRef.current !== threadId) {
+      node.scrollTop = 0
+      focusInitialScrollThreadRef.current = threadId
+    }
+  }, [displayNodes.length, expandedAutomationGroups, mode, threadId])
 
   const handleSend = async () => {
     const trimmed = text.trim()
     if (!trimmed || isSending) return
+    if (blockingPending) {
+      showNotice(t('messages.composer.interviewBlock'), 'info')
+      return
+    }
     try {
       await sendMessage()
     } catch (err) {
@@ -128,39 +151,70 @@ export function InlineThread({ threadId }: { threadId: string }) {
     }
   }
 
+  const closeThread = () => {
+    setActiveThreadId(null)
+    setActiveThreadReplyTo(null)
+  }
+
   return (
-    <div className="inline-thread-panel" data-thread-id={threadId}>
+    <div
+      className={`inline-thread-panel${mode === 'focus' ? ' inline-thread-panel-focus' : ''}`}
+      data-thread-id={threadId}
+    >
       <div className="inline-thread-header">
-        <div className="thread-panel-context">
-          <span className="thread-panel-context-chip">{threadContextLabel}</span>
-          {activeThreadReplyTo ? (
-            <button className="thread-panel-context-btn" onClick={() => setActiveThreadReplyTo(null)}>
-              {t('messages.thread.replyToRoot')}
-            </button>
-          ) : null}
-        </div>
-        <button
-          className="thread-panel-close inline-thread-close"
-          onClick={() => {
-            setActiveThreadId(null)
-            setActiveThreadReplyTo(null)
-          }}
-          aria-label={t('messages.thread.closeAria')}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {mode === 'focus' ? (
+          <button
+            className="inline-thread-back"
+            onClick={closeThread}
+            aria-label={t('messages.thread.backToFeed')}
           >
-            <path d="M18 6 6 18" />
-            <path d="m6 6 12 12" />
-          </svg>
-        </button>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+            <span>{t('messages.thread.backToFeed')}</span>
+          </button>
+        ) : null}
+        <div className="inline-thread-heading">
+          <div className="inline-thread-title">{t('messages.thread.title')}</div>
+          <div className="thread-panel-context">
+            <span className="thread-panel-context-chip">{threadContextLabel}</span>
+            {activeThreadReplyTo ? (
+              <button className="thread-panel-context-btn" onClick={() => setActiveThreadReplyTo(null)}>
+                {t('messages.thread.replyToRoot')}
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {mode === 'focus' ? null : (
+          <button
+            className="thread-panel-close inline-thread-close"
+            onClick={closeThread}
+            aria-label={t('messages.thread.closeAria')}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {humanAttentionNodes.length > 0 ? (
@@ -231,12 +285,14 @@ export function InlineThread({ threadId }: { threadId: string }) {
               <div style={{ height: offsets[startIndex] ?? 0 }} />
               {displayNodes.slice(startIndex, endIndex).map((node, sliceIndex) => {
                 const absoluteIndex = startIndex + sliceIndex
+                const visualDepth = Math.min(node.threadDepth, MAX_THREAD_LEVEL_INDEX)
+                const canReplyAtDepth = node.threadDepth < MAX_THREAD_LEVEL_INDEX
                 return (
                   <div
                     key={node.key}
                     className={`thread-tree-node ${node.threadDepth === 0 ? 'thread-tree-node-root' : ''}`}
                     style={{
-                      '--thread-tree-indent': `${Math.min(node.threadDepth, 6) * 18}px`,
+                      '--thread-tree-indent': `${visualDepth * 18}px`,
                     } as CSSProperties}
                     role="listitem"
                     ref={registerItem(absoluteIndex)}
@@ -278,7 +334,8 @@ export function InlineThread({ threadId }: { threadId: string }) {
                                 message={entry.message}
                                 members={officeMembers}
                                 canDelete={entry.message.can_delete === true}
-                                threadDepth={0}
+                                canDeleteThread={entry.message.can_delete_thread === true}
+                                threadDepth={Math.min(entry.threadDepth, MAX_THREAD_LEVEL_INDEX)}
                                 threadParentLabel={entry.threadParentLabel}
                                 onDeleted={(deleted) => {
                                   if (activeThreadReplyTo === deleted.id) {
@@ -293,9 +350,13 @@ export function InlineThread({ threadId }: { threadId: string }) {
                                   setActiveThreadId(messageThreadId)
                                   setActiveThreadReplyTo(null)
                                 }}
-                                onReply={(messageId) => {
-                                  setActiveThreadReplyTo(messageId)
-                                }}
+                                onReply={
+                                  entry.threadDepth < MAX_THREAD_LEVEL_INDEX
+                                    ? (messageId) => {
+                                        setActiveThreadReplyTo(messageId)
+                                      }
+                                    : undefined
+                                }
                               />
                             ))}
                           </div>
@@ -307,7 +368,8 @@ export function InlineThread({ threadId }: { threadId: string }) {
                           message={node.message}
                           members={officeMembers}
                           canDelete={node.message.can_delete === true}
-                          threadDepth={0}
+                          canDeleteThread={node.message.can_delete_thread === true}
+                          threadDepth={visualDepth}
                           threadParentLabel={
                             node.message.reply_to
                               ? messagesById.get(node.message.reply_to)
@@ -330,9 +392,13 @@ export function InlineThread({ threadId }: { threadId: string }) {
                             setActiveThreadId(messageThreadId)
                             setActiveThreadReplyTo(null)
                           }}
-                          onReply={(messageId) => {
-                            setActiveThreadReplyTo(messageId)
-                          }}
+                          onReply={
+                            canReplyAtDepth
+                              ? (messageId) => {
+                                  setActiveThreadReplyTo(messageId)
+                                }
+                              : undefined
+                          }
                         />
                       </div>
                     )}
@@ -346,6 +412,12 @@ export function InlineThread({ threadId }: { threadId: string }) {
       </div>
 
       <div className="composer inline-thread-composer">
+        {blockingPending ? (
+          <div className="composer-blocker" role="status">
+            <span className="composer-blocker-label">{t('messages.overlay.actionRequired')}</span>
+            <span className="composer-blocker-copy">{t('messages.composer.blockedByInterview')}</span>
+          </div>
+        ) : null}
         <div className="composer-context-hint">
           {activeThreadReplyTo
             ? t('messages.thread.composerReplyHint', {
@@ -353,11 +425,11 @@ export function InlineThread({ threadId }: { threadId: string }) {
               })
             : t('messages.thread.composerRootHint')}
         </div>
-        <div className="composer-inner">
+        <div className={`composer-inner${blockingPending ? ' composer-inner-blocked' : ''}`}>
           <textarea
             ref={textareaRef}
             className="composer-input"
-            placeholder={t('messages.thread.replyPlaceholder')}
+            placeholder={blockingPending ? t('messages.composer.blockedPlaceholder') : t('messages.thread.replyPlaceholder')}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -366,11 +438,12 @@ export function InlineThread({ threadId }: { threadId: string }) {
                 handleSend()
               }
             }}
+            disabled={Boolean(blockingPending)}
             rows={1}
           />
           <button
             className="composer-send"
-            disabled={!text.trim() || isSending}
+            disabled={!text.trim() || isSending || Boolean(blockingPending)}
             onClick={() => void handleSend()}
             aria-label={t('messages.thread.sendAria')}
           >

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMessages } from '../../hooks/useMessages'
 import { useAppStore } from '../../stores/app'
@@ -6,14 +6,14 @@ import { useOfficeMembers } from '../../hooks/useMembers'
 import { MessageBubble } from './MessageBubble'
 import { formatTime } from '../../lib/format'
 import type { Message } from '../../api/client'
-import { buildThreadTree, normalizeChannel } from '../../lib/messageThreads'
+import { normalizeChannel } from '../../lib/messageThreads'
 import { getHumanAttentionRootIds } from '../../lib/threadAttention'
 import { useVirtualWindow } from '../../lib/virtualWindow'
 import { buildMessageFeedElements, buildRecentContextItems } from '../../lib/messageFeed'
 
-const LazyInlineThread = lazy(() =>
-  import('./InlineThread').then((module) => ({ default: module.InlineThread })),
-)
+function isHumanAuthoredMessage(message: Message): boolean {
+  return message.from === 'you' || message.from === 'human'
+}
 
 export function MessageFeed() {
   const { t } = useTranslation()
@@ -61,12 +61,13 @@ export function MessageFeed() {
   }, [messages, currentChannel])
 
   const rootMessages = useMemo(
-    () => buildThreadTree(visibleMessages).map((node) => node.message),
+    () => visibleMessages.filter((message) => !message.reply_to && isHumanAuthoredMessage(message)),
     [visibleMessages],
   )
+  const feedMessages = rootMessages.length > 0 ? rootMessages : visibleMessages
 
-  const elements = useMemo(() => buildMessageFeedElements(rootMessages), [rootMessages])
-  const recentContext = useMemo(() => buildRecentContextItems(rootMessages), [rootMessages])
+  const elements = useMemo(() => buildMessageFeedElements(feedMessages), [feedMessages])
+  const recentContext = useMemo(() => buildRecentContextItems(feedMessages), [feedMessages])
 
   const activeThreadIndex = useMemo(() => {
     if (!activeThreadId) return -1
@@ -93,7 +94,6 @@ export function MessageFeed() {
           item.messages.some((message) => activeThreadId === (message.thread_id ?? message.id))
         return expanded ? 112 + item.messages.length * 150 : 96
       }
-      if (activeThreadId && activeThreadId === (item.message.thread_id ?? item.message.id)) return 380
       return 128
     },
     overscan: 8,
@@ -294,12 +294,18 @@ export function MessageFeed() {
                 </div>
                 {expanded ? (
                   <div className="message-automation-group-list">
-                    {el.messages.map((message) => (
-                      <div key={message.id} className="message-thread-block">
+                    {el.messages.map((message) => {
+                      const isActiveThread = activeThreadId === (message.thread_id ?? message.id)
+                      return (
+                      <div
+                        key={message.id}
+                        className={`message-thread-block${isActiveThread ? ' message-thread-block-active' : ''}`}
+                      >
                         <MessageBubble
                           message={message}
                           members={officeMembers}
                           canDelete={message.can_delete === true}
+                          canDeleteThread={message.can_delete_thread === true}
                           attentionLabel={
                             humanAttentionRoots.has(message.id)
                               ? t('messages.thread.humanAttentionBadge')
@@ -329,26 +335,20 @@ export function MessageFeed() {
                             setActiveThreadReplyTo(id)
                           }}
                         />
-                        {activeThreadId === (message.thread_id ?? message.id) ? (
-                          <Suspense
-                            fallback={
-                              <div className="inline-thread-panel" style={{ marginTop: 10, minHeight: 180 }}>
-                                <div className="inline-thread-empty">{t('messages.thread.loading')}</div>
-                              </div>
-                            }
-                          >
-                            <LazyInlineThread threadId={activeThreadId} />
-                          </Suspense>
-                        ) : null}
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : null}
               </div>
             )
           }
           return (
-            <div key={el.key} className="message-thread-block" ref={registerItem(absoluteIndex)}>
+            <div
+              key={el.key}
+              className={`message-thread-block${activeThreadId === (el.message.thread_id ?? el.message.id) ? ' message-thread-block-active' : ''}`}
+              ref={registerItem(absoluteIndex)}
+            >
               <MessageBubble
                 message={el.message}
                 members={officeMembers}
@@ -356,6 +356,7 @@ export function MessageFeed() {
                 threadDepth={el.threadDepth}
                 threadParentLabel={el.threadParentLabel}
                 canDelete={el.message.can_delete === true}
+                canDeleteThread={el.message.can_delete_thread === true}
                 attentionLabel={
                   humanAttentionRoots.has(el.message.id)
                     ? t('messages.thread.humanAttentionBadge')
@@ -385,17 +386,6 @@ export function MessageFeed() {
                   setActiveThreadReplyTo(id)
                 }}
               />
-              {activeThreadId === (el.message.thread_id ?? el.message.id) ? (
-                <Suspense
-                  fallback={
-                    <div className="inline-thread-panel" style={{ marginTop: 10, minHeight: 180 }}>
-                      <div className="inline-thread-empty">{t('messages.thread.loading')}</div>
-                    </div>
-                  }
-                >
-                  <LazyInlineThread threadId={activeThreadId} />
-                </Suspense>
-              ) : null}
             </div>
           )
         })}

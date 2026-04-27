@@ -105,3 +105,76 @@ Context: Este bloqueio existe apenas para validar que o reassign limpa o flag bl
 		t.Fatalf("blocked = true, want false after reassign")
 	}
 }
+
+func TestHandleTaskCreatePersistsRuntimeOverrides(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldPathFn := brokerStatePath
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatal(err)
+	}
+	defer b.Stop()
+
+	post := func(payload map[string]any) (*http.Response, map[string]any) {
+		t.Helper()
+		body, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatalf("marshal payload: %v", err)
+		}
+		req, err := http.NewRequest(http.MethodPost, "http://"+b.Addr()+"/tasks", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("new request: %v", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+b.Token())
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("post /tasks: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			return resp, nil
+		}
+		defer resp.Body.Close()
+		var out map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			t.Fatalf("decode /tasks: %v", err)
+		}
+		return resp, out
+	}
+
+	resp, out := post(map[string]any{
+		"action":           "create",
+		"channel":          "general",
+		"title":            "Implement runtime routing",
+		"details":          "Validate task-scoped runtime selection.",
+		"owner":            "builder",
+		"created_by":       "ceo",
+		"runtime_provider": "codex",
+		"runtime_model":    "gpt-5.5",
+		"reasoning_effort": "high",
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("create status = %d", resp.StatusCode)
+	}
+	task := out["task"].(map[string]any)
+	if task["runtime_provider"] != "codex" {
+		t.Fatalf("runtime_provider = %v, want codex", task["runtime_provider"])
+	}
+	if task["runtime_model"] != "gpt-5.5" {
+		t.Fatalf("runtime_model = %v, want gpt-5.5", task["runtime_model"])
+	}
+	if task["reasoning_effort"] != "high" {
+		t.Fatalf("reasoning_effort = %v, want high", task["reasoning_effort"])
+	}
+
+	b.mu.Lock()
+	persisted := b.tasks[0]
+	b.mu.Unlock()
+	if persisted.RuntimeProvider != "codex" || persisted.RuntimeModel != "gpt-5.5" || persisted.ReasoningEffort != "high" {
+		t.Fatalf("runtime overrides not persisted: %+v", persisted)
+	}
+}

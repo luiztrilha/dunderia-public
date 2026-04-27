@@ -1517,7 +1517,7 @@ func TestNotificationTargetsForRepeatedBlockedSpecialistUpdateSkipsLead(t *testi
 		From:      "builder",
 		Channel:   "general",
 		ReplyTo:   "msg-root",
-		Content:   "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que entrar um worktree gravável apontando para `D:\\Repositórios\\LegacySystemNew`, eu implemento o slice.",
+		Content:   "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que entrar um worktree gravável apontando para `<REPOS_ROOT>\\LegacySystemNew`, eu implemento o slice.",
 		Timestamp: time.Now().UTC().Add(-30 * time.Second).Format(time.RFC3339),
 	})
 	b.mu.Unlock()
@@ -1538,7 +1538,7 @@ func TestNotificationTargetsForRepeatedBlockedSpecialistUpdateSkipsLead(t *testi
 		From:      "builder",
 		Channel:   "general",
 		ReplyTo:   "msg-root",
-		Content:   "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que entrar um worktree gravável apontando para `D:\\Repositórios\\LegacySystemNew`, eu implemento o slice.",
+		Content:   "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que entrar um worktree gravável apontando para `<REPOS_ROOT>\\LegacySystemNew`, eu implemento o slice.",
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 	if len(delayed) != 0 {

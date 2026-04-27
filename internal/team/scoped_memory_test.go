@@ -350,7 +350,7 @@ func TestNormalizeLoadedStateClearsTerminalLocalWorktreeWithoutClearingWorkspace
 			Owner:          "builder",
 			Status:         "canceled",
 			ExecutionMode:  "local_worktree",
-			WorkspacePath:  "D:\\Repos\\ExampleAzureRepo",
+			WorkspacePath:  "<REPOS_ROOT>\\ExampleAzureRepo",
 			WorktreePath:   "<USER_HOME>\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-3059",
 			WorktreeBranch: "wuphf-221fdf9b-task-3059",
 		},
@@ -361,7 +361,7 @@ func TestNormalizeLoadedStateClearsTerminalLocalWorktreeWithoutClearingWorkspace
 			Owner:          "builder",
 			Status:         "done",
 			ExecutionMode:  "local_worktree",
-			WorkspacePath:  "D:\\Repos\\ExampleAzureRepo",
+			WorkspacePath:  "<REPOS_ROOT>\\ExampleAzureRepo",
 			WorktreePath:   "<USER_HOME>\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-2478",
 			WorktreeBranch: "wuphf-221fdf9b-task-2478",
 		},
@@ -370,7 +370,7 @@ func TestNormalizeLoadedStateClearsTerminalLocalWorktreeWithoutClearingWorkspace
 	b.normalizeLoadedStateLocked()
 
 	for i := range b.tasks {
-		if got := b.tasks[i].WorkspacePath; got != "D:\\Repos\\ExampleAzureRepo" {
+		if got := b.tasks[i].WorkspacePath; got != "<REPOS_ROOT>\\ExampleAzureRepo" {
 			t.Fatalf("expected workspace path preserved, got %q", got)
 		}
 		if b.tasks[i].WorktreePath != "" || b.tasks[i].WorktreeBranch != "" {

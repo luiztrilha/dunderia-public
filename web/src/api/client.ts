@@ -133,6 +133,7 @@ export interface Message {
   from: string
   channel: string
   can_delete?: boolean
+  can_delete_thread?: boolean
   kind?: string
   source?: string
   source_label?: string
@@ -268,6 +269,8 @@ export interface DeleteMessageResponse {
   id: string
   channel: string
   thread_id?: string
+  deleted_ids?: string[]
+  deleted_count?: number
   total: number
 }
 
@@ -294,10 +297,11 @@ export function postMessage(content: string, channel: string, replyTo?: string, 
   return post<PostMessageResponse>('/messages', body)
 }
 
-export function deleteMessage(messageId: string, channel: string) {
+export function deleteMessage(messageId: string, channel: string, options?: { deleteThread?: boolean }) {
   return del<DeleteMessageResponse>('/messages', {
     id: messageId,
     channel: channel || 'general',
+    delete_thread: options?.deleteThread === true,
   })
 }
 
@@ -497,11 +501,16 @@ export interface AgentRequest {
   recommendation_requested_at?: string
 }
 
-export function getRequests(channel: string) {
-  return get<{ requests: AgentRequest[] }>('/requests', {
-    channel: channel || 'general',
+export function getRequests(channel: string, allChannels = false) {
+  const params: Record<string, string> = {
     viewer_slug: 'human',
-  })
+  }
+  if (allChannels) {
+    params.all_channels = 'true'
+  } else {
+    params.channel = channel || 'general'
+  }
+  return get<{ requests: AgentRequest[] }>('/requests', params)
 }
 
 export function answerRequest(id: string, choiceId: string, customText?: string) {
@@ -600,19 +609,21 @@ export function updateTaskStatus(
   })
 }
 
-export function getTasks(channel: string, opts?: { includeDone?: boolean; status?: string; mySlug?: string }) {
+export function getTasks(channel: string, opts?: { includeDone?: boolean; status?: string; mySlug?: string; lite?: boolean }) {
   const params: Record<string, string> = { viewer_slug: 'human', channel: channel || 'general' }
   if (opts?.includeDone) params.include_done = 'true'
   if (opts?.status) params.status = opts.status
   if (opts?.mySlug) params.my_slug = opts.mySlug
+  if (opts?.lite) params.lite = 'true'
   return get<{ tasks: Task[] }>('/tasks', params)
 }
 
-export function getOfficeTasks(opts?: { includeDone?: boolean; status?: string; mySlug?: string }) {
+export function getOfficeTasks(opts?: { includeDone?: boolean; status?: string; mySlug?: string; lite?: boolean }) {
   const params: Record<string, string> = { viewer_slug: 'human', all_channels: 'true' }
   if (opts?.includeDone) params.include_done = 'true'
   if (opts?.status) params.status = opts.status
   if (opts?.mySlug) params.my_slug = opts.mySlug
+  if (opts?.lite) params.lite = 'true'
   return get<{ tasks: Task[] }>('/tasks', params)
 }
 
@@ -1127,6 +1138,10 @@ export interface ConfigSnapshot {
   task_follow_up_minutes?: number
   task_reminder_minutes?: number
   task_recheck_minutes?: number
+  // Local history retention
+  broker_history_retention_days?: number
+  broker_history_max_snapshots?: number
+  broker_history_max_mb?: number
   // Secret flags
   api_key_set?: boolean
   openai_key_set?: boolean
@@ -1165,6 +1180,9 @@ export type ConfigUpdate = Partial<{
   task_follow_up_minutes: number
   task_reminder_minutes: number
   task_recheck_minutes: number
+  broker_history_retention_days: number
+  broker_history_max_snapshots: number
+  broker_history_max_mb: number
   // Secret-write fields — sent as plaintext on write, never returned on read
   api_key: string
   openai_api_key: string

@@ -36,6 +36,9 @@ func isolateBrokerPersistenceEnv(t *testing.T) string {
 	t.Setenv("WUPHF_CLOUD_BACKUP_BUCKET", "")
 	t.Setenv("WUPHF_CLOUD_BACKUP_PREFIX", "")
 	t.Setenv("WUPHF_CLOUD_BACKUP_BOOTSTRAP_PATH", filepath.Join(configDir, "cloud-backup-bootstrap.json"))
+	t.Setenv("WUPHF_BROKER_HISTORY_RETENTION_DAYS", "")
+	t.Setenv("WUPHF_BROKER_HISTORY_MAX_SNAPSHOTS", "")
+	t.Setenv("WUPHF_BROKER_HISTORY_MAX_MB", "")
 
 	return tmpDir
 }

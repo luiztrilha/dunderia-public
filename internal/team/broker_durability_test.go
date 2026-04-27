@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -173,6 +174,84 @@ func TestSaveLockedArchivesAppendOnlyStateHistory(t *testing.T) {
 	}
 	if !bytes.Contains(lastSnapshot, []byte("second durable message")) {
 		t.Fatalf("expected latest snapshot to include second message")
+	}
+}
+
+func TestSaveLockedPurgesLocalStateHistoryByConfiguredSnapshotLimit(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := isolateBrokerPersistenceEnv(t)
+	statePath := filepath.Join(tmpDir, "broker-state.json")
+	brokerStatePath = func() string { return statePath }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	t.Setenv("WUPHF_BROKER_HISTORY_RETENTION_DAYS", "0")
+	t.Setenv("WUPHF_BROKER_HISTORY_MAX_SNAPSHOTS", "2")
+	t.Setenv("WUPHF_BROKER_HISTORY_MAX_MB", "0")
+
+	b := NewBroker()
+	for i := 1; i <= 5; i++ {
+		if _, err := b.PostMessage("you", "general", fmt.Sprintf("durable message %d", i), nil, ""); err != nil {
+			t.Fatalf("post %d failed: %v", i, err)
+		}
+	}
+
+	historyDir := brokerStateHistoryDir(statePath)
+	entries, err := os.ReadDir(historyDir)
+	if err != nil {
+		t.Fatalf("read history dir: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected two retained history snapshots, got %d", len(entries))
+	}
+	lastSnapshot, err := os.ReadFile(filepath.Join(historyDir, entries[len(entries)-1].Name()))
+	if err != nil {
+		t.Fatalf("read last snapshot: %v", err)
+	}
+	if !bytes.Contains(lastSnapshot, []byte("durable message 5")) {
+		t.Fatalf("expected newest retained snapshot to include latest message")
+	}
+}
+
+func TestPurgeBrokerStateHistoryDirAppliesAgeCountAndSizeLimits(t *testing.T) {
+	historyDir := t.TempDir()
+	now := time.Date(2026, 4, 27, 12, 0, 0, 0, time.UTC)
+	writeHistoryFile := func(name string, modTime time.Time, body string) {
+		t.Helper()
+		path := filepath.Join(historyDir, name)
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+		if err := os.Chtimes(path, modTime, modTime); err != nil {
+			t.Fatalf("chtimes %s: %v", name, err)
+		}
+	}
+
+	writeHistoryFile("20260424T120000.000000000Z-000001.json", now.Add(-72*time.Hour), strings.Repeat("a", 64))
+	writeHistoryFile("20260425T120000.000000000Z-000002.json", now.Add(-48*time.Hour), strings.Repeat("b", 64))
+	writeHistoryFile("20260427T100000.000000000Z-000003.json", now.Add(-2*time.Hour), strings.Repeat("c", 64))
+	writeHistoryFile("20260427T110000.000000000Z-000004.json", now.Add(-time.Hour), strings.Repeat("d", 64))
+	writeHistoryFile("20260427T120000.000000000Z-000005.json", now, strings.Repeat("e", 64))
+	writeHistoryFile("stale.tmp", now.Add(-72*time.Hour), "tmp")
+
+	err := purgeBrokerStateHistoryDir(historyDir, now, brokerStateHistoryRetention{
+		RetentionDays: 1,
+		MaxSnapshots:  2,
+		MaxBytes:      100,
+	})
+	if err != nil {
+		t.Fatalf("purge history: %v", err)
+	}
+	entries, err := os.ReadDir(historyDir)
+	if err != nil {
+		t.Fatalf("read history dir: %v", err)
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	want := []string{"20260427T120000.000000000Z-000005.json", "stale.tmp"}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("retained files mismatch:\n  got:  %#v\n  want: %#v", names, want)
 	}
 }
 

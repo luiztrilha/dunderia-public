@@ -32,4 +32,5 @@ if ([string]::IsNullOrWhiteSpace($token)) {
 
 $env:GITHUB_PERSONAL_ACCESS_TOKEN = $token
 
-& npx "-y" $package
+$npx = Join-Path $env:ProgramFiles 'nodejs\npx.cmd'
+& $npx "-y" $package

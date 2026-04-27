@@ -6,29 +6,35 @@ import (
 )
 
 type plannedTaskSpec struct {
-	ExecutionKey  string
-	Title         string
-	Assignee      string
-	Details       string
-	TaskType      string
-	ExecutionMode string
-	WorkspacePath string
-	DependsOn     []string
+	ExecutionKey    string
+	Title           string
+	Assignee        string
+	Details         string
+	TaskType        string
+	ExecutionMode   string
+	RuntimeProvider string
+	RuntimeModel    string
+	ReasoningEffort string
+	WorkspacePath   string
+	DependsOn       []string
 }
 
 type validatedPlannedTask struct {
-	PlannedID      string
-	Channel        string
-	ExecutionKey   string
-	Title          string
-	Owner          string
-	Details        string
-	TaskType       string
-	PipelineID     string
-	ExecutionMode  string
-	ReviewState    string
-	WorkspacePath  string
-	ResolvedDepIDs []string
+	PlannedID       string
+	Channel         string
+	ExecutionKey    string
+	Title           string
+	Owner           string
+	Details         string
+	TaskType        string
+	PipelineID      string
+	ExecutionMode   string
+	RuntimeProvider string
+	RuntimeModel    string
+	ReasoningEffort string
+	ReviewState     string
+	WorkspacePath   string
+	ResolvedDepIDs  []string
 }
 
 func (b *Broker) validateStrictTaskPlanLocked(baseChannel, createdBy string, specs []plannedTaskSpec) ([]validatedPlannedTask, error) {
@@ -52,15 +58,21 @@ func (b *Broker) validateStrictTaskPlanLocked(baseChannel, createdBy string, spe
 		}
 
 		task := teamTask{
-			Channel:       channel,
-			ExecutionKey:  normalizeExecutionKey(spec.ExecutionKey),
-			Title:         title,
-			Details:       strings.TrimSpace(spec.Details),
-			Owner:         owner,
-			CreatedBy:     strings.TrimSpace(createdBy),
-			TaskType:      strings.TrimSpace(spec.TaskType),
-			ExecutionMode: strings.TrimSpace(spec.ExecutionMode),
-			WorkspacePath: strings.TrimSpace(spec.WorkspacePath),
+			Channel:         channel,
+			ExecutionKey:    normalizeExecutionKey(spec.ExecutionKey),
+			Title:           title,
+			Details:         strings.TrimSpace(spec.Details),
+			Owner:           owner,
+			CreatedBy:       strings.TrimSpace(createdBy),
+			TaskType:        strings.TrimSpace(spec.TaskType),
+			ExecutionMode:   strings.TrimSpace(spec.ExecutionMode),
+			RuntimeProvider: strings.TrimSpace(spec.RuntimeProvider),
+			RuntimeModel:    strings.TrimSpace(spec.RuntimeModel),
+			ReasoningEffort: strings.TrimSpace(spec.ReasoningEffort),
+			WorkspacePath:   strings.TrimSpace(spec.WorkspacePath),
+		}
+		if err := normalizeTaskRuntimeOverrides(&task); err != nil {
+			return nil, fmt.Errorf("planned task %q: %w", title, err)
 		}
 		normalizeTaskPlan(&task)
 		task.ExecutionKey = deriveTaskExecutionKey(&task)
@@ -74,17 +86,20 @@ func (b *Broker) validateStrictTaskPlanLocked(baseChannel, createdBy string, spe
 
 		plannedID := fmt.Sprintf("planned-%d", i+1)
 		validated = append(validated, validatedPlannedTask{
-			PlannedID:     plannedID,
-			Channel:       channel,
-			ExecutionKey:  task.ExecutionKey,
-			Title:         task.Title,
-			Owner:         task.Owner,
-			Details:       task.Details,
-			TaskType:      task.TaskType,
-			PipelineID:    task.PipelineID,
-			ExecutionMode: task.ExecutionMode,
-			ReviewState:   task.ReviewState,
-			WorkspacePath: task.WorkspacePath,
+			PlannedID:       plannedID,
+			Channel:         channel,
+			ExecutionKey:    task.ExecutionKey,
+			Title:           task.Title,
+			Owner:           task.Owner,
+			Details:         task.Details,
+			TaskType:        task.TaskType,
+			PipelineID:      task.PipelineID,
+			ExecutionMode:   task.ExecutionMode,
+			RuntimeProvider: task.RuntimeProvider,
+			RuntimeModel:    task.RuntimeModel,
+			ReasoningEffort: task.ReasoningEffort,
+			ReviewState:     task.ReviewState,
+			WorkspacePath:   task.WorkspacePath,
 		})
 
 		if titleKey := normalizeExecutionKey(title); titleKey != "" {

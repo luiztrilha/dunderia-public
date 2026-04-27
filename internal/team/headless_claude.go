@@ -293,6 +293,10 @@ func resolveHeadlessOpenClaudeCommand(args []string) (string, []string, error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("openclaude not found: %w", err)
 	}
+	cmdShim := strings.TrimSuffix(bin, filepath.Ext(bin)) + ".cmd"
+	if _, err := os.Stat(cmdShim); err == nil {
+		return "cmd", append([]string{"/c", cmdShim}, args...), nil
+	}
 	ps1 := strings.TrimSuffix(bin, filepath.Ext(bin)) + ".ps1"
 	if _, err := os.Stat(ps1); err == nil {
 		return "pwsh", append([]string{"-File", ps1}, args...), nil
@@ -311,6 +315,20 @@ func (r headlessClaudeRuntime) usageModel(l *Launcher, slug string) string {
 }
 
 func (l *Launcher) headlessClaudeModel(slug string) string {
+	if l != nil {
+		if task := l.headlessTaskForExecution(slug); task != nil {
+			if model := strings.TrimSpace(task.RuntimeModel); model != "" {
+				explicitProvider := ""
+				if strings.TrimSpace(task.RuntimeProvider) != "" {
+					explicitProvider = normalizeProviderKind(task.RuntimeProvider)
+				}
+				inferredProvider := inferRuntimeProviderFromModel(model)
+				if explicitProvider == provider.KindClaudeCode || (explicitProvider == "" && inferredProvider == provider.KindClaudeCode) {
+					return model
+				}
+			}
+		}
+	}
 	if l != nil && l.broker != nil {
 		binding := l.broker.MemberProviderBinding(slug)
 		if model := strings.TrimSpace(binding.Model); model != "" {

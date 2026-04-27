@@ -20,6 +20,7 @@ import { SettingsApp } from './components/apps/SettingsApp'
 import { Wizard } from './components/onboarding/Wizard'
 import { AgentPanel } from './components/agents/AgentPanel'
 import { InterviewBar } from './components/messages/InterviewBar'
+import { HumanInterviewOverlay } from './components/messages/HumanInterviewOverlay'
 import { DisconnectBanner } from './components/layout/DisconnectBanner'
 import { SplashScreen } from './components/onboarding/SplashScreen'
 import { ToastContainer } from './components/ui/Toast'
@@ -40,6 +41,9 @@ const LazySearchModal = lazy(() =>
 )
 const LazyThreadsApp = lazy(() =>
   import('./components/apps/ThreadsApp').then((module) => ({ default: module.ThreadsApp })),
+)
+const LazyInlineThread = lazy(() =>
+  import('./components/messages/InlineThread').then((module) => ({ default: module.InlineThread })),
 )
 
 // ── Error boundary ─────────────────────────────────────────────
@@ -96,6 +100,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 function MainContent() {
   const currentApp = useAppStore((s) => s.currentApp)
   const dmMode = useAppStore((s) => s.dmMode)
+  const activeThreadId = useAppStore((s) => s.activeThreadId)
 
   if (dmMode) {
     return <DMView />
@@ -137,12 +142,28 @@ function MainContent() {
   }
 
   return (
-    <>
-      <MessageFeed />
-      <TypingIndicator />
-      <InterviewBar />
-      <Composer />
-    </>
+    <div className={`channel-workspace${activeThreadId ? ' channel-workspace-thread-open' : ''}`}>
+      <div className="channel-feed-pane">
+        {activeThreadId ? (
+          <Suspense
+            fallback={
+              <div className="inline-thread-panel inline-thread-panel-focus">
+                <div className="inline-thread-empty">Loading...</div>
+              </div>
+            }
+          >
+            <LazyInlineThread threadId={activeThreadId} mode="focus" />
+          </Suspense>
+        ) : (
+          <>
+            <MessageFeed />
+            <TypingIndicator />
+            <InterviewBar />
+            <Composer />
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -281,6 +302,7 @@ export default function App() {
         </Suspense>
       ) : null}
       <ToastContainer />
+      {apiReady && onboardingGate !== 'needed' ? <HumanInterviewOverlay /> : null}
       <ConfirmHost />
       <ProviderSwitcherHost />
     </ErrorBoundary>

@@ -64,6 +64,9 @@ func withTempConfig(t *testing.T, f func(dir string)) {
 		"WUPHF_MINIMAX_API_KEY", "MINIMAX_API_KEY",
 		"WUPHF_COMPOSIO_API_KEY", "COMPOSIO_API_KEY",
 		"WUPHF_BRAVE_API_KEY", "BRAVE_API_KEY",
+		"WUPHF_BROKER_HISTORY_RETENTION_DAYS",
+		"WUPHF_BROKER_HISTORY_MAX_SNAPSHOTS",
+		"WUPHF_BROKER_HISTORY_MAX_MB",
 	} {
 		t.Setenv(key, "")
 	}
@@ -85,27 +88,30 @@ func TestLoadMissingFileReturnsEmpty(t *testing.T) {
 func TestRoundtrip(t *testing.T) {
 	withTempConfig(t, func(_ string) {
 		in := Config{
-			APIKey:             "test-key",
-			MemoryBackend:      MemoryBackendNone,
-			Email:              "user@example.com",
-			WorkspaceID:        "ws-123",
-			WorkspaceSlug:      "my-ws",
-			LLMProvider:        "gemini",
-			GeminiAPIKey:       "gemini-key",
-			AnthropicAPIKey:    "anthropic-key",
-			OpenAIAPIKey:       "openai-key",
-			MinimaxAPIKey:      "minimax-key",
-			BraveAPIKey:        "brave-key",
-			WebSearchProvider:  "brave",
-			Blueprint:          "niche-crm",
-			DefaultFormat:      "json",
-			DefaultTimeout:     30_000,
-			DevURL:             "http://localhost:3000",
-			CompanyName:        "Acme Corp",
-			CompanyDescription: "AI-powered analytics",
-			CompanyGoals:       "Ship MVP, get 10 customers",
-			CompanySize:        "2-5",
-			CompanyPriority:    "Launch landing page",
+			APIKey:                     "test-key",
+			MemoryBackend:              MemoryBackendNone,
+			Email:                      "user@example.com",
+			WorkspaceID:                "ws-123",
+			WorkspaceSlug:              "my-ws",
+			LLMProvider:                "gemini",
+			GeminiAPIKey:               "gemini-key",
+			AnthropicAPIKey:            "anthropic-key",
+			OpenAIAPIKey:               "openai-key",
+			MinimaxAPIKey:              "minimax-key",
+			BraveAPIKey:                "brave-key",
+			WebSearchProvider:          "brave",
+			Blueprint:                  "niche-crm",
+			DefaultFormat:              "json",
+			DefaultTimeout:             30_000,
+			DevURL:                     "http://localhost:3000",
+			CompanyName:                "Acme Corp",
+			CompanyDescription:         "AI-powered analytics",
+			CompanyGoals:               "Ship MVP, get 10 customers",
+			CompanySize:                "2-5",
+			CompanyPriority:            "Launch landing page",
+			BrokerHistoryRetentionDays: 3,
+			BrokerHistoryMaxSnapshots:  50,
+			BrokerHistoryMaxMB:         64,
 		}
 		if err := Save(in); err != nil {
 			t.Fatalf("Save failed: %v", err)
@@ -661,8 +667,8 @@ func TestResolveActionProviderUsesOneConfig(t *testing.T) {
 
 func TestResolveCustomMCPConfigPathUsesConfig(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		_ = Save(Config{CustomMCPConfig: `<REPOS_ROOT>\dunderia\mcp\dunderia-mcp-settings.json`})
-		if got := ResolveCustomMCPConfigPath(); got != `<REPOS_ROOT>\dunderia\mcp\dunderia-mcp-settings.json` {
+		_ = Save(Config{CustomMCPConfig: `<DUNDERIA_REPO>\mcp\dunderia-mcp-settings.json`})
+		if got := ResolveCustomMCPConfigPath(); got != `<DUNDERIA_REPO>\mcp\dunderia-mcp-settings.json` {
 			t.Fatalf("expected custom MCP path from config, got %q", got)
 		}
 	})
@@ -843,6 +849,61 @@ func TestResolveTimeoutFallback(t *testing.T) {
 	withTempConfig(t, func(_ string) {
 		if got := ResolveTimeout(""); got != 120_000 {
 			t.Fatalf("expected 120000, got: %d", got)
+		}
+	})
+}
+
+func TestResolveBrokerHistoryRetentionDefaults(t *testing.T) {
+	withTempConfig(t, func(_ string) {
+		if got := ResolveBrokerHistoryRetentionDays(); got != DefaultBrokerHistoryRetentionDays {
+			t.Fatalf("retention days: got %d, want %d", got, DefaultBrokerHistoryRetentionDays)
+		}
+		if got := ResolveBrokerHistoryMaxSnapshots(); got != DefaultBrokerHistoryMaxSnapshots {
+			t.Fatalf("max snapshots: got %d, want %d", got, DefaultBrokerHistoryMaxSnapshots)
+		}
+		if got := ResolveBrokerHistoryMaxMB(); got != DefaultBrokerHistoryMaxMB {
+			t.Fatalf("max MB: got %d, want %d", got, DefaultBrokerHistoryMaxMB)
+		}
+	})
+}
+
+func TestResolveBrokerHistoryRetentionConfig(t *testing.T) {
+	withTempConfig(t, func(_ string) {
+		_ = Save(Config{
+			BrokerHistoryRetentionDays: 2,
+			BrokerHistoryMaxSnapshots:  12,
+			BrokerHistoryMaxMB:         32,
+		})
+		if got := ResolveBrokerHistoryRetentionDays(); got != 2 {
+			t.Fatalf("retention days: got %d, want 2", got)
+		}
+		if got := ResolveBrokerHistoryMaxSnapshots(); got != 12 {
+			t.Fatalf("max snapshots: got %d, want 12", got)
+		}
+		if got := ResolveBrokerHistoryMaxMB(); got != 32 {
+			t.Fatalf("max MB: got %d, want 32", got)
+		}
+	})
+}
+
+func TestResolveBrokerHistoryRetentionEnvOverrides(t *testing.T) {
+	withTempConfig(t, func(_ string) {
+		_ = Save(Config{
+			BrokerHistoryRetentionDays: 2,
+			BrokerHistoryMaxSnapshots:  12,
+			BrokerHistoryMaxMB:         32,
+		})
+		t.Setenv("WUPHF_BROKER_HISTORY_RETENTION_DAYS", "0")
+		t.Setenv("WUPHF_BROKER_HISTORY_MAX_SNAPSHOTS", "5")
+		t.Setenv("WUPHF_BROKER_HISTORY_MAX_MB", "10")
+		if got := ResolveBrokerHistoryRetentionDays(); got != 0 {
+			t.Fatalf("retention days: got %d, want 0", got)
+		}
+		if got := ResolveBrokerHistoryMaxSnapshots(); got != 5 {
+			t.Fatalf("max snapshots: got %d, want 5", got)
+		}
+		if got := ResolveBrokerHistoryMaxMB(); got != 10 {
+			t.Fatalf("max MB: got %d, want 10", got)
 		}
 	})
 }

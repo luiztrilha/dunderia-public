@@ -38,6 +38,18 @@ func (l *Launcher) runHeadlessGeminiTurn(ctx context.Context, slug, runtimeKind,
 				model = bindingModel
 			}
 		}
+		if task := l.headlessTaskForExecution(slug, turnChannel); task != nil {
+			if taskModel := strings.TrimSpace(task.RuntimeModel); taskModel != "" {
+				explicitProvider := ""
+				if strings.TrimSpace(task.RuntimeProvider) != "" {
+					explicitProvider = normalizeProviderKind(task.RuntimeProvider)
+				}
+				inferredProvider := inferRuntimeProviderFromModel(taskModel)
+				if explicitProvider == provider.KindGeminiVertex || (explicitProvider == "" && inferredProvider == provider.KindGemini) {
+					model = taskModel
+				}
+			}
+		}
 		runOneShot = func(ctx context.Context, systemPrompt, prompt string) (string, error) {
 			return headlessGeminiVertexOneShot(ctx, model, systemPrompt, prompt)
 		}

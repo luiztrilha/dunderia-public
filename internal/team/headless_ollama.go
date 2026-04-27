@@ -324,6 +324,19 @@ func (l *Launcher) buildHeadlessOllamaPrompt(slug string) string {
 }
 
 func (l *Launcher) headlessOllamaModel(slug string) string {
+	if l != nil {
+		if task := l.headlessTaskForExecution(slug); task != nil {
+			if model := strings.TrimSpace(task.RuntimeModel); model != "" {
+				explicitProvider := ""
+				if strings.TrimSpace(task.RuntimeProvider) != "" {
+					explicitProvider = normalizeProviderKind(task.RuntimeProvider)
+				}
+				if explicitProvider == provider.KindOllama || (explicitProvider == "" && inferRuntimeProviderFromModel(model) == "") {
+					return model
+				}
+			}
+		}
+	}
 	if l != nil && l.broker != nil {
 		if model := strings.TrimSpace(l.broker.MemberProviderBinding(slug).Model); model != "" {
 			return model

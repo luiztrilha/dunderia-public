@@ -698,6 +698,9 @@ function IntervalsSection({ cfg, save }: SectionProps) {
     followUp: String(cfg.task_follow_up_minutes ?? 60),
     reminder: String(cfg.task_reminder_minutes ?? 30),
     recheck: String(cfg.task_recheck_minutes ?? 15),
+    historyDays: String(cfg.broker_history_retention_days ?? 7),
+    historySnapshots: String(cfg.broker_history_max_snapshots ?? 200),
+    historyMaxMB: String(cfg.broker_history_max_mb ?? 256),
   })
   const { value, setValue, clearStorage } = draft
 
@@ -707,6 +710,9 @@ function IntervalsSection({ cfg, save }: SectionProps) {
       task_follow_up_minutes: parseInt(value.followUp, 10) || 60,
       task_reminder_minutes: parseInt(value.reminder, 10) || 30,
       task_recheck_minutes: parseInt(value.recheck, 10) || 15,
+      broker_history_retention_days: parseInt(value.historyDays, 10) || 7,
+      broker_history_max_snapshots: parseInt(value.historySnapshots, 10) || 200,
+      broker_history_max_mb: parseInt(value.historyMaxMB, 10) || 256,
     })
     clearStorage()
   }
@@ -757,6 +763,40 @@ function IntervalsSection({ cfg, save }: SectionProps) {
         />
       </Field>
 
+      <div style={{ marginTop: 20 }}>
+        <div style={styles.groupTitle}>{t('settings.intervals.groups.history')}</div>
+        <Field label={t('settings.intervals.fields.historyDays.label')} hint={t('settings.intervals.fields.historyDays.hint')}>
+          <input
+            style={styles.input}
+            type="number"
+            min={1}
+            placeholder="7"
+            value={value.historyDays}
+            onChange={(e) => setValue((prev) => ({ ...prev, historyDays: e.target.value }))}
+          />
+        </Field>
+        <Field label={t('settings.intervals.fields.historySnapshots.label')} hint={t('settings.intervals.fields.historySnapshots.hint')}>
+          <input
+            style={styles.input}
+            type="number"
+            min={1}
+            placeholder="200"
+            value={value.historySnapshots}
+            onChange={(e) => setValue((prev) => ({ ...prev, historySnapshots: e.target.value }))}
+          />
+        </Field>
+        <Field label={t('settings.intervals.fields.historyMaxMB.label')} hint={t('settings.intervals.fields.historyMaxMB.hint')}>
+          <input
+            style={styles.input}
+            type="number"
+            min={1}
+            placeholder="256"
+            value={value.historyMaxMB}
+            onChange={(e) => setValue((prev) => ({ ...prev, historyMaxMB: e.target.value }))}
+          />
+        </Field>
+      </div>
+
       <SaveButton label={t('settings.intervals.saveLabel')} onSave={onSave} />
     </div>
   )
@@ -795,6 +835,9 @@ const ENV_VARS: [string, string][] = [
   ['WUPHF_TASK_FOLLOWUP_MINUTES', 'settings.flags.env.taskFollowup'],
   ['WUPHF_TASK_REMINDER_MINUTES', 'settings.flags.env.taskReminder'],
   ['WUPHF_TASK_RECHECK_MINUTES', 'settings.flags.env.taskRecheck'],
+  ['WUPHF_BROKER_HISTORY_RETENTION_DAYS', 'settings.flags.env.historyRetentionDays'],
+  ['WUPHF_BROKER_HISTORY_MAX_SNAPSHOTS', 'settings.flags.env.historyMaxSnapshots'],
+  ['WUPHF_BROKER_HISTORY_MAX_MB', 'settings.flags.env.historyMaxMB'],
 ]
 
 function FlagsSection() {

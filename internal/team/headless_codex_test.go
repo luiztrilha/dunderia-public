@@ -1538,7 +1538,7 @@ func TestSyncHeadlessCodexRuntimeConfigRewritesManagedMCPServers(t *testing.T) {
   "mcpServers": {
     "playwright": {
       "command": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
-      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "<REPOS_ROOT>/dunderia/scripts/launch_playwright_mcp.ps1"],
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "D:/Repos/dunderia/scripts/launch_playwright_mcp.ps1"],
       "startup_timeout_sec": 90,
       "tools": {
         "browser_navigate": { "approval_mode": "approve" }
@@ -1562,7 +1562,7 @@ func TestSyncHeadlessCodexRuntimeConfigRewritesManagedMCPServers(t *testing.T) {
 		``,
 		`[mcp_servers.playwright]`,
 		`command = "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"`,
-		`args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "<REPOS_ROOT>/.openclaw/scripts/launch_playwright_mcp.ps1"]`,
+		`args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "D:/Repos/.openclaw/scripts/launch_playwright_mcp.ps1"]`,
 		`startup_timeout_sec = 90`,
 		``,
 		`[notice]`,
@@ -1584,10 +1584,10 @@ func TestSyncHeadlessCodexRuntimeConfigRewritesManagedMCPServers(t *testing.T) {
 		t.Fatalf("read runtime config: %v", err)
 	}
 	text := string(got)
-	if !strings.Contains(text, `<REPOS_ROOT>/dunderia/scripts/launch_playwright_mcp.ps1`) {
+	if !strings.Contains(text, `D:/Repos/dunderia/scripts/launch_playwright_mcp.ps1`) {
 		t.Fatalf("expected runtime config to include DunderIA playwright launcher, got:\n%s", text)
 	}
-	if strings.Contains(text, `<REPOS_ROOT>/.openclaw/scripts/launch_playwright_mcp.ps1`) {
+	if strings.Contains(text, `D:/Repos/.openclaw/scripts/launch_playwright_mcp.ps1`) {
 		t.Fatalf("expected runtime config to drop legacy OpenClaw playwright launcher, got:\n%s", text)
 	}
 	if !strings.Contains(text, `[mcp_servers."playwright".tools."browser_navigate"]`) || !strings.Contains(text, `approval_mode = "approve"`) {
@@ -1903,6 +1903,97 @@ func testRunHeadlessOpenClaudeTurnUsesProvider(t *testing.T, runtimeKind string,
 	}
 	if !strings.Contains(record.Stdin, "You have new work in #launch.") {
 		t.Fatalf("expected notification in stdin, got %q", record.Stdin)
+	}
+}
+
+func TestRunHeadlessCodexTurnUsesTaskRuntimeOverrides(t *testing.T) {
+	isolateBrokerPersistenceEnv(t)
+
+	recordFile := filepath.Join(t.TempDir(), "headless-codex-record.jsonl")
+	oldLookPath := headlessCodexLookPath
+	oldExecutablePath := headlessCodexExecutablePath
+	oldCommandContext := headlessCodexCommandContext
+	headlessCodexLookPath = func(file string) (string, error) {
+		if file == "codex" {
+			return "/usr/bin/codex", nil
+		}
+		return "", exec.ErrNotFound
+	}
+	headlessCodexExecutablePath = func() (string, error) { return "/tmp/wuphf", nil }
+	headlessCodexCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		cmdArgs := []string{"-test.run=TestHeadlessCodexHelperProcess", "--"}
+		cmdArgs = append(cmdArgs, args...)
+		return exec.CommandContext(ctx, os.Args[0], cmdArgs...)
+	}
+	defer func() {
+		headlessCodexLookPath = oldLookPath
+		headlessCodexExecutablePath = oldExecutablePath
+		headlessCodexCommandContext = oldCommandContext
+	}()
+
+	t.Setenv("GO_WANT_HEADLESS_CODEX_HELPER_PROCESS", "1")
+	t.Setenv("HEADLESS_CODEX_RECORD_FILE", recordFile)
+	t.Setenv("HOME", t.TempDir())
+
+	broker := NewBroker()
+	broker.mu.Lock()
+	broker.tasks = append(broker.tasks, teamTask{
+		ID:              "task-runtime",
+		Channel:         "general",
+		Title:           "Hard task",
+		Owner:           "eng",
+		Status:          "in_progress",
+		RuntimeProvider: "codex",
+		RuntimeModel:    "gpt-5.5",
+		ReasoningEffort: "high",
+		CreatedAt:       time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt:       time.Now().UTC().Format(time.RFC3339),
+	})
+	broker.mu.Unlock()
+
+	l := &Launcher{
+		pack:        agent.GetPack("founding-team"),
+		cwd:         t.TempDir(),
+		broker:      broker,
+		headlessCtx: context.Background(),
+	}
+
+	if err := l.runHeadlessCodexTurn(context.Background(), "eng", "You have a difficult task.", "general"); err != nil {
+		t.Fatalf("runHeadlessCodexTurn: %v", err)
+	}
+
+	record := readHeadlessCodexRecord(t, recordFile)
+	if got := argValue(record.Args, "--model"); got != "gpt-5.5" {
+		t.Fatalf("--model = %q, want gpt-5.5; args=%#v", got, record.Args)
+	}
+	joinedArgs := strings.Join(record.Args, " ")
+	if !strings.Contains(joinedArgs, `model_reasoning_effort="high"`) {
+		t.Fatalf("expected task reasoning effort override, got %#v", record.Args)
+	}
+}
+
+func TestHeadlessTurnProviderKindInfersCodexFromTaskModel(t *testing.T) {
+	broker := NewBroker()
+	broker.mu.Lock()
+	broker.tasks = append(broker.tasks, teamTask{
+		ID:           "task-runtime",
+		Channel:      "general",
+		Title:        "Hard task",
+		Owner:        "eng",
+		Status:       "in_progress",
+		RuntimeModel: "gpt-5.5",
+		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt:    time.Now().UTC().Format(time.RFC3339),
+	})
+	broker.mu.Unlock()
+
+	l := &Launcher{
+		provider: provider.KindClaudeCode,
+		broker:   broker,
+	}
+
+	if got := l.headlessTurnProviderKind("eng", "general"); got != provider.KindCodex {
+		t.Fatalf("provider kind = %q, want %q", got, provider.KindCodex)
 	}
 }
 
@@ -3808,7 +3899,7 @@ func TestEnqueueHeadlessCodexTurnDoesNotDeferLeadForFollowUpTask(t *testing.T) {
 	b.mu.Lock()
 	b.tasks = []teamTask{{
 		ID:            "task-886",
-		Channel:       "ExampleWorkflow-web-azure",
+		Channel:       "exampleworkflow-web-azure",
 		Owner:         "ceo",
 		Status:        "in_progress",
 		ThreadID:      "msg-814",
@@ -3820,11 +3911,11 @@ func TestEnqueueHeadlessCodexTurnDoesNotDeferLeadForFollowUpTask(t *testing.T) {
 
 	l := newHeadlessLauncherForTest()
 	l.broker = b
-	l.headlessActive[agentLaneKey("ExampleWorkflow-web-azure", "frontend")] = &headlessCodexActiveTurn{}
+	l.headlessActive[agentLaneKey("exampleworkflow-web-azure", "frontend")] = &headlessCodexActiveTurn{}
 
 	l.enqueueHeadlessCodexTurnRecord("ceo", headlessCodexTurn{
-		Prompt:     "[Task update #task-886 on #ExampleWorkflow-web-azure]: Reply to pending message from @you",
-		Channel:    "ExampleWorkflow-web-azure",
+		Prompt:     "[Task update #task-886 on #exampleworkflow-web-azure]: Reply to pending message from @you",
+		Channel:    "exampleworkflow-web-azure",
 		TaskID:     "task-886",
 		EnqueuedAt: time.Now(),
 	})
@@ -4013,13 +4104,13 @@ func TestSendChannelUpdateDoesNotInferTaskIDFromFreeTextMessage(t *testing.T) {
 	l := newHeadlessLauncherForTest()
 	l.webMode = true
 	l.broker = NewBroker()
-	laneKey := agentLaneKey("migracao-ExampleWorkflow", "backend")
+	laneKey := agentLaneKey("migration-exampleworkflow", "backend")
 	l.headlessWorkers[laneKey] = true
 
 	l.sendChannelUpdate(notificationTarget{Slug: "backend"}, channelMessage{
 		ID:      "msg-task-mention",
 		From:    "ceo",
-		Channel: "migracao-ExampleWorkflow",
+		Channel: "migration-exampleworkflow",
 		Content: "@backend assuma a task-2775 e investigue o erro da task-1629.",
 		Tagged:  []string{"backend"},
 	})
