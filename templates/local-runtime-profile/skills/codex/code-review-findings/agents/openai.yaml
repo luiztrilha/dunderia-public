@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Review Findings"
+  short_description: "Findings-first review for code and patches."
+  default_prompt: "Use this skill to review code for bugs, regressions, risks, and missing tests, with findings first."

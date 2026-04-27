@@ -1,0 +1,4 @@
+interface:
+  display_name: "PowerPoint Decks"
+  short_description: "Edit and review presentation decks safely."
+  default_prompt: "Use $pptx to inspect or edit this presentation while preserving layouts, placeholders, notes, charts, and template fidelity."

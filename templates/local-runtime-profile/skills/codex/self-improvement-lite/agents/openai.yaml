@@ -1,0 +1,4 @@
+interface:
+  display_name: "Self-Improvement Lite"
+  short_description: "Guardrails for explicit, verified local memory updates."
+  default_prompt: "Use $self-improvement-lite to decide whether an explicit correction, durable preference, verified self-reflection, or repeated operational lesson belongs in daily memory, MEMORY.md, TOOLS.md, AGENTS.md, SOUL.md, or nowhere. Ignore silence, one-off instructions, and speculative signals."

@@ -1,0 +1,6 @@
+# Public example only.
+# Copy this file to your private Codex approvals location and replace the
+# patterns with commands that are safe for your own machine.
+
+prefix_rule(pattern=["powershell.exe", "-Command"], decision="ask")
+prefix_rule(pattern=["pwsh.exe", "-NoProfile", "-Command"], decision="ask")

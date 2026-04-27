@@ -1,0 +1,4 @@
+interface:
+  display_name: "Systematic Debugging Lite"
+  short_description: "Structured root-cause debugging for bugs and failing tests."
+  default_prompt: "Use this skill to debug systematically and confirm the real root cause before fixing."
