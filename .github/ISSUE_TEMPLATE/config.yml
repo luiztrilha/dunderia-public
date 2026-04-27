@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security reports
+    url: https://github.com/luiztrilha/dunderia/blob/main/SECURITY.md
+    about: Do not post vulnerabilities publicly. Follow the security reporting path.
+  - name: Support guide
+    url: https://github.com/luiztrilha/dunderia/blob/main/SUPPORT.md
+    about: Check where to ask usage questions, bug reports, and operational issues.
+  - name: Discord
+    url: https://discord.gg/gjSySC3PzV
+    about: Ask conversational usage questions or discuss ideas informally.

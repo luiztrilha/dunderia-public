@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implementation Planning Lite"
+  short_description: "Lightweight planning for larger or ambiguous coding tasks."
+  default_prompt: "Use this skill to make a concise implementation plan with file map, steps, and validation for a larger task."

@@ -1,0 +1,61 @@
+# Sanitized shape of the active local Codex config.
+# This preserves the validated operating defaults without publishing private project paths or credentials.
+
+model = "gpt-5.5"
+model_reasoning_effort = "high"
+approvals_reviewer = "guardian_subagent"
+model_provider = "codex-lb"
+service_tier = "fast"
+
+[model_providers.codex-lb]
+name = "OpenAI"
+base_url = "http://127.0.0.1:2455/backend-api/codex"
+wire_api = "responses"
+supports_websockets = true
+
+# The active Windows setup runs elevated. New users should review this before copying.
+[windows]
+sandbox = "elevated"
+
+# Trust only directories you control. Replace these with local paths.
+[projects.'<REPO_ROOT>']
+trust_level = "trusted"
+
+[projects.'<DUNDERIA_REPO>']
+trust_level = "trusted"
+
+[mcp_servers.serena]
+startup_timeout_sec = 60
+command = "<HOME>/.codex/memories/serena-runtime-1.1.1/Scripts/serena.exe"
+args = ["start-mcp-server", "--context", "codex", "--enable-web-dashboard", "False", "--open-web-dashboard", "False"]
+
+[mcp_servers.github]
+startup_timeout_sec = 60
+command = "powershell.exe"
+args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "<DUNDERIA_REPO>/scripts/launch_github_mcp.ps1"]
+
+[mcp_servers.github.env]
+WUPHF_GITHUB_MCP_USE_GH_TOKEN = "1"
+
+[mcp_servers.github.tools.search_repositories]
+approval_mode = "approve"
+
+[mcp_servers.github.tools.get_file_contents]
+approval_mode = "approve"
+
+[mcp_servers.github.tools.search_code]
+approval_mode = "approve"
+
+[mcp_servers.github.tools.list_commits]
+approval_mode = "approve"
+
+[mcp_servers.playwright]
+startup_timeout_sec = 90
+command = "powershell.exe"
+args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "<DUNDERIA_REPO>/scripts/launch_playwright_mcp.ps1"]
+
+[features]
+multi_agent = true
+
+# Private disabled megamemory server entries from the active profile are not shipped.
+# Recreate them locally only for repositories you own.

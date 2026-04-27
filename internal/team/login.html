@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | Dunderia</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10141d;
+      --bg-accent: #172030;
+      --panel: rgba(15, 20, 30, 0.86);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text: #f3efe6;
+      --muted: #b8c2d4;
+      --soft: #7f8ba3;
+      --line: rgba(255, 255, 255, 0.12);
+      --line-strong: rgba(236, 195, 122, 0.42);
+      --accent: #ecc37a;
+      --accent-strong: #f5d7a5;
+      --danger: #ff8f8f;
+      --danger-bg: rgba(255, 143, 143, 0.12);
+      --success: #97f0c4;
+      --shadow: 0 32px 80px rgba(0, 0, 0, 0.38);
+      --radius-xl: 28px;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --transition: 180ms ease;
+      --body-font: "Aptos", "Trebuchet MS", sans-serif;
+      --display-font: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+      --mono-font: "Consolas", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top left, rgba(236, 195, 122, 0.16), transparent 36%),
+        radial-gradient(circle at bottom right, rgba(92, 127, 196, 0.18), transparent 42%),
+        linear-gradient(135deg, #0c1017 0%, var(--bg) 55%, var(--bg-accent) 100%);
+      color: var(--text);
+      font-family: var(--body-font);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: radial-gradient(circle at center, black 45%, transparent 85%);
+      pointer-events: none;
+    }
+
+    .shell {
+      width: min(100%, 1040px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 420px);
+      overflow: hidden;
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(19, 25, 38, 0.92), rgba(11, 15, 22, 0.96));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      isolation: isolate;
+    }
+
+    .hero,
+    .panel {
+      position: relative;
+      padding: clamp(28px, 4vw, 44px);
+    }
+
+    .hero {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 32px;
+      background:
+        linear-gradient(140deg, rgba(236, 195, 122, 0.11), transparent 45%),
+        linear-gradient(160deg, rgba(70, 96, 147, 0.32), rgba(12, 16, 23, 0.16));
+      border-right: 1px solid var(--panel-border);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto 36px 36px auto;
+      width: 120px;
+      height: 120px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 28px;
+      transform: rotate(12deg);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      padding: 10px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-size: 0.77rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 18px rgba(236, 195, 122, 0.85);
+    }
+
+    .hero h1 {
+      max-width: 11ch;
+      font-family: var(--display-font);
+      font-size: clamp(2.6rem, 5vw, 4.5rem);
+      line-height: 0.94;
+      letter-spacing: -0.045em;
+    }
+
+    .hero p {
+      max-width: 42ch;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .hero-footer {
+      display: grid;
+      gap: 14px;
+    }
+
+    .hero-metric {
+      width: fit-content;
+      padding: 12px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-md);
+      background: rgba(0, 0, 0, 0.18);
+      font-family: var(--mono-font);
+      font-size: 0.8rem;
+      color: var(--accent-strong);
+    }
+
+    .hero-note {
+      color: var(--soft);
+      font-size: 0.9rem;
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 24px;
+    }
+
+    .panel-header {
+      display: grid;
+      gap: 10px;
+    }
+
+    .brand {
+      color: var(--accent-strong);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .panel h2 {
+      font-family: var(--display-font);
+      font-size: clamp(2rem, 3vw, 2.7rem);
+      letter-spacing: -0.04em;
+    }
+
+    .panel-copy {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    form {
+      display: grid;
+      gap: 18px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field-head,
+    .options-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    label,
+    .options-row {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .hint,
+    .helper {
+      color: var(--soft);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .field-shell {
+      position: relative;
+    }
+
+    input {
+      width: 100%;
+      min-height: 54px;
+      padding: 15px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: rgba(7, 10, 16, 0.78);
+      color: var(--text);
+      font: inherit;
+      transition:
+        border-color var(--transition),
+        box-shadow var(--transition),
+        background-color var(--transition);
+    }
+
+    input::placeholder {
+      color: #62708b;
+    }
+
+    input:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--line-strong);
+      box-shadow: 0 0 0 4px rgba(236, 195, 122, 0.14);
+      background: rgba(10, 14, 21, 0.92);
+    }
+
+    input[aria-invalid="true"] {
+      border-color: rgba(255, 143, 143, 0.8);
+      box-shadow: 0 0 0 4px rgba(255, 143, 143, 0.12);
+    }
+
+    .password-input {
+      padding-right: 112px;
+    }
+
+    .toggle-password {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      min-width: 88px;
+      padding: 10px 12px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition), border-color var(--transition);
+    }
+
+    .toggle-password:hover,
+    .toggle-password:focus-visible {
+      outline: none;
+      background: rgba(236, 195, 122, 0.14);
+      border-color: rgba(236, 195, 122, 0.3);
+      color: var(--accent-strong);
+    }
+
+    .forgot-link,
+    .register a {
+      color: var(--accent-strong);
+      text-decoration: none;
+    }
+
+    .forgot-link:hover,
+    .forgot-link:focus-visible,
+    .register a:hover,
+    .register a:focus-visible {
+      text-decoration: underline;
+      text-underline-offset: 0.18em;
+    }
+
+    .checkbox {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox input {
+      width: 18px;
+      min-height: 18px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .status,
+    .error {
+      min-height: 1.2em;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .status {
+      color: var(--success);
+    }
+
+    .error {
+      color: var(--danger);
+    }
+
+    .form-alert {
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 143, 143, 0.24);
+      border-radius: var(--radius-md);
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .form-alert[hidden] {
+      display: none;
+    }
+
+    .submit {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 56px;
+      border: none;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #f0c36c, #bd8b43);
+      color: #17120a;
+      font: inherit;
+      font-size: 0.98rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: transform var(--transition), filter var(--transition), opacity var(--transition);
+    }
+
+    .submit:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+    }
+
+    .submit:focus-visible {
+      outline: 3px solid rgba(245, 215, 165, 0.42);
+      outline-offset: 3px;
+    }
+
+    .submit:disabled {
+      opacity: 0.72;
+      cursor: wait;
+      transform: none;
+    }
+
+    .submit-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(23, 18, 10, 0.22);
+      border-top-color: #17120a;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .submit-spinner[hidden] {
+      display: none;
+    }
+
+    .register {
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 860px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        gap: 22px;
+        border-right: 0;
+        border-bottom: 1px solid var(--panel-border);
+      }
+
+      .hero h1 {
+        max-width: 14ch;
+      }
+    }
+
+    @media (max-width: 560px) {
+      body {
+        padding: 14px;
+      }
+
+      .hero,
+      .panel {
+        padding: 24px 20px;
+      }
+
+      .options-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .password-input {
+        padding-right: 102px;
+      }
+
+      .toggle-password {
+        min-width: 78px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero" aria-label="Introducao">
+      <div>
+        <div class="eyebrow">Local broker access</div>
+      </div>
+
+      <div>
+        <h1>Entre no escritorio da Dunderia.</h1>
+        <p>
+          Retome suas conversas, acompanhe as filas do office e volte ao trabalho sem
+          depender de um fluxo confuso. O acesso continua simples, direto e preparado
+          para desktop ou mobile.
+        </p>
+      </div>
+
+      <div class="hero-footer">
+        <div class="hero-metric">scope://session fresh-turn runners</div>
+        <p class="hero-note">
+          Use suas credenciais de operador para continuar no painel principal.
+        </p>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="login-title">
+      <div class="panel-header">
+        <div class="brand">Dunderia Office</div>
+        <h2 id="login-title">Login</h2>
+        <p class="panel-copy">
+          Informe seu e-mail e senha para abrir o office local.
+        </p>
+      </div>
+
+      <form id="login-form" novalidate data-login-endpoint="/api/auth/login">
+        <div class="field">
+          <div class="field-head">
+            <label for="email">E-mail</label>
+          </div>
+          <div class="field-shell">
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="operador@dunderia.com"
+              autocomplete="email"
+              autofocus
+              aria-describedby="email-hint email-error"
+              required
+            />
+          </div>
+          <p class="hint" id="email-hint">Use o mesmo e-mail configurado para acesso ao office.</p>
+          <p class="error" id="email-error" role="alert"></p>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="password">Senha</label>
+            <a class="forgot-link" href="/forgot-password">Esqueceu a senha?</a>
+          </div>
+          <div class="field-shell">
+            <input
+              id="password"
+              class="password-input"
+              name="password"
+              type="password"
+              placeholder="Digite sua senha"
+              autocomplete="current-password"
+              aria-describedby="password-hint password-error"
+              required
+              minlength="8"
+            />
+            <button class="toggle-password" id="toggle-password" type="button" aria-controls="password" aria-pressed="false">
+              Mostrar
+            </button>
+          </div>
+          <p class="hint" id="password-hint">Minimo de 8 caracteres.</p>
+          <p class="error" id="password-error" role="alert"></p>
+        </div>
+
+        <div class="options-row">
+          <label class="checkbox" for="remember">
+            <input id="remember" name="remember" type="checkbox" />
+            <span>Manter sessao neste dispositivo</span>
+          </label>
+          <span class="helper">Conexao segura com redirecionamento ao office.</span>
+        </div>
+
+        <div class="status" id="form-status" aria-live="polite"></div>
+        <div class="form-alert" id="form-error" role="alert" hidden></div>
+
+        <button class="submit" id="submit-btn" type="submit">
+          <span class="submit-spinner" id="submit-spinner" hidden></span>
+          <span id="submit-label">Entrar</span>
+        </button>
+      </form>
+
+      <p class="register">Nao tem conta? <a href="/register">Solicite acesso</a></p>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("login-form");
+    const endpoint = form.dataset.loginEndpoint || "/api/auth/login";
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const rememberInput = document.getElementById("remember");
+    const emailError = document.getElementById("email-error");
+    const passwordError = document.getElementById("password-error");
+    const formError = document.getElementById("form-error");
+    const formStatus = document.getElementById("form-status");
+    const submitButton = document.getElementById("submit-btn");
+    const submitLabel = document.getElementById("submit-label");
+    const submitSpinner = document.getElementById("submit-spinner");
+    const togglePassword = document.getElementById("toggle-password");
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    function clearFieldError(input, errorElement) {
+      input.setAttribute("aria-invalid", "false");
+      errorElement.textContent = "";
+    }
+
+    function setFieldError(input, errorElement, message) {
+      input.setAttribute("aria-invalid", "true");
+      errorElement.textContent = message;
+    }
+
+    function clearFormError() {
+      formError.hidden = true;
+      formError.textContent = "";
+    }
+
+    function setFormError(message) {
+      formError.hidden = false;
+      formError.textContent = message;
+    }
+
+    function setSubmitting(isSubmitting) {
+      submitButton.disabled = isSubmitting;
+      submitSpinner.hidden = !isSubmitting;
+      submitLabel.textContent = isSubmitting ? "Entrando..." : "Entrar";
+      formStatus.textContent = isSubmitting ? "Validando credenciais..." : "";
+    }
+
+    function validateEmail() {
+      const value = emailInput.value.trim();
+      if (!value) {
+        setFieldError(emailInput, emailError, "Informe seu e-mail.");
+        return false;
+      }
+      if (!emailPattern.test(value)) {
+        setFieldError(emailInput, emailError, "Informe um e-mail valido.");
+        return false;
+      }
+      clearFieldError(emailInput, emailError);
+      return true;
+    }
+
+    function validatePassword() {
+      const value = passwordInput.value;
+      if (!value) {
+        setFieldError(passwordInput, passwordError, "Informe sua senha.");
+        return false;
+      }
+      if (value.length < 8) {
+        setFieldError(passwordInput, passwordError, "A senha deve ter pelo menos 8 caracteres.");
+        return false;
+      }
+      clearFieldError(passwordInput, passwordError);
+      return true;
+    }
+
+    emailInput.addEventListener("input", validateEmail);
+    passwordInput.addEventListener("input", validatePassword);
+
+    togglePassword.addEventListener("click", () => {
+      const isVisible = passwordInput.type === "text";
+      passwordInput.type = isVisible ? "password" : "text";
+      togglePassword.textContent = isVisible ? "Mostrar" : "Ocultar";
+      togglePassword.setAttribute("aria-pressed", String(!isVisible));
+      passwordInput.focus({ preventScroll: true });
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearFormError();
+      formStatus.textContent = "";
+
+      const emailValid = validateEmail();
+      const passwordValid = validatePassword();
+
+      if (!emailValid) {
+        emailInput.focus();
+        return;
+      }
+
+      if (!passwordValid) {
+        passwordInput.focus();
+        return;
+      }
+
+      setSubmitting(true);
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+          body: JSON.stringify({
+            email: emailInput.value.trim(),
+            password: passwordInput.value,
+            remember: rememberInput.checked,
+          }),
+        });
+
+        if (response.redirected && response.url) {
+          window.location.assign(response.url);
+          return;
+        }
+
+        let payload = {};
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          payload = await response.json().catch(() => ({}));
+        }
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            setFormError("O endpoint de login ainda nao esta disponivel neste ambiente.");
+            return;
+          }
+          setFormError(payload.message || "Nao foi possivel entrar. Verifique suas credenciais.");
+          return;
+        }
+
+        formStatus.textContent = "Acesso liberado. Redirecionando...";
+        window.location.assign(payload.redirectTo || "/");
+      } catch (error) {
+        setFormError("Erro de conexao. Tente novamente em instantes.");
+      } finally {
+        setSubmitting(false);
+      }
+    });
+  </script>
+</body>
+</html>

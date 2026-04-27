@@ -1,0 +1,1224 @@
+{
+  "common": {
+    "confirm": {
+      "areYouSure": "Tem certeza?",
+      "cancel": "Cancelar",
+      "confirm": "Confirmar",
+      "working": "Executando..."
+    },
+    "buttons": {
+      "close": "Fechar",
+      "retry": "Tentar novamente",
+      "retrying": "Tentando...",
+      "dismiss": "Dispensar",
+      "search": "Buscar",
+      "back": "Voltar"
+    }
+  },
+  "search": {
+    "placeholder": "Buscar canais, agentes, comandos, mensagens...",
+    "noResults": "Nenhum resultado para \"{{query}}\"",
+    "startTyping": "Comece a digitar para buscar...",
+    "groups": {
+      "channels": "Canais",
+      "agents": "Agentes",
+      "commands": "Comandos",
+      "messages": "Mensagens"
+    },
+    "footer": {
+      "navigate": "navegar",
+      "open": "abrir",
+      "close": "fechar"
+    },
+    "palette": {
+      "help": "Use a paleta: digite para filtrar, ↑↓ para navegar, Enter para abrir.",
+      "requiresArgs": "{{name}} requer argumentos — digite no compositor."
+    }
+  },
+  "layout": {
+    "rail": {
+      "workspace": "Workspace",
+      "navLabel": "Navegação principal",
+      "home": "Home",
+      "dms": "DMs",
+      "activity": "Atividade",
+      "channels": "Channels",
+      "more": "Mais"
+    },
+    "channelHeader": {
+      "searchTitle": "Buscar",
+      "searchAria": "Buscar",
+      "homeSubtitle": "Visão do workspace, bloqueios e contexto vivo do escritório",
+      "activitySubtitle": "Sinais, bloqueios e ritmo operacional",
+      "attentionCount_one": "{{count}} atenção",
+      "attentionCount_other": "{{count}} atenções",
+      "waitingHumanCount_one": "{{count}} aguardando você",
+      "waitingHumanCount_other": "{{count}} aguardando você",
+      "blockedCount_one": "{{count}} bloqueada",
+      "blockedCount_other": "{{count}} bloqueadas",
+      "activeOwnersCount_one": "{{count}} owner ativo",
+      "activeOwnersCount_other": "{{count}} owners ativos",
+      "lastUpdateBy": "Último update: @{{agent}}",
+      "lastDecisionLabel": "Decisão"
+    },
+    "disconnect": {
+      "message": "Conexão perdida. Reconectando...",
+      "dismissAria": "Dispensar"
+    }
+  },
+  "splash": {
+    "dismissAria": "Dispensar tela de abertura",
+    "opening": "Abrindo o escritório…",
+    "subtitle": "Preparando um ciclo operacional ao vivo"
+  },
+  "provider": {
+    "unavailable": "O seletor de provedor não está disponível no momento.",
+    "title": "Provedor de runtime",
+    "loading": "Carregando provedor atual...",
+    "close": "Fechar",
+    "confirmTitle": "Trocar provedor de runtime?",
+    "confirmBody": "Os agentes serão reiniciados no {{name}}.",
+    "confirmCta": "Trocar",
+    "switched": "Provedor trocado para {{name}}",
+    "switchFailed": "Falha ao trocar: {{error}}",
+    "switchFailedFallback": "Falha ao trocar",
+    "options": {
+      "claudeCode": {
+        "name": "Claude Code",
+        "desc": "Anthropic Claude via CLI do Claude Code"
+      },
+      "codex": {
+        "name": "Codex",
+        "desc": "Agente CLI Codex da OpenAI"
+      },
+      "gemini": {
+        "name": "Gemini",
+        "desc": "Google Gemini via chave de API"
+      },
+      "ollama": {
+        "name": "Ollama",
+        "desc": "Runtime local do Ollama via API nativa"
+      },
+      "geminiVertex": {
+        "name": "Gemini (créditos Vertex)",
+        "desc": "Google Gemini no Vertex AI usando seus créditos Google Cloud"
+      }
+    }
+  },
+  "messages": {
+    "composer": {
+      "placeholder": "Mensagem em #{{channel}}",
+      "sendAria": "Enviar mensagem",
+      "failedSend": "Falha ao enviar mensagem",
+      "interviewBlock": "Responda à entrevista acima para enviar mensagens.",
+      "statusDraft": "Rascunho salvo localmente.",
+      "statusSending": "Persistindo mensagem no broker...",
+      "statusPersisted": "Mensagem persistida.",
+      "statusFailed": "Falha ao persistir. O rascunho foi preservado.",
+      "retryPersist": "Tentar novamente"
+    },
+    "commands": {
+      "cleared": "Mensagens limpas",
+      "helpList": "Comandos: /clear /help /focus /collab /requests /tasks /policies /skills /calendar /search /1o1 /task /cancel /pause /resume /reset /recover",
+      "focusOn": "Mudou para modo delegação",
+      "focusOff": "Mudou para modo colaborativo",
+      "focusFailed": "Falha ao trocar modo",
+      "pauseOk": "Todos os agentes pausados",
+      "pauseFailed": "Falha ao pausar: {{error}}",
+      "resumeOk": "Agentes retomados",
+      "resumeFailed": "Falha ao retomar: {{error}}",
+      "resetTitle": "Reiniciar o escritório?",
+      "resetBody": "Limpa os canais para #general e descarta o estado em memória. Tarefas e solicitações persistidas permanecem no broker.",
+      "resetConfirm": "Reiniciar",
+      "resetOk": "Escritório reiniciado",
+      "resetFailed": "Falha ao reiniciar: {{error}}",
+      "oneOnOneUsage": "Uso: /1o1 <slug-do-agente>",
+      "agentNotFound": "Agente não encontrado: {{slug}}",
+      "taskUsage": "Uso: /task <claim|release|complete|block|approve> <id-da-tarefa>",
+      "taskActionOk": "Tarefa {{id}} → {{action}}",
+      "taskActionFailed": "Falha na ação da tarefa: {{error}}",
+      "cancelUsage": "Uso: /cancel <id-da-tarefa>",
+      "cancelOk": "Tarefa {{id}} cancelada",
+      "cancelFailed": "Falha ao cancelar"
+    },
+    "bubble": {
+      "you": "Você",
+      "human": "humano",
+      "reply_one": "{{count}} resposta",
+      "reply_other": "{{count}} respostas",
+      "replyAction": "Responder",
+      "reactionFailed": "Falha na reação: {{error}}",
+      "deleteAction": "Excluir",
+      "deleteAria": "Excluir mensagem",
+      "deleteConfirmTitle": "Excluir esta mensagem?",
+      "deleteConfirmBody": "Isso remove a mensagem da timeline e de qualquer thread aberta.",
+      "deleteSuccess": "Mensagem excluída",
+      "deleteFailed": "Falha ao excluir: {{error}}",
+      "deleteFailedFallback": "Falha ao excluir"
+    },
+      "feed": {
+        "loading": "Carregando mensagens...",
+        "refreshing": "Atualizando mensagens...",
+        "loadFailed": "Não foi possível carregar as mensagens: {{error}}",
+        "loadingHistory": "Carregando histórico antigo...",
+        "scrollForHistory": "Suba para carregar mensagens mais antigas",
+        "recentContextTitle": "Contexto recente",
+        "recentContextBody": "Últimos updates substantivos neste canal",
+        "automationBurstLabel_one": "{{count}} atualização automática · {{source}}",
+        "automationBurstLabel_other": "{{count}} atualizações automáticas · {{source}}",
+        "showAutomationBurst_one": "Mostrar {{count}} update",
+        "showAutomationBurst_other": "Mostrar {{count}} updates",
+        "hideAutomationBurst": "Ocultar updates",
+        "emptyEyebrow": "calmaria antes da reunião",
+        "emptyTitle": "#{{channel}} está vazio. Por enquanto.",
+        "emptyBody": "É aqui que seus agentes vão debater, assumir tarefas e mostrar progresso. O foco é trabalho visível, não orquestração oculta.",
+      "emptyHint1Prefix": "Experimente ",
+      "emptyHint1Code": "@ceo o que devemos construir esta semana?",
+      "emptyHint2Prefix": "Digite ",
+      "emptyHint2Code1": "/",
+      "emptyHint2Mid": " para comandos, ",
+      "emptyHint2Code2": "@",
+      "emptyHint2Suffix": " para mencionar um agente.",
+      "emptyFoot": "Comece com um prompt e veja o escritório acordar."
+    },
+    "typing": {
+      "one": "{{name}} está pensando...",
+      "few": "{{names}} estão pensando...",
+      "many": "{{count}} agentes estão trabalhando..."
+    },
+    "thread": {
+      "title": "Thread",
+      "closeAria": "Fechar thread",
+      "loading": "Carregando thread...",
+      "refreshing": "Atualizando thread...",
+      "threadRoot": "Respostas da mensagem raiz",
+      "replyingTo": "Respondendo para {{author}}",
+      "replyTo": "Em resposta a {{author}}",
+      "replyToMissing": "Em resposta a mensagem ausente",
+      "replyToRoot": "responder na raiz",
+      "composerRootHint": "Respondendo na raiz da thread.",
+      "composerReplyHint": "Respondendo para {{author}}.",
+      "humanAttentionBadge": "aguardando sua resposta",
+      "humanAttentionBody": "Esta thread está travada até você responder.",
+      "empty": "Nenhuma resposta ainda",
+      "loadFailed": "Não foi possível carregar a thread: {{error}}",
+      "replyPlaceholder": "Responder...",
+      "sendAria": "Enviar resposta",
+      "failedSend": "Falha ao enviar resposta"
+    },
+    "dm": {
+      "banner": "Sessão 1:1 com {{agent}}",
+      "back": "Voltar ao escritório",
+      "liveOutput": "Saída ao vivo",
+      "waiting": "Aguardando saída...",
+      "idle": "Stream ocioso"
+    },
+    "interview": {
+      "blocking": "BLOQUEANTE",
+      "asks": "@{{from}} pergunta",
+      "inChannel": "em #{{channel}}",
+      "regionAria": "Entrevista de agente pendente",
+      "prevAria": "Solicitação anterior",
+      "prevTitle": "Anterior",
+      "nextAria": "Próxima solicitação",
+      "nextTitle": "Próxima",
+      "skipAria": "Pular e pausar o escritório",
+      "skipTitle": "Pular — pausa o escritório",
+      "textPlaceholder": "Digite sua resposta...",
+      "back": "Voltar",
+      "sending": "Enviando...",
+      "sendAs": "Enviar como {{label}}",
+      "noOptions": "Nenhuma opção disponível.",
+      "failedAnswer": "Falha ao responder",
+      "officePaused": "Escritório pausado. Use /resume quando estiver pronto.",
+      "failedPause": "Falha ao pausar o escritório",
+      "typeHint": "digitar"
+    },
+    "overlay": {
+      "fromBadge": "@{{from}}",
+      "fallbackTitle": "Entrada humana necessária",
+      "noChoices": "Nenhuma opção disponível. Abra o app Solicitações para responder.",
+      "toastAsked": "@{{from}} perguntou: {{question}}"
+    },
+    "slash": {
+      "clear": "Limpar mensagens",
+      "help": "Mostrar todos os comandos",
+      "reset": "Reiniciar o escritório",
+      "search": "Buscar mensagens",
+      "tasks": "Abrir inbox",
+      "requests": "Abrir solicitações",
+      "recover": "Abrir verificação de saúde",
+      "oneOnOne": "1:1 com agente",
+      "task": "Ações de tarefa",
+      "cancel": "Cancelar uma tarefa",
+      "policies": "Ver políticas",
+      "calendar": "Ver agenda",
+      "skills": "Ver habilidades",
+      "focus": "Mudar para modo delegação",
+      "collab": "Mudar para modo colaborativo",
+      "pause": "Pausar todos os agentes",
+      "resume": "Retomar todos os agentes",
+      "threads": "Ver todas as threads ativas",
+      "provider": "Trocar provedor de runtime"
+    },
+    "stream": {
+      "args": "Args",
+      "response": "Resposta",
+      "error": "Erro",
+      "collapse": "Recolher",
+      "expand": "Expandir"
+    }
+  },
+  "sidebar": {
+    "sections": {
+      "team": "Equipe",
+      "channels": "Canais",
+      "apps": "Aplicativos"
+    },
+    "agents": {
+      "toggle": "Agentes",
+      "empty": "Nenhum agente online",
+      "newAgent": "Novo agente",
+      "newAgentTitle": "Criar um novo agente",
+      "titleTemplate": "{{name}} — {{runtime}} — {{state}}",
+      "states": {
+        "lurking": "espreitando",
+        "shipping": "entregando",
+        "plotting": "tramando",
+        "talking": "conversando"
+      }
+    },
+    "channels": {
+      "newChannel": "Novo canal",
+      "newChannelTitle": "Criar um novo canal",
+      "attentionBadge": "! {{count}}",
+      "attentionTitle_one": "{{count}} grupo de atenção",
+      "attentionTitle_other": "{{count}} grupos de atenção",
+      "blockedBadge": "B {{count}}",
+      "blockedTitle_one": "{{count}} tarefa bloqueada",
+      "blockedTitle_other": "{{count}} tarefas bloqueadas",
+      "waitingBadge": "V {{count}}",
+      "waitingTitle_one": "{{count}} item esperando você",
+      "waitingTitle_other": "{{count}} itens esperando você",
+      "updatedBy": "@{{agent}}"
+    },
+    "apps": {
+      "studio": "Estúdio",
+      "tasks": "Inbox",
+      "deliveries": "Entregas",
+      "requests": "Solicitações",
+      "policies": "Políticas",
+      "calendar": "Agenda",
+      "skills": "Habilidades",
+      "activity": "Atividade",
+      "receipts": "Recibos",
+      "healthCheck": "Verificação",
+      "settings": "Configurações",
+      "pendingAria": "{{count}} pendente(s)",
+      "waitingAria": "{{count}} aguardando você",
+      "blockedAria": "{{count}} entrega(s) bloqueada(s)",
+      "attentionAria": "{{count}} entrega(s) exigem atenção",
+      "deliveriesBadgeTitle": "{{count}} entrega(s) exigem atenção ({{waiting}} aguardando você, {{blocked}} bloqueadas)"
+    },
+    "usage": {
+      "title": "Uso",
+      "empty": "Nenhum uso registrado ainda.",
+      "headers": {
+        "agent": "Agente",
+        "in": "Ent.",
+        "out": "Saí.",
+        "cache": "Cache",
+        "cost": "Custo"
+      },
+      "session": "Sessão: {{tokens}} tokens"
+    },
+    "workspace": {
+      "agentActive_one": "{{count}} agente ativo",
+      "agentActive_other": "{{count}} agentes ativos",
+      "taskOpen_one": "{{count}} tarefa aberta",
+      "taskOpen_other": "{{count}} tarefas abertas",
+      "tokens": "{{tokens}} tokens",
+      "taskInProgress_one": "{{count}} tarefa em andamento",
+      "taskInProgress_other": "{{count}} tarefas em andamento",
+      "typeSlash": "Digite / para comandos"
+    },
+    "runtime": {
+      "title": "Status da equipe",
+      "working": "trabalhando",
+      "blocked": "bloqueado",
+      "waiting": "esperando você",
+      "silent": "silencioso"
+    },
+    "theme": {
+      "label": "Trocar tema"
+    },
+    "language": {
+      "label": "Trocar idioma"
+    },
+    "context": {
+      "jumpBackIn": "Voltar ao fluxo",
+      "dmsCopy": "Escolha um agente para abrir uma conversa direta sem sair do shell do workspace.",
+      "moreCopy": "As superfícies secundárias ficam aqui para manter o rail principal focado.",
+      "activityFeed": "Atividade do escritório",
+      "threads": "Threads ativas",
+      "signalSummary": "Resumo de sinais"
+    }
+  },
+  "settings": {
+    "nav": {
+      "general": "Geral",
+      "company": "Empresa",
+      "keys": "Chaves de API",
+      "integrations": "Integrações",
+      "intervals": "Sondagem",
+      "flags": "Flags de CLI",
+      "danger": "Segurança de dados"
+    },
+    "status": {
+      "loading": "Carregando configurações...",
+      "loadFailed": "Falha ao carregar configurações: {{error}}",
+      "saved": "Configurações salvas.",
+      "saveFailed": "Falha ao salvar configurações",
+      "saveFailedWithReason": "Falha ao salvar: {{error}}"
+    },
+    "saveButton": {
+      "saving": "Salvando...",
+      "saved": "Salvo"
+    },
+    "general": {
+      "title": "Geral",
+      "description": "Configurações principais de execução. Mapeiam para flags de CLI e entradas do arquivo de configuração. O provedor aqui é o padrão do escritório para agentes que não têm um runtime específico.",
+      "banner": {
+        "restartRequired": "Reinício necessário para alterações no provedor padrão do escritório e no Backend de Memória.",
+        "afterSave": "Novos valores são salvos imediatamente, mas agentes já em execução mantêm as configurações do momento em que foram iniciados, e agentes com runtime próprio mantêm esse override. Execute",
+        "afterCmd": "e relance para aplicar."
+      },
+      "fields": {
+        "provider": {
+          "label": "Runtime Padrão do Escritório",
+          "hint": "fallback --provider",
+          "desc": "Usado quando um agente está configurado para usar o padrão do escritório em vez de um runtime dedicado."
+        },
+        "memory": {
+          "label": "Backend de Memória",
+          "hint": "--memory-backend"
+        },
+        "teamLead": {
+          "label": "Líder da Equipe",
+          "hint": "Agente padrão que lidera as operações",
+          "placeholder": "ex.: ceo"
+        },
+        "maxConcurrent": {
+          "label": "Máx. Concorrentes",
+          "hint": "Limite de agentes em paralelo",
+          "placeholder": "Ilimitado"
+        },
+        "format": {
+          "label": "Formato de Saída",
+          "hint": "--format"
+        },
+        "timeout": {
+          "label": "Timeout (ms)",
+          "hint": "Timeout padrão de comando"
+        },
+        "blueprint": {
+          "label": "Blueprint",
+          "hint": "--blueprint",
+          "placeholder": "ID do blueprint de operação"
+        },
+        "email": {
+          "label": "E-mail",
+          "hint": "Escopo de identidade para integrações",
+          "placeholder": "voce@empresa.com"
+        },
+        "devUrl": {
+          "label": "URL de Dev",
+          "hint": "Override da URL base da API",
+          "placeholder": "http://localhost:7890"
+        }
+      },
+      "options": {
+        "provider": {
+          "claudeCode": "Claude Code",
+          "codex": "Codex",
+          "gemini": "Gemini",
+          "ollama": "Ollama",
+          "geminiVertex": "Gemini (Vertex Credits)"
+        },
+        "memory": {
+          "none": "Nenhum (apenas local)"
+        },
+        "format": {
+          "text": "Texto",
+          "json": "JSON"
+        }
+      },
+      "saveLabel": "Salvar configurações gerais",
+      "configFile": "Arquivo de configuração"
+    },
+    "company": {
+      "title": "Empresa",
+      "description": "Contexto organizacional injetado nos prompts dos agentes. Quanto mais você preencher, melhor os agentes entendem seu negócio.",
+      "fields": {
+        "name": {
+          "label": "Nome",
+          "hint": "Nome da sua empresa ou projeto",
+          "placeholder": "Acme Corp"
+        },
+        "description": {
+          "label": "Descrição",
+          "hint": "Uma frase sobre o negócio",
+          "placeholder": "O que sua empresa faz?"
+        },
+        "goals": {
+          "label": "Objetivos",
+          "hint": "No que a equipe está trabalhando",
+          "placeholder": "Objetivos organizacionais atuais"
+        },
+        "size": {
+          "label": "Tamanho",
+          "hint": "Tamanho da equipe ou empresa",
+          "placeholder": "ex.: 5, 50, 500"
+        },
+        "priority": {
+          "label": "Prioridade",
+          "hint": "O que mais importa agora",
+          "placeholder": "Foco prioritário imediato"
+        }
+      },
+      "saveLabel": "Salvar dados da empresa"
+    },
+    "keys": {
+      "title": "Chaves de API",
+      "description": "Credenciais de autenticação para serviços externos. As chaves são armazenadas no seu arquivo de configuração local e nunca transmitidas aos serviços da DunderIA. Insira um novo valor para atualizar, ou deixe em branco para manter a chave atual.",
+      "statusSet": "Definida",
+      "statusUnset": "Não definida",
+      "emptySubmit": "Nenhuma chave inserida. Deixe em branco para manter as existentes.",
+      "envHint": "Env: {{env}}",
+      "labels": {
+        "nex": "Chave da Workspace",
+        "anthropic": "Anthropic",
+        "openai": "OpenAI",
+        "gemini": "Gemini",
+        "minimax": "Minimax",
+        "brave": "Brave Search",
+        "one": "One (integração)",
+        "composio": "Composio",
+        "telegram": "Bot do Telegram"
+      },
+      "saveLabel": "Salvar chaves de API"
+    },
+    "integrations": {
+      "title": "Integrações",
+      "description": "Conexões com serviços externos, backup em nuvem e provedores de ação.",
+      "fields": {
+        "actionProvider": {
+          "label": "Provedor de Ações",
+          "hint": "Roteamento de ações externas"
+        },
+        "webSearchProvider": {
+          "label": "Provedor de busca web",
+          "hint": "Capacidade de busca externa usada pelos agentes"
+        },
+        "customMCPConfig": {
+          "label": "Config MCP customizada",
+          "hint": "Caminho opcional para um arquivo externo mcp-settings.json"
+        },
+        "cloudBackupProvider": {
+          "label": "Provedor de Backup em Nuvem",
+          "hint": "Provedor usado para snapshots de configuração"
+        },
+        "cloudBackupBucket": {
+          "label": "Bucket de Backup em Nuvem",
+          "hint": "Obrigatório quando o provedor é gcs"
+        },
+        "cloudBackupPrefix": {
+          "label": "Prefixo do Backup em Nuvem",
+          "hint": "Prefixo opcional da chave do objeto"
+        },
+        "gatewayUrl": {
+          "label": "URL do Gateway",
+          "hint": "Endpoint WebSocket"
+        },
+        "token": {
+          "label": "Token",
+          "hint": "Token de autenticação do gateway"
+        },
+        "workspaceId": {
+          "label": "ID do Workspace",
+          "hint": "Somente leitura"
+        },
+        "workspaceSlug": {
+          "label": "Slug do Workspace",
+          "hint": "Somente leitura"
+        }
+      },
+      "options": {
+        "actionProvider": {
+          "auto": "Automático",
+          "one": "One",
+          "composio": "Composio"
+        },
+        "webSearchProvider": {
+          "none": "Desabilitado",
+          "brave": "Brave Search"
+        }
+      },
+      "groups": {
+        "cloudBackup": "Backup em Nuvem",
+        "workspace": "Workspace"
+      },
+      "placeholders": {
+        "nexRegistration": "(definido pelo registro da workspace)",
+        "customMCPConfig": "<REPOS_ROOT>/dunderia/mcp/dunderia-mcp-settings.json",
+        "cloudBackupBucket": "dunderia-backups",
+        "cloudBackupPrefix": "office-a/config"
+      },
+      "saveLabel": "Salvar integrações"
+    },
+    "intervals": {
+      "title": "Intervalos de Sondagem",
+      "description": "Com que frequência processos em segundo plano verificam atualizações. Todos os valores em minutos. Mínimo de 2 minutos.",
+      "fields": {
+        "insights": {
+          "label": "Insights",
+          "hint": "Sondagem do grafo de contexto"
+        },
+        "followUp": {
+          "label": "Follow-up de Tarefa",
+          "hint": "Verificação pós-conclusão"
+        },
+        "reminder": {
+          "label": "Lembrete de Tarefa",
+          "hint": "Cutucada em tarefa parada"
+        },
+        "recheck": {
+          "label": "Re-verificação de Tarefa",
+          "hint": "Reavaliação de progresso"
+        }
+      },
+      "saveLabel": "Salvar intervalos"
+    },
+    "flags": {
+      "title": "Flags de CLI",
+      "description": "Todas as flags disponíveis ao iniciar o wuphf pelo terminal. São apenas de execução e não persistem no arquivo de configuração.",
+      "table": {
+        "flag": "Flag",
+        "description": "Descrição",
+        "variable": "Variável",
+        "purpose": "Finalidade"
+      },
+      "envVars": {
+        "title": "Variáveis de Ambiente",
+        "hint": "As configurações resolvem nesta ordem: flag de CLI → variável de ambiente → arquivo de configuração → padrão. Defina estas no seu perfil de shell para sobrescrever valores do arquivo de configuração."
+      },
+      "cli": {
+        "provider": "Provedor de LLM (claude-code, codex, gemini, ollama, gemini-vertex)",
+        "memoryBackend": "Backend de memória (apenas none)",
+        "blueprint": "Blueprint de operação para esta execução",
+        "tui": "Inicia o TUI em tmux em vez da UI web",
+        "webPort": "Porta da UI web (padrão: 7891)",
+        "brokerPort": "Porta local do broker (padrão: 7890)",
+        "opusCeo": "Atualiza o agente CEO para o modelo Opus",
+        "collab": "Modo colaborativo (todos os agentes veem todas as mensagens)",
+        "oneOnOne": "Sessão direta 1:1 com um único agente",
+        "unsafe": "Ignora checagens de permissão dos agentes (apenas dev)",
+        "noOpen": "Não abre o navegador automaticamente ao iniciar",
+        "fromScratch": "Inicia sem blueprint salvo",
+        "threadsCollapsed": "Inicia com threads recolhidos",
+        "cmd": "Executa um slash command de forma não-interativa",
+        "format": "Formato de saída (text, json)",
+        "version": "Imprime a versão e sai",
+        "helpAll": "Mostra todas as flags, incluindo internas"
+      },
+      "env": {
+        "llmProvider": "Override do provedor de LLM",
+        "memoryBackend": "Override do backend de memória",
+        "brokerPort": "Porta do broker",
+        "configPath": "Override do caminho do arquivo de configuração",
+        "cloudBackupProvider": "Override do provedor de backup em nuvem",
+        "cloudBackupBucket": "Bucket de backup em nuvem",
+        "cloudBackupPrefix": "Prefixo de backup em nuvem",
+        "runtimeHome": "Diretório de estado de execução",
+        "startFromScratch": "Inicia sem blueprint (1)",
+        "oneOnOne": "Habilita modo 1:1 (1)",
+        "headlessProvider": "Override do provedor headless",
+        "insightsInterval": "Intervalo de sondagem de insights",
+        "taskFollowup": "Intervalo de follow-up de tarefa",
+        "taskReminder": "Intervalo de lembrete de tarefa",
+        "taskRecheck": "Intervalo de re-verificação de tarefa"
+      }
+    },
+    "danger": {
+      "title": "Segurança de dados",
+      "description": "Ações destrutivas de workspace foram removidas da interface. Canais, agentes, mensagens, tarefas e workflows locais são preservados.",
+      "disabled": "Não existe mais botão de destruição de workspace nesta tela. O comando legado de parada também preserva o estado local."
+    }
+  },
+  "apps": {
+    "common": {
+      "loading": "Carregando...",
+      "back": "Voltar",
+      "cancel": "Cancelar",
+      "save": "Salvar",
+      "unknown": "Desconhecido",
+      "untitled": "Sem título"
+    },
+    "studio": {
+      "title": "Estúdio",
+      "eyebrow": "console de desenvolvimento",
+      "subtitle": "Diagnóstico operacional, contexto ativo e destravamento em uma única superfície.",
+      "refresh": "Atualizar",
+      "refreshing": "Atualizando...",
+      "refreshed": "Snapshot atualizado",
+      "loading": "Carregando console do Estúdio...",
+      "loadFailed": "Não foi possível carregar o console do Estúdio.",
+      "generate": "Gerar pacote",
+      "generating": "Gerando pacote...",
+      "generated": "Pacote gerado",
+      "generateFailed": "Falha ao gerar pacote: {{error}}",
+      "run": "Executar workflow",
+      "running": "Executando workflow...",
+      "ran": "Workflow disparado",
+      "runFailed": "Falha ao executar workflow: {{error}}",
+      "workflowRequired": "Selecione um workflow antes de executar.",
+    "workflowLabel": "Workflow",
+    "noWorkflow": "Nenhum workflow disponível no pacote.",
+    "officeTitle": "Snapshot do office",
+    "officeSummary": "Saúde global, bootstrap e ambiente local.",
+    "agentStatusTitle": "Status dos agentes",
+    "activeTitle": "Projeto e fluxo ativo",
+      "activeSummary": "Contexto útil para agir sem caçar em outras telas.",
+      "blockersTitle": "Console de destravamento",
+      "blockersSummary": "Bloqueios priorizados com causa provável e ação imediata.",
+      "blockersCount_one": "{{count}} bloqueio ativo",
+      "blockersCount_other": "{{count}} bloqueios ativos",
+      "focusModeOn": "Focus mode ligado",
+      "focusModeOff": "Focus mode desligado",
+      "sessionMode": "Modo",
+      "provider": "Provedor",
+      "memoryBackend": "Memória",
+      "runtimeHealth": "Health do runtime",
+      "bootstrap": "Bootstrap",
+      "packageTools": "Ferramentas de pacote",
+      "signals": "Sinais",
+      "members": "Membros",
+      "channels": "Canais",
+      "tasks": "Tarefas",
+      "requests": "Pedidos",
+      "workspaces": "Workspaces",
+      "workflows": "Workflows",
+      "broker": "Broker",
+      "api": "API",
+      "web": "Web",
+      "activeFlow": "Fluxo ativo",
+      "primaryChannel": "Canal principal",
+      "directAgent": "Agente direto",
+      "nextSteps": "Próximos passos",
+      "openChannel": "Abrir canal",
+      "openTasks": "Abrir tarefas",
+      "channelLoad": "Canais observados",
+      "flowLoad": "Fluxos e workspaces",
+      "hotTasks": "Tarefas em foco",
+      "attentionCount_one": "{{count}} atenção",
+      "attentionCount_other": "{{count}} atenções",
+      "waitingHumanCount_one": "{{count}} aguardando",
+      "waitingHumanCount_other": "{{count}} aguardando",
+      "activeOwnersCount_one": "{{count}} owner",
+      "activeOwnersCount_other": "{{count}} owners",
+      "lastUpdateBy": "Último: @{{agent}}",
+      "lastDecisionLabel": "Decisão",
+      "noContext": "Sem contexto ativo suficiente para o Estúdio ainda.",
+      "noBlockers": "Nenhum bloqueio relevante agora.",
+      "reason": "Causa provável",
+      "waitingOn": "Aguardando",
+      "recommended": "Recomendado",
+      "owner": "Owner",
+      "status": "Status",
+      "task": "Tarefa",
+      "actionSucceeded": "{{action}} executada",
+      "actionFailed": "Falha em {{action}}: {{error}}",
+      "openedTasks": "Painel de tarefas aberto",
+      "openedChannel": "Canal #{{channel}} aberto",
+      "createTaskHint": "Abra o compositor em #{{channel}} para materializar a task.",
+      "workflowEmptyState": "Pacote sem workflows executáveis no momento."
+    },
+    "health": {
+      "title": "Verificação de Saúde",
+      "checking": "Verificando saúde...",
+      "unreachable": "Não foi possível alcançar o endpoint de saúde.",
+      "brokerStatus": "Status do Broker",
+      "agents": "Agentes ({{count}})",
+      "noAgentData": "Sem dados de saúde dos agentes disponíveis."
+    },
+    "skills": {
+      "title": "Skills",
+      "loading": "Carregando skills...",
+      "loadFailed": "Não foi possível carregar as skills.",
+      "empty": "Nenhuma skill registrada ainda.",
+      "untitled": "Sem título",
+      "source": "Origem: {{source}}",
+      "invoke": "Invocar",
+      "invoking": "Invocando...",
+      "invoked": "Invocada",
+      "invokeFailed": "Falha ao invocar: {{error}}"
+    },
+    "calendar": {
+      "title": "Agenda",
+      "loading": "Carregando agenda...",
+      "loadFailed": "Não foi possível carregar a agenda.",
+      "empty": "Nenhum job agendado.",
+      "upcoming": "Próximos",
+      "job": "Job",
+      "last": "Último: {{time}}",
+      "next": "Próximo: {{time}}"
+    },
+    "threads": {
+      "title": "Threads",
+      "activeCount_one": "{{count}} thread ativa",
+      "activeCount_other": "{{count}} threads ativas",
+      "loading": "Carregando threads...",
+      "empty": "Sem threads ainda. Responda a uma mensagem para iniciar uma.",
+      "noContent": "(sem conteúdo)",
+      "replies_one": "{{count}} resposta",
+      "replies_other": "{{count}} respostas"
+    },
+    "requests": {
+      "loading": "Carregando pedidos...",
+      "loadFailed": "Falha ao carregar pedidos.",
+      "empty": "Sem pedidos no momento. Seus agentes estão trabalhando de forma autônoma.",
+      "pending": "Pendentes ({{count}})",
+      "answered": "Respondidos ({{count}})",
+      "unknown": "Desconhecido",
+      "blocking": "BLOQUEANTE",
+      "answeredLabel": "Respondido",
+      "answering": "Enviando...",
+      "customTextPlaceholder": "Adicione o texto para enviar com esta escolha",
+      "customTextAria": "Texto para {{option}}",
+      "answerFailed": "Falha ao responder: {{error}}",
+      "answerFailedUnknown": "Erro desconhecido"
+    },
+    "policies": {
+      "subtitle": "Regras operacionais do escritório. Defina explicitamente ou deixe serem detectadas a partir dos padrões de trabalho.",
+      "addRule": "+ Adicionar regra",
+      "rulePlaceholder": "ex. \"Sempre pergunte antes de publicar em produção\"",
+      "save": "Salvar",
+      "cancel": "Cancelar",
+      "loading": "Carregando...",
+      "loadFailed": "Falha ao carregar políticas.",
+      "empty": "Nenhuma política definida. Adicione uma acima.",
+      "sections": {
+        "humanDirected": "Direcionadas por humano",
+        "autoDetected": "Auto-detectadas"
+      },
+      "active": "ATIVA",
+      "deactivate": "Desativar",
+      "deactivateTitle": "Desativar política?",
+      "deactivateBody": "\"{{rule}}\"\n\nEsta política deixará de valer para novas decisões.",
+      "deactivateBodyNoRule": "Esta política deixará de valer para novas decisões.",
+      "saveFailed": "Falha ao salvar: {{error}}",
+      "deleteFailed": "Falha ao excluir: {{error}}"
+    },
+    "receipts": {
+      "title": "Recibos",
+      "subtitle": "O que cada agente realmente fez, ferramenta por ferramenta. Sem promessas — só o log.",
+      "loading": "Carregando...",
+      "loadFailed": "Não foi possível carregar os recibos.",
+      "empty": "Nenhum recibo ainda. Os agentes geram um quando usam uma ferramenta.",
+      "table": {
+        "agent": "Agente",
+        "action": "Ação",
+        "time": "Hora",
+        "tokens": "Tokens",
+        "cost": "Custo"
+      },
+      "detail": {
+        "back": "← Voltar aos recibos",
+        "subtitle": "Rastro ferramenta a ferramenta desta tarefa.",
+        "loading": "Carregando...",
+        "loadFailed": "Não foi possível carregar o rastro.",
+        "empty": "Nenhuma chamada de ferramenta nesta tarefa ainda.",
+        "unknown": "(desconhecido)"
+      }
+    },
+    "tasks": {
+      "loading": "Carregando inbox...",
+      "loadFailed": "Não foi possível carregar a inbox.",
+      "empty": "Nada aguardando você agora.",
+      "title": "Inbox",
+      "subtitle": "Revise e responda o que depende de você. O board operacional continua abaixo.",
+      "humanQueue": "Precisa de você",
+      "humanQueueCount_one": "{{count}} item precisa da sua resposta",
+      "humanQueueCount_other": "{{count}} itens precisam da sua resposta",
+      "boardTitle": "Board operacional",
+      "boardSubtitle": "Tarefas em execução do escritório. Arraste um card para movê-lo.",
+      "createFailed": "Falha ao criar tarefa",
+      "createTitleRequired": "Informe um título para criar a tarefa",
+      "workspaceRequired": "Informe o workspace_path para external_workspace",
+      "moveFailed": "Falha ao mover",
+      "untitled": "Sem título",
+      "form": {
+        "title": "Título",
+        "titlePlaceholder": "Ex. Auditar repo externo",
+        "owner": "Responsável",
+        "ownerPlaceholder": "slug do agente, ex. repo-auditor",
+        "details": "Detalhes",
+        "detailsPlaceholder": "Contexto curto para a nova tarefa",
+        "executionMode": "Modo de execução",
+        "workspacePath": "Workspace path",
+        "workspacePathPlaceholder": "D:\\Repos\\LegacySystemNew",
+        "channelHint": "Novas tarefas são criadas em #{{channel}}.",
+        "create": "Criar tarefa",
+        "creating": "Criando...",
+        "executionModes": {
+          "office": "office",
+          "local_worktree": "local_worktree",
+          "external_workspace": "external_workspace"
+        }
+      },
+      "columns": {
+        "in_progress": "em andamento",
+        "open": "abertas",
+        "review": "em revisão",
+        "pending": "pendentes",
+        "blocked": "bloqueadas",
+        "done": "concluídas",
+        "canceled": "não fazer"
+      }
+    },
+    "deliveries": {
+      "title": "Entregas",
+      "subtitle": "Acompanhe a evolução de relatórios, documentos e pedidos maiores no escritório.",
+      "loading": "Carregando entregas...",
+      "loadFailed": "Não foi possível carregar as entregas.",
+      "empty": "Nenhuma entrega em andamento.",
+      "stats": {
+        "active": "Ativas",
+        "waitingHuman": "Aguardando você",
+        "blocked": "Bloqueadas"
+      },
+      "labels": {
+        "waitingHuman_one": "{{count}} aguardando você",
+        "waitingHuman_other": "{{count}} aguardando você",
+        "blockers_one": "{{count}} bloqueio",
+        "blockers_other": "{{count}} bloqueios",
+        "noMilestones": "Sem marcos ainda"
+      },
+      "groups": {
+        "unknownRepository": "Sem repositório",
+        "deliveryCount_one": "{{count}} entrega",
+        "deliveryCount_other": "{{count}} entregas",
+        "latestUpdate": "Última atualização: {{time}}"
+      },
+      "sections": {
+        "active": "Ativas",
+        "history": "Histórico",
+        "historyHint": "Entregas concluídas ou canceladas"
+      },
+      "detail": {
+        "owner": "Responsável",
+        "channel": "Canal",
+        "progress": "Progresso",
+        "basis": "Base",
+        "lastUpdate": "Última atualização",
+        "lastBy": "Último por",
+        "latestMovement": "Último movimento",
+        "links": "Vínculos",
+        "tasksCount_one": "{{count}} tarefa",
+        "tasksCount_other": "{{count}} tarefas",
+        "requestsCount_one": "{{count}} solicitação",
+        "requestsCount_other": "{{count}} solicitações",
+        "pendingHumanCount_one": "{{count}} aguardando você",
+        "pendingHumanCount_other": "{{count}} aguardando você",
+        "artifacts": "Artefatos",
+        "noArtifacts": "Nenhum artefato ainda."
+      }
+    },
+    "taskDetail": {
+      "untitled": "Tarefa sem título",
+      "close": "Fechar",
+      "status": "Status",
+      "ownership": "Responsável",
+      "description": "Descrição",
+      "details": "Detalhes",
+      "dependsOn": "Depende de",
+      "metadata": "Metadados",
+      "unassigned": "(sem responsável)",
+      "pickOwner": "(escolha um responsável)",
+      "reassign": "Reatribuir",
+      "reassigning": "Reatribuindo...",
+      "reassignFailed": "Falha ao reatribuir",
+      "reassignHint": "Reatribuir envia para #{{channel}} e DMs a ambos responsáveis. O CEO é incluído em cc.",
+      "cancelTitle": "Marcar tarefa como não fazer?",
+      "cancelBody": "\"{{title}}\" será movida para a coluna Não Fazer. Os responsáveis serão notificados.",
+      "cancelConfirm": "Não fazer",
+      "statusBtn": {
+        "release": "Liberar",
+        "review": "Marcar revisão",
+        "block": "Bloquear",
+        "complete": "Marcar como feito",
+        "cancel": "Não fazer",
+        "alreadyInState": "A tarefa já está neste estado"
+      },
+      "meta": {
+        "owner": "Responsável",
+        "channel": "Canal",
+        "status": "Status",
+        "reviewState": "Estado de revisão",
+        "taskType": "Tipo",
+        "executionMode": "Modo de execução",
+        "workspacePath": "Workspace path",
+        "pipeline": "Pipeline",
+        "pipelineStage": "Etapa do pipeline",
+        "worktreeBranch": "Branch do worktree",
+        "worktreePath": "Caminho do worktree",
+        "sourceSignal": "Sinal de origem",
+        "sourceDecision": "Decisão de origem",
+        "thread": "Thread",
+        "sourceRequest": "Solicitação de origem",
+        "sourceTask": "Tarefa de origem",
+        "sourceMessage": "Mensagem de origem",
+        "delivery": "Entrega",
+        "createdBy": "Criada por",
+        "created": "Criada",
+        "updated": "Atualizada",
+        "due": "Prazo",
+        "followUp": "Follow-up",
+        "reminder": "Lembrete",
+        "recheck": "Recheck"
+      },
+      "humanAction": {
+        "title": "Ação humana",
+        "subtitle": "Este item está aguardando sua resposta.",
+        "progress": "{{percent}}% concluído · {{basis}}",
+        "noProgressBasis": "Ainda sem base de marcos",
+        "waitingSince": "Aguardando desde {{time}}",
+        "recommendationReady": "Recomendação do game-master",
+        "recommendationRequested": "Triagem do game-master solicitada. Aguardando recomendação.",
+        "textPlaceholder": "Digite sua resposta...",
+        "back": "Voltar",
+        "typeHint": "digitar",
+        "answering": "Respondendo...",
+        "answerAs": "Responder como {{label}}",
+        "askGameMaster": "Pedir ao @game-master",
+        "askingGameMaster": "Pedindo ao @game-master...",
+        "openContext": "Abrir contexto",
+        "answerFailed": "Falha ao responder solicitação",
+        "recommendationFailed": "Falha ao pedir recomendação",
+        "noOptions": "Esta solicitação não trouxe opções de resposta."
+      }
+    },
+    "agentPanel": {
+      "liveStream": "Stream ao vivo",
+      "connected": "Conectado",
+      "disconnected": "Desconectado",
+      "noOutput": "Sem saída ainda",
+      "recentActivity": "Atividade recente",
+      "loading": "Carregando...",
+      "noRecentActivity": "Sem atividade recente",
+      "close": "Fechar painel do agente",
+      "slug": "slug",
+      "runtime": "runtime",
+      "setRuntime": "definir runtime",
+      "save": "Salvar runtime",
+      "saving": "Salvando...",
+      "runtimeHint": "Agentes podem herdar o padrão do escritório ou fixar um runtime explicitamente.",
+      "modelHint": "Modelo opcional por agente. Exemplos: claude-haiku-4-5, gpt-5.4, qwen2.5-coder:7b.",
+      "modelPlaceholder": "Modelo opcional por agente",
+      "useOfficeDefault": "Usar padrão do escritório",
+      "runtimeUpdated": "Runtime atualizado para {{name}}",
+      "runtimeUpdateFailed": "Falha ao atualizar runtime",
+      "status": "status",
+      "task": "tarefa",
+      "openDM": "Abrir DM",
+      "opening": "Abrindo...",
+      "openDMFailed": "Falha ao abrir DM",
+      "viewLogs": "Ver logs"
+    },
+    "artifacts": {
+      "loading": "Carregando atividade do escritório...",
+      "title": "Atividade do escritório",
+      "subtitle": "Quais pistas estão se mexendo, quais agentes estão ativos, que decisões acabaram de ser tomadas, e onde o trabalho está travado.",
+      "stats": {
+        "activeLanes": "Pistas ativas",
+        "activeLanesCopy": "Tarefas ao vivo em movimento agora.",
+        "blocked": "Bloqueadas",
+        "blockedCopy": "Pistas e watchdogs precisando de intervenção.",
+        "agentsInMotion": "Agentes em movimento",
+        "agentsInMotionCopy": "Especialistas entregando ou tramando agora.",
+        "recentActions": "Ações recentes",
+        "recentActionsCopy": "Ações de automação e sistema registradas.",
+        "dueAutomations": "Automações vencidas",
+        "dueAutomationsCopy": "Jobs agendados que estão no prazo agora.",
+        "sessionTokens": "Tokens da sessão",
+        "sessionTokensCopy": "Queima de tokens ao vivo nesta sessão."
+      },
+      "sections": {
+        "activeLanes": "Pistas ativas",
+        "activeLanesMeta_one": "{{count}} aberta ou em movimento",
+        "activeLanesMeta_other": "{{count}} abertas ou em movimento",
+        "activeLanesEmpty": "Sem pistas ativas agora.",
+        "agentPulse": "Pulso dos agentes",
+        "agentPulseMeta_one": "{{count}} ativo agora",
+        "agentPulseMeta_other": "{{count}} ativos agora",
+        "agentPulseEmpty": "Nenhum agente visivelmente em movimento agora.",
+        "recentActions": "Ações recentes",
+        "recentActionsMeta_one": "{{count}} registrada",
+        "recentActionsMeta_other": "{{count}} registradas",
+        "recentActionsEmpty": "Nenhuma ação registrada ainda.",
+        "needsAttention": "Requer atenção",
+        "needsAttentionMeta_one": "{{count}} item",
+        "needsAttentionMeta_other": "{{count}} itens",
+        "needsAttentionEmpty": "Sem bloqueios ativos ou alertas de watchdog.",
+        "recentActivity": "Atividade recente",
+        "recentActivityMeta_one": "{{count}} evento",
+        "recentActivityMeta_other": "{{count}} eventos",
+        "recentActivityEmpty": "Nenhuma decisão ou ação registrada ainda.",
+        "dueAutomations": "Automações vencidas",
+        "dueAutomationsMeta_one": "{{count}} vencida agora",
+        "dueAutomationsMeta_other": "{{count}} vencidas agora",
+        "dueAutomationsEmpty": "Nenhum job está vencido agora."
+      },
+      "labels": {
+        "blockedTask": "Tarefa bloqueada",
+        "watchdogAlert": "Alerta de watchdog",
+        "decision": "Decisão",
+        "action": "Ação",
+        "untitledTask": "Tarefa sem título",
+        "scheduledJob": "Job agendado",
+        "shipping": "Entregando",
+        "plotting": "Tramando",
+        "idle": "Ocioso",
+        "related": "Relacionado: {{id}}",
+        "scheduled": "agendado",
+        "watchdog": "watchdog"
+      }
+    }
+  },
+  "wizards": {
+    "common": {
+      "describeTab": "Descrever",
+      "manualTab": "Manual",
+      "cancel": "Cancelar",
+      "back": "Voltar",
+      "continue": "Continuar",
+      "generate": "Gerar",
+      "generating": "Gerando...",
+      "create": "Criar",
+      "creating": "Criando..."
+    },
+    "agent": {
+      "title": "Criar agente",
+      "describePlaceholder": "ex. \"Uma engenheira de DevOps que cuida de CI/CD e infraestrutura\"",
+      "describeLabel": "Descreva o agente que você quer",
+      "describeHint": "A IA vai rascunhar slug, nome, função, especialidades e personalidade. Você pode editar antes de criar.",
+      "describeEmpty": "Descreva primeiro o agente que você quer.",
+      "generateFailed": "Falha ao gerar",
+      "fields": {
+        "name": "Nome",
+        "namePlaceholder": "ex. Representante de Vendas",
+        "slug": "Slug",
+        "slugPlaceholder": "gerado-automaticamente-do-nome",
+        "role": "Função",
+        "rolePlaceholder": "ex. SDR, Engenheiro, Suporte",
+        "emoji": "Emoji",
+        "emojiPlaceholder": "ex. rosto de robô",
+        "provider": "Provedor",
+        "providerHint": "Use o padrão do escritório, a menos que este agente precise de um runtime dedicado.",
+        "expertise": "Especialidades",
+        "expertiseHint": "(separadas por vírgula)",
+        "expertisePlaceholder": "ex. prospecção, cold email, pipeline"
+      },
+      "providers": {
+        "officeDefault": "Usar padrão do escritório"
+      },
+      "createFailed": "Falha ao criar agente"
+    },
+    "channel": {
+      "title": "Criar canal",
+      "describeLabel": "Descreva para que serve este canal",
+      "describePlaceholder": "ex. Um canal para o time de design compartilhar mockups e receber feedback",
+      "describeHint": "A IA vai gerar slug, nome e descrição para você.",
+      "describeEmpty": "Descreva o canal que você quer criar.",
+      "manualRequired": "Slug e nome são obrigatórios.",
+      "fields": {
+        "name": "Nome",
+        "namePlaceholder": "ex. Time de Design",
+        "slug": "Slug",
+        "slugPlaceholder": "gerado-automaticamente-do-nome",
+        "description": "Descrição",
+        "descriptionPlaceholder": "Do que trata este canal?"
+      },
+      "createFailed": "Falha ao criar canal"
+    },
+    "onboarding": {
+      "ready": "Pronto para configurar",
+      "copy": {
+        "step1Headline": "Seu escritório, visível e entregando trabalho real.",
+        "step1Subhead": "O DunderIA dá aos operadores uma sala única onde especialistas de IA podem assumir trabalho real de negócio, mostrar progresso em público e chamar um humano só quando o julgamento é necessário. Execuções ao vivo são avaliadas por resultados reais, não por artefatos de prova ou teatro de demo.",
+        "step1Cta": "Abrir o escritório",
+        "step2PrereqsTitle": "Primeiro, confira se você tem as ferramentas",
+        "step2KeysTitle": "Conecte seus provedores de IA",
+        "step2Cta": "Pronto",
+        "step3Title": "O que este escritório deve fazer primeiro?",
+        "step3Placeholder": "O que o escritório deve inventar e começar a operar?",
+        "step3Skip": "Abrir o escritório sem uma primeira tarefa",
+        "step3Cta": "Iniciar o primeiro loop"
+      },
+      "templates": {
+        "eyebrow": "Escolha o modelo operacional com que o escritório começa",
+        "headline": "Escolha um blueprint",
+        "subhead": "Blueprints definem a equipe, as etapas e os fluxos que este escritório vai rodar. Comece por um preset ou do zero.",
+        "loading": "Carregando blueprints…",
+        "scratchName": "Do zero",
+        "scratchDesc": "Comece com um escritório vazio e adicione agentes manualmente."
+      },
+      "identity": {
+        "panelTitle": "Conte sobre este escritório",
+        "companyLabel": "Nome da empresa ou projeto",
+        "companyPlaceholder": "Acme Operations, ou o nome real do seu projeto",
+        "descriptionLabel": "Descrição em uma linha",
+        "descriptionPlaceholder": "Que negócio ou fluxo real este escritório vai rodar?",
+        "priorityLabel": "Prioridade do momento",
+        "priorityPlaceholder": "Ganhar o primeiro cliente real",
+        "reviewTeam": "Revisar a equipe"
+      },
+      "team": {
+        "panelTitle": "Sua equipe",
+        "subhead": "Estes são os especialistas que o blueprint montou. Desmarque quem você não precisar.",
+        "empty": "Sem integrantes ainda. Volte e escolha um blueprint, ou abra o escritório e adicione agentes pelo painel da equipe."
+      },
+      "setup": {
+        "runtimeHint": "A CLI que roda seus agentes. Escolha a que você já usa.",
+        "keysHint": "Adicione chaves de provedor agora, ou deixe em branco e configure depois.",
+        "memoryTitle": "Memória organizacional",
+        "memoryHint": "O DunderIA atualmente mantém a memória organizacional apenas local. Você pode revisar o modo atual depois em Configurações ou via",
+        "memoryOptions": {
+          "none": {
+            "label": "Apenas local",
+            "hint": "A memória externa compartilhada está desligada. Os agentes usam persistência local, histórico do canal e snapshots do backup em nuvem."
+          }
+        },
+        "apiKeys": {
+          "anthropic": {
+            "label": "Anthropic",
+            "hint": "Alimenta agentes baseados em Claude"
+          },
+          "openai": {
+            "label": "OpenAI",
+            "hint": "Alimenta agentes baseados em GPT"
+          },
+          "google": {
+            "label": "Google",
+            "hint": "Alimenta agentes baseados em Gemini"
+          }
+        }
+      },
+      "task": {
+        "describeLabel": "Ou descreva o primeiro loop de negócio real",
+        "starting": "Iniciando...",
+        "completeFailed": "Falha ao concluir o onboarding: {{error}}"
+      }
+    }
+  }
+}

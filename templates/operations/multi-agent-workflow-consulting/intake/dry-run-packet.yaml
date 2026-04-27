@@ -1,0 +1,217 @@
+id: multi-agent-workflow-consulting-intake-dry-run
+name: Client Intake Dry-Run Packet
+kind: intake_packet
+mode: dry_run
+template: multi-agent-workflow-consulting
+version: "1.0"
+description: >
+  Dry-run intake packet for the Multi-Agent Workflow Consulting operation.
+  Validates the intake-to-discovery handoff without touching live external systems.
+  All external steps (Gmail, Slack) are previewed and evidence is persisted locally.
+
+# 8 intake fields (7 required, 1 optional)
+intake_fields:
+  - id: client_name
+    label: Client name
+    type: string
+    required: true
+    description: Full name of the primary client contact.
+  - id: company_name
+    label: Company name
+    type: string
+    required: true
+    description: Legal or operating name of the client organisation.
+  - id: contact_email
+    label: Contact email
+    type: email
+    required: true
+    description: Primary email address for all intake and follow-up communication.
+  - id: workflow_objective
+    label: Workflow objective
+    type: text
+    required: true
+    description: One-paragraph statement of the workflow problem the client wants solved.
+  - id: current_toolstack
+    label: Current toolstack
+    type: list
+    required: true
+    description: Tools and platforms the client already uses (e.g. Notion, Slack, Gmail, Zapier).
+  - id: integration_targets
+    label: Integration targets
+    type: list
+    required: true
+    description: Systems that must be wired into the new workflow (must overlap with supported_integrations enum below).
+    supported_integrations:
+      - gmail
+      - slack
+      - notion
+      - google_drive
+      - zapier
+      - make
+      - n8n
+      - airtable
+      - hubspot
+  - id: timeline
+    label: Desired timeline
+    type: string
+    required: true
+    description: Target delivery window (e.g. "4 weeks", "end of Q2").
+  - id: budget_range
+    label: Budget range
+    type: string
+    required: false
+    description: Indicative budget bracket to size the engagement (e.g. "$5k–$10k").
+
+# 6-step dry-run sequence
+sequence:
+  - step: 1
+    id: receive-intake
+    title: Receive intake submission
+    integration: gmail
+    mode: dry_run
+    action: preview_receive
+    description: >
+      Simulate receiving the client intake via Gmail. In dry-run mode the message
+      is constructed from the intake_fields above and held locally — no real email
+      is read or sent.
+    evidence:
+      artifact: intake_email_preview
+      persist: true
+
+  - step: 2
+    id: validate-intake-fields
+    title: Validate all 7 required intake fields
+    integration: none
+    mode: dry_run
+    action: validate_fields
+    description: >
+      Assert that all required intake fields are present and well-formed.
+      Block the sequence if any required field is missing or invalid.
+    evidence:
+      artifact: field_validation_report
+      persist: true
+
+  - step: 3
+    id: persist-intake-record
+    title: Persist intake record
+    integration: none
+    mode: dry_run
+    action: write_local
+    description: >
+      Write the validated intake record to the evidence bundle so it is
+      durable and reviewable without live external writes.
+    evidence:
+      artifact: intake_record_json
+      persist: true
+
+  - step: 4
+    id: send-acknowledgement
+    title: Send intake acknowledgement
+    integration: slack
+    mode: dry_run
+    action: preview_send
+    description: >
+      Preview the acknowledgement message that would be posted to the client's
+      Slack channel. Dry-run renders the message and captures it as evidence
+      without posting to any live workspace.
+    approval_gate:
+      id: ack-approval
+      label: Approve acknowledgement send
+      required: true
+      trigger: public_send_or_publish
+      description: Human must approve before any live Slack message is sent to the client.
+    evidence:
+      artifact: ack_message_preview
+      persist: true
+
+  - step: 5
+    id: route-to-discovery
+    title: Route intake to discovery channel
+    integration: none
+    mode: dry_run
+    action: create_task
+    description: >
+      Create the discovery task in the internal team channel so the Planner
+      can open the scoping workstream. In dry-run mode the task is previewed
+      and evidence is captured; no live task is created in the office.
+    evidence:
+      artifact: discovery_task_preview
+      persist: true
+
+  - step: 6
+    id: close-intake-gate
+    title: Close intake approval gate
+    integration: none
+    mode: dry_run
+    action: record_gate
+    description: >
+      Record the outcome of the intake dry-run. Captures final approval status,
+      evidence bundle reference, and the handoff signal for the discovery lane.
+    approval_gate:
+      id: intake-close
+      label: Approve intake close and discovery handoff
+      required: true
+      trigger: public_send_or_publish
+      description: Human must confirm the dry-run passed before the discovery lane goes live.
+    evidence:
+      artifact: intake_close_record
+      persist: true
+
+# Evidence bundle schema
+evidence_bundle:
+  id: intake-dry-run-evidence
+  description: Artifacts produced by the 6-step intake dry-run sequence.
+  artifacts:
+    - id: intake_email_preview
+      label: Intake email preview
+      format: text
+      source: step-1
+    - id: field_validation_report
+      label: Field validation report
+      format: json
+      source: step-2
+    - id: intake_record_json
+      label: Intake record
+      format: json
+      source: step-3
+    - id: ack_message_preview
+      label: Acknowledgement message preview
+      format: text
+      source: step-4
+    - id: discovery_task_preview
+      label: Discovery task preview
+      format: json
+      source: step-5
+    - id: intake_close_record
+      label: Intake close record
+      format: json
+      source: step-6
+
+# Approval gates summary (actionable references for the reviewer)
+approval_gates:
+  - id: ack-approval
+    step: 4
+    label: Approve acknowledgement send
+    trigger: public_send_or_publish
+    blocking: true
+  - id: intake-close
+    step: 6
+    label: Approve intake close and discovery handoff
+    trigger: public_send_or_publish
+    blocking: true
+
+# Smoke test spec (mirrors blueprint workflow definition)
+smoke_test:
+  name: Client intake dry-run
+  mode: dry_run
+  proof: All 6 steps completed, evidence bundle persisted, both approval gates recorded.
+  inputs:
+    operation_name: Multi-Agent Workflow Consulting
+    client_name: "Acme Corp (dry-run)"
+    company_name: "Acme Corporation"
+    contact_email: "intake-test@acme.example"
+    workflow_objective: "Automate client onboarding handoffs across Gmail, Slack, and Notion."
+    current_toolstack: [Gmail, Slack, Notion, Google Drive]
+    integration_targets: [gmail, slack]
+    timeline: "4 weeks"
+    budget_range: "$5k–$10k"

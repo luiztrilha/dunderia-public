@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "defaultProviderId": "ollama-local",
+  "providers": [
+    {
+      "id": "ollama-local",
+      "kind": "ollama",
+      "description": "Runtime local via Ollama.",
+      "exePath": "ollama",
+      "apiUrl": "http://127.0.0.1:11434/api/generate",
+      "defaultModel": "qwen2.5-coder:3b",
+      "keepAlive": "5m",
+      "defaultProfileId": "default",
+      "profiles": [
+        {
+          "id": "default",
+          "description": "Perfil padrao equilibrado para resumo e triagem local.",
+          "model": "qwen2.5-coder:3b",
+          "keepAlive": "5m"
+        },
+        {
+          "id": "quality",
+          "description": "Perfil local mais pesado para entradas maiores ou mais ambiguas.",
+          "model": "qwen2.5-coder:7b",
+          "keepAlive": "10m"
+        },
+        {
+          "id": "classify",
+          "description": "Perfil barato para classificacao e rotulacao curta.",
+          "model": "qwen2.5:1.5b",
+          "keepAlive": "5m"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Word Docs"
+  short_description: "Edit and review docx files with layout fidelity."
+  icon_small: "./assets/doc-small.svg"
+  icon_large: "./assets/doc.png"
+  default_prompt: "Use $doc to edit or review this .docx file while preserving styles, numbering, tracked changes, section layout, and visual fidelity."

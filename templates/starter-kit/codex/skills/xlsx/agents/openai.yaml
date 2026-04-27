@@ -1,0 +1,4 @@
+interface:
+  display_name: "Excel Sheets"
+  short_description: "Edit and review Excel workbooks safely."
+  default_prompt: "Use $xlsx to inspect or edit this workbook while preserving formulas, dates, types, formatting, and workbook structure."

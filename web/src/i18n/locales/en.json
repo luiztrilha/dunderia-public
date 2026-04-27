@@ -1,0 +1,1224 @@
+{
+  "common": {
+    "confirm": {
+      "areYouSure": "Are you sure?",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "working": "Working..."
+    },
+    "buttons": {
+      "close": "Close",
+      "retry": "Retry",
+      "retrying": "Retrying...",
+      "dismiss": "Dismiss",
+      "search": "Search",
+      "back": "Back"
+    }
+  },
+  "search": {
+    "placeholder": "Search channels, agents, commands, messages...",
+    "noResults": "No results for \"{{query}}\"",
+    "startTyping": "Start typing to search...",
+    "groups": {
+      "channels": "Channels",
+      "agents": "Agents",
+      "commands": "Commands",
+      "messages": "Messages"
+    },
+    "footer": {
+      "navigate": "navigate",
+      "open": "open",
+      "close": "close"
+    },
+    "palette": {
+      "help": "Use the palette: type to filter, ↑↓ to move, Enter to open.",
+      "requiresArgs": "{{name}} requires arguments — type it in the composer."
+    }
+  },
+  "layout": {
+    "rail": {
+      "workspace": "Workspace",
+      "navLabel": "Primary navigation",
+      "home": "Home",
+      "dms": "DMs",
+      "activity": "Activity",
+      "channels": "Channels",
+      "more": "More"
+    },
+    "channelHeader": {
+      "searchTitle": "Search",
+      "searchAria": "Search",
+      "homeSubtitle": "Workspace overview, blockers, and live office context",
+      "activitySubtitle": "Signals, blockers, and office momentum",
+      "attentionCount_one": "{{count}} attention",
+      "attentionCount_other": "{{count}} attention",
+      "waitingHumanCount_one": "{{count}} waiting on you",
+      "waitingHumanCount_other": "{{count}} waiting on you",
+      "blockedCount_one": "{{count}} blocked",
+      "blockedCount_other": "{{count}} blocked",
+      "activeOwnersCount_one": "{{count}} active owner",
+      "activeOwnersCount_other": "{{count}} active owners",
+      "lastUpdateBy": "Latest update: @{{agent}}",
+      "lastDecisionLabel": "Decision"
+    },
+    "disconnect": {
+      "message": "Connection lost. Reconnecting...",
+      "dismissAria": "Dismiss"
+    }
+  },
+  "splash": {
+    "dismissAria": "Dismiss splash screen",
+    "opening": "Opening the office…",
+    "subtitle": "Preparing a live operating loop"
+  },
+  "provider": {
+    "unavailable": "Provider switcher is not available right now.",
+    "title": "Runtime provider",
+    "loading": "Loading current provider...",
+    "close": "Close",
+    "confirmTitle": "Switch runtime provider?",
+    "confirmBody": "Agents will be restarted on {{name}}.",
+    "confirmCta": "Switch",
+    "switched": "Provider switched to {{name}}",
+    "switchFailed": "Switch failed: {{error}}",
+    "switchFailedFallback": "Switch failed",
+    "options": {
+      "claudeCode": {
+        "name": "Claude Code",
+        "desc": "Anthropic Claude via Claude Code CLI"
+      },
+      "codex": {
+        "name": "Codex",
+        "desc": "OpenAI Codex CLI agent"
+      },
+      "gemini": {
+        "name": "Gemini",
+        "desc": "Google Gemini via API key"
+      },
+      "ollama": {
+        "name": "Ollama",
+        "desc": "Local Ollama runtime via native API"
+      },
+      "geminiVertex": {
+        "name": "Gemini (Vertex Credits)",
+        "desc": "Google Gemini on Vertex AI using your Google Cloud credits"
+      }
+    }
+  },
+  "messages": {
+    "composer": {
+      "placeholder": "Message #{{channel}}",
+      "sendAria": "Send message",
+      "failedSend": "Failed to send message",
+      "interviewBlock": "Answer the interview above to send messages.",
+      "statusDraft": "Draft saved locally.",
+      "statusSending": "Persisting message to the broker...",
+      "statusPersisted": "Message persisted.",
+      "statusFailed": "Failed to persist. The draft was preserved.",
+      "retryPersist": "Retry"
+    },
+    "commands": {
+      "cleared": "Messages cleared",
+      "helpList": "Commands: /clear /help /focus /collab /requests /tasks /policies /skills /calendar /search /1o1 /task /cancel /pause /resume /reset /recover",
+      "focusOn": "Switched to delegation mode",
+      "focusOff": "Switched to collaborative mode",
+      "focusFailed": "Failed to switch mode",
+      "pauseOk": "All agents paused",
+      "pauseFailed": "Pause failed: {{error}}",
+      "resumeOk": "Agents resumed",
+      "resumeFailed": "Resume failed: {{error}}",
+      "resetTitle": "Reset the office?",
+      "resetBody": "Clears channels back to #general and drops in-memory state. Persisted tasks and requests stay on the broker.",
+      "resetConfirm": "Reset",
+      "resetOk": "Office reset",
+      "resetFailed": "Reset failed: {{error}}",
+      "oneOnOneUsage": "Usage: /1o1 <agent-slug>",
+      "agentNotFound": "Agent not found: {{slug}}",
+      "taskUsage": "Usage: /task <claim|release|complete|block|approve> <task-id>",
+      "taskActionOk": "Task {{id}} → {{action}}",
+      "taskActionFailed": "Task action failed: {{error}}",
+      "cancelUsage": "Usage: /cancel <task-id>",
+      "cancelOk": "Task {{id}} cancelled",
+      "cancelFailed": "Cancel failed"
+    },
+    "bubble": {
+      "you": "You",
+      "human": "human",
+      "reply_one": "{{count}} reply",
+      "reply_other": "{{count}} replies",
+      "replyAction": "Reply",
+      "reactionFailed": "Reaction failed: {{error}}",
+      "deleteAction": "Delete",
+      "deleteAria": "Delete message",
+      "deleteConfirmTitle": "Delete this message?",
+      "deleteConfirmBody": "This removes the message from the timeline and any open thread view.",
+      "deleteSuccess": "Message deleted",
+      "deleteFailed": "Delete failed: {{error}}",
+      "deleteFailedFallback": "Delete failed"
+    },
+      "feed": {
+        "loading": "Loading messages...",
+        "refreshing": "Refreshing messages...",
+        "loadFailed": "Could not load messages: {{error}}",
+        "loadingHistory": "Loading older history...",
+        "scrollForHistory": "Scroll up to load older messages",
+        "recentContextTitle": "Recent context",
+        "recentContextBody": "Latest substantive updates in this channel",
+        "automationBurstLabel_one": "{{count}} automation update · {{source}}",
+        "automationBurstLabel_other": "{{count}} automation updates · {{source}}",
+        "showAutomationBurst_one": "Show {{count}} update",
+        "showAutomationBurst_other": "Show {{count}} updates",
+        "hideAutomationBurst": "Hide updates",
+        "emptyEyebrow": "quiet before the standup",
+        "emptyTitle": "#{{channel}} is empty. For now.",
+        "emptyBody": "This is where your agents will argue, claim tasks, and show progress. The point is visible work, not hidden orchestration.",
+      "emptyHint1Prefix": "Try ",
+      "emptyHint1Code": "@ceo what should we build this week?",
+      "emptyHint2Prefix": "Type ",
+      "emptyHint2Code1": "/",
+      "emptyHint2Mid": " for commands, ",
+      "emptyHint2Code2": "@",
+      "emptyHint2Suffix": " to mention an agent.",
+      "emptyFoot": "Start with a prompt and watch the office wake up."
+    },
+    "typing": {
+      "one": "{{name}} is thinking...",
+      "few": "{{names}} are thinking...",
+      "many": "{{count}} agents are working..."
+    },
+    "thread": {
+      "title": "Thread",
+      "closeAria": "Close thread",
+      "loading": "Loading thread...",
+      "refreshing": "Refreshing thread...",
+      "threadRoot": "Thread replies to root message",
+      "replyingTo": "Replying to {{author}}",
+      "replyTo": "In reply to {{author}}",
+      "replyToMissing": "In reply to unavailable message",
+      "replyToRoot": "reply to root",
+      "composerRootHint": "Replying to the thread root.",
+      "composerReplyHint": "Replying to {{author}}.",
+      "humanAttentionBadge": "waiting on you",
+      "humanAttentionBody": "This thread is blocked until you reply.",
+      "empty": "No replies yet",
+      "loadFailed": "Could not load thread: {{error}}",
+      "replyPlaceholder": "Reply...",
+      "sendAria": "Send reply",
+      "failedSend": "Failed to send reply"
+    },
+    "dm": {
+      "banner": "1:1 session with {{agent}}",
+      "back": "Back to office",
+      "liveOutput": "Live output",
+      "waiting": "Waiting for output...",
+      "idle": "Stream idle"
+    },
+    "interview": {
+      "blocking": "BLOCKING",
+      "asks": "@{{from}} asks",
+      "inChannel": "in #{{channel}}",
+      "regionAria": "Pending agent interview",
+      "prevAria": "Previous request",
+      "prevTitle": "Previous",
+      "nextAria": "Next request",
+      "nextTitle": "Next",
+      "skipAria": "Skip and pause office",
+      "skipTitle": "Skip — pause office",
+      "textPlaceholder": "Type your answer...",
+      "back": "Back",
+      "sending": "Sending...",
+      "sendAs": "Send as {{label}}",
+      "noOptions": "No options provided.",
+      "failedAnswer": "Failed to answer",
+      "officePaused": "Office paused. Use /resume when ready.",
+      "failedPause": "Failed to pause office",
+      "typeHint": "type"
+    },
+    "overlay": {
+      "fromBadge": "@{{from}}",
+      "fallbackTitle": "Human input required",
+      "noChoices": "No choices provided. Open the Requests app to respond.",
+      "toastAsked": "@{{from}} asked: {{question}}"
+    },
+    "slash": {
+      "clear": "Clear messages",
+      "help": "Show all commands",
+      "reset": "Reset the office",
+      "search": "Search messages",
+      "tasks": "Open inbox",
+      "requests": "Open requests",
+      "recover": "Health Check view",
+      "oneOnOne": "1:1 with agent",
+      "task": "Task actions",
+      "cancel": "Cancel a task",
+      "policies": "View policies",
+      "calendar": "View schedule",
+      "skills": "View skills",
+      "focus": "Switch to delegation mode",
+      "collab": "Switch to collaborative mode",
+      "pause": "Pause all agents",
+      "resume": "Resume all agents",
+      "threads": "See every active thread",
+      "provider": "Switch runtime provider"
+    },
+    "stream": {
+      "args": "Args",
+      "response": "Response",
+      "error": "Error",
+      "collapse": "Collapse",
+      "expand": "Expand"
+    }
+  },
+  "sidebar": {
+    "sections": {
+      "team": "Team",
+      "channels": "Channels",
+      "apps": "Apps"
+    },
+    "agents": {
+      "toggle": "Agents",
+      "empty": "No agents online",
+      "newAgent": "New Agent",
+      "newAgentTitle": "Create a new agent",
+      "titleTemplate": "{{name}} — {{runtime}} — {{state}}",
+      "states": {
+        "lurking": "lurking",
+        "shipping": "shipping",
+        "plotting": "plotting",
+        "talking": "talking"
+      }
+    },
+    "channels": {
+      "newChannel": "New Channel",
+      "newChannelTitle": "Create a new channel",
+      "attentionBadge": "! {{count}}",
+      "attentionTitle_one": "{{count}} attention group",
+      "attentionTitle_other": "{{count}} attention groups",
+      "blockedBadge": "B {{count}}",
+      "blockedTitle_one": "{{count}} blocked task",
+      "blockedTitle_other": "{{count}} blocked tasks",
+      "waitingBadge": "Y {{count}}",
+      "waitingTitle_one": "{{count}} item waiting on you",
+      "waitingTitle_other": "{{count}} items waiting on you",
+      "updatedBy": "@{{agent}}"
+    },
+    "apps": {
+      "studio": "Studio",
+      "tasks": "Inbox",
+      "deliveries": "Deliveries",
+      "requests": "Requests",
+      "policies": "Policies",
+      "calendar": "Calendar",
+      "skills": "Skills",
+      "activity": "Activity",
+      "receipts": "Receipts",
+      "healthCheck": "Health Check",
+      "settings": "Settings",
+      "pendingAria": "{{count}} pending",
+      "waitingAria": "{{count}} waiting on you",
+      "blockedAria": "{{count}} blocked deliveries",
+      "attentionAria": "{{count}} deliveries need attention",
+      "deliveriesBadgeTitle": "{{count}} deliveries need attention ({{waiting}} waiting on you, {{blocked}} blocked)"
+    },
+    "usage": {
+      "title": "Usage",
+      "empty": "No usage recorded yet.",
+      "headers": {
+        "agent": "Agent",
+        "in": "In",
+        "out": "Out",
+        "cache": "Cache",
+        "cost": "Cost"
+      },
+      "session": "Session: {{tokens}} tokens"
+    },
+    "workspace": {
+      "agentActive_one": "{{count}} agent active",
+      "agentActive_other": "{{count}} agents active",
+      "taskOpen_one": "{{count}} task open",
+      "taskOpen_other": "{{count}} tasks open",
+      "tokens": "{{tokens}} tokens",
+      "taskInProgress_one": "{{count}} task in progress",
+      "taskInProgress_other": "{{count}} tasks in progress",
+      "typeSlash": "Type / for commands"
+    },
+    "runtime": {
+      "title": "Team status",
+      "working": "working",
+      "blocked": "blocked",
+      "waiting": "waiting on you",
+      "silent": "silent"
+    },
+    "theme": {
+      "label": "Switch theme"
+    },
+    "language": {
+      "label": "Switch language"
+    },
+    "context": {
+      "jumpBackIn": "Jump back in",
+      "dmsCopy": "Pick an agent to open a direct conversation without leaving the workspace shell.",
+      "moreCopy": "Secondary operating surfaces stay here so the main rail stays focused.",
+      "activityFeed": "Office activity",
+      "threads": "Active threads",
+      "signalSummary": "Signal summary"
+    }
+  },
+  "settings": {
+    "nav": {
+      "general": "General",
+      "company": "Company",
+      "keys": "API Keys",
+      "integrations": "Integrations",
+      "intervals": "Polling",
+      "flags": "CLI Flags",
+      "danger": "Data Safety"
+    },
+    "status": {
+      "loading": "Loading settings...",
+      "loadFailed": "Failed to load settings: {{error}}",
+      "saved": "Settings saved.",
+      "saveFailed": "Failed to save settings",
+      "saveFailedWithReason": "Save failed: {{error}}"
+    },
+    "saveButton": {
+      "saving": "Saving...",
+      "saved": "Saved"
+    },
+    "general": {
+      "title": "General",
+      "description": "Core runtime settings. These map to CLI flags and config file entries. The provider here is the office default for agents that do not have a per-agent runtime override.",
+      "banner": {
+        "restartRequired": "Restart required for office default provider and Memory Backend changes.",
+        "afterSave": "New values save immediately, but agents already running keep their launch-time settings, and agents with an explicit per-agent runtime keep that override. Run",
+        "afterCmd": "then relaunch to apply."
+      },
+      "fields": {
+        "provider": {
+          "label": "Office Default Runtime",
+          "hint": "--provider fallback",
+          "desc": "Used when an agent is set to use the office default instead of a dedicated runtime."
+        },
+        "memory": {
+          "label": "Memory Backend",
+          "hint": "--memory-backend"
+        },
+        "teamLead": {
+          "label": "Team Lead",
+          "hint": "Default agent that leads operations",
+          "placeholder": "e.g. ceo"
+        },
+        "maxConcurrent": {
+          "label": "Max Concurrent",
+          "hint": "Parallel agent limit",
+          "placeholder": "Unlimited"
+        },
+        "format": {
+          "label": "Output Format",
+          "hint": "--format"
+        },
+        "timeout": {
+          "label": "Timeout (ms)",
+          "hint": "Default command timeout"
+        },
+        "blueprint": {
+          "label": "Blueprint",
+          "hint": "--blueprint",
+          "placeholder": "Operation blueprint ID"
+        },
+        "email": {
+          "label": "Email",
+          "hint": "Identity scope for integrations",
+          "placeholder": "you@company.com"
+        },
+        "devUrl": {
+          "label": "Dev URL",
+          "hint": "API base URL override",
+          "placeholder": "http://localhost:7890"
+        }
+      },
+      "options": {
+        "provider": {
+          "claudeCode": "Claude Code",
+          "codex": "Codex",
+          "gemini": "Gemini",
+          "ollama": "Ollama",
+          "geminiVertex": "Gemini (Vertex Credits)"
+        },
+        "memory": {
+          "none": "None (local only)"
+        },
+        "format": {
+          "text": "Text",
+          "json": "JSON"
+        }
+      },
+      "saveLabel": "Save general settings",
+      "configFile": "Config file"
+    },
+    "company": {
+      "title": "Company",
+      "description": "Organizational context injected into agent system prompts. The more you fill in, the better agents understand your business.",
+      "fields": {
+        "name": {
+          "label": "Name",
+          "hint": "Your company or project name",
+          "placeholder": "Acme Corp"
+        },
+        "description": {
+          "label": "Description",
+          "hint": "One-liner about the business",
+          "placeholder": "What does your company do?"
+        },
+        "goals": {
+          "label": "Goals",
+          "hint": "What the team is working toward",
+          "placeholder": "Current organizational goals"
+        },
+        "size": {
+          "label": "Size",
+          "hint": "Team or company size",
+          "placeholder": "e.g. 5, 50, 500"
+        },
+        "priority": {
+          "label": "Priority",
+          "hint": "What matters most right now",
+          "placeholder": "Immediate priority focus"
+        }
+      },
+      "saveLabel": "Save company info"
+    },
+    "keys": {
+      "title": "API Keys",
+      "description": "Authentication credentials for external services. Keys are stored in your local config file and never transmitted to DunderIA services. Enter a new value to update, or leave blank to keep the current key.",
+      "statusSet": "Set",
+      "statusUnset": "Not set",
+      "emptySubmit": "No keys entered. Leave blank to keep existing keys.",
+      "envHint": "Env: {{env}}",
+      "labels": {
+        "nex": "Workspace API Key",
+        "anthropic": "Anthropic",
+        "openai": "OpenAI",
+        "gemini": "Gemini",
+        "minimax": "Minimax",
+        "brave": "Brave Search",
+        "one": "One (integration)",
+        "composio": "Composio",
+        "telegram": "Telegram Bot"
+      },
+      "saveLabel": "Save API keys"
+    },
+    "integrations": {
+      "title": "Integrations",
+      "description": "External service connections, cloud backup, and action providers.",
+      "fields": {
+        "actionProvider": {
+          "label": "Action Provider",
+          "hint": "External action routing"
+        },
+        "webSearchProvider": {
+          "label": "Web Search Provider",
+          "hint": "External web-search capability for agents"
+        },
+        "customMCPConfig": {
+          "label": "Custom MCP Config",
+          "hint": "Optional path to an external mcp-settings.json file"
+        },
+        "cloudBackupProvider": {
+          "label": "Cloud Backup Provider",
+          "hint": "Provider used for config snapshots"
+        },
+        "cloudBackupBucket": {
+          "label": "Cloud Backup Bucket",
+          "hint": "Required when the provider is gcs"
+        },
+        "cloudBackupPrefix": {
+          "label": "Cloud Backup Prefix",
+          "hint": "Optional object key prefix"
+        },
+        "gatewayUrl": {
+          "label": "Gateway URL",
+          "hint": "WebSocket endpoint"
+        },
+        "token": {
+          "label": "Token",
+          "hint": "Gateway auth token"
+        },
+        "workspaceId": {
+          "label": "Workspace ID",
+          "hint": "Read-only"
+        },
+        "workspaceSlug": {
+          "label": "Workspace Slug",
+          "hint": "Read-only"
+        }
+      },
+      "options": {
+        "actionProvider": {
+          "auto": "Auto",
+          "one": "One",
+          "composio": "Composio"
+        },
+        "webSearchProvider": {
+          "none": "Disabled",
+          "brave": "Brave Search"
+        }
+      },
+      "groups": {
+        "cloudBackup": "Cloud Backup",
+        "workspace": "Workspace"
+      },
+      "placeholders": {
+        "nexRegistration": "(set by workspace registration)",
+        "customMCPConfig": "<REPOS_ROOT>/dunderia/mcp/dunderia-mcp-settings.json",
+        "cloudBackupBucket": "dunderia-backups",
+        "cloudBackupPrefix": "office-a/config"
+      },
+      "saveLabel": "Save integration settings"
+    },
+    "intervals": {
+      "title": "Polling Intervals",
+      "description": "How often background processes check for updates. All values in minutes. Minimum 2 minutes.",
+      "fields": {
+        "insights": {
+          "label": "Insights",
+          "hint": "Context graph polling"
+        },
+        "followUp": {
+          "label": "Task Follow-up",
+          "hint": "Post-completion check-in"
+        },
+        "reminder": {
+          "label": "Task Reminder",
+          "hint": "Stalled task nudge"
+        },
+        "recheck": {
+          "label": "Task Recheck",
+          "hint": "Progress re-evaluation"
+        }
+      },
+      "saveLabel": "Save intervals"
+    },
+    "flags": {
+      "title": "CLI Flags",
+      "description": "All flags available when launching wuphf from the terminal. These are runtime-only and not persisted in the config file.",
+      "table": {
+        "flag": "Flag",
+        "description": "Description",
+        "variable": "Variable",
+        "purpose": "Purpose"
+      },
+      "envVars": {
+        "title": "Environment Variables",
+        "hint": "Settings resolve in order: CLI flag → environment variable → config file → default. Set these in your shell profile to override config file values."
+      },
+      "cli": {
+        "provider": "LLM provider (claude-code, codex, gemini, ollama, gemini-vertex)",
+        "memoryBackend": "Memory backend (none only)",
+        "blueprint": "Operation blueprint for this run",
+        "tui": "Launch tmux TUI instead of web UI",
+        "webPort": "Web UI port (default: 7891)",
+        "brokerPort": "Local broker port (default: 7890)",
+        "opusCeo": "Upgrade CEO agent to Opus model",
+        "collab": "Collaborative mode (all agents see all messages)",
+        "oneOnOne": "Direct 1:1 session with a single agent",
+        "unsafe": "Bypass agent permission checks (dev only)",
+        "noOpen": "Skip auto-opening browser on launch",
+        "fromScratch": "Start without saved blueprint",
+        "threadsCollapsed": "Start with threads collapsed",
+        "cmd": "Run a slash command non-interactively",
+        "format": "Output format (text, json)",
+        "version": "Print version and exit",
+        "helpAll": "Show all flags including internal ones"
+      },
+      "env": {
+        "llmProvider": "LLM provider override",
+        "memoryBackend": "Memory backend override",
+        "brokerPort": "Broker port",
+        "configPath": "Config file path override",
+        "cloudBackupProvider": "Cloud backup provider override",
+        "cloudBackupBucket": "Cloud backup bucket",
+        "cloudBackupPrefix": "Cloud backup prefix",
+        "runtimeHome": "Runtime state directory",
+        "startFromScratch": "Start without blueprint (1)",
+        "oneOnOne": "Enable 1:1 mode (1)",
+        "headlessProvider": "Headless provider override",
+        "insightsInterval": "Insights poll interval",
+        "taskFollowup": "Task follow-up interval",
+        "taskReminder": "Task reminder interval",
+        "taskRecheck": "Task recheck interval"
+      }
+    },
+    "danger": {
+      "title": "Data Safety",
+      "description": "Destructive workspace actions have been removed from the interface. Local channels, agents, messages, tasks, and workflows are preserved.",
+      "disabled": "There is no workspace destruction button on this screen anymore. The legacy stop command also preserves local state."
+    }
+  },
+  "apps": {
+    "common": {
+      "loading": "Loading...",
+      "back": "Back",
+      "cancel": "Cancel",
+      "save": "Save",
+      "unknown": "Unknown",
+      "untitled": "Untitled"
+    },
+    "studio": {
+      "title": "Studio",
+      "eyebrow": "development console",
+      "subtitle": "Operational diagnostics, active context, and unblock actions in one surface.",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing...",
+      "refreshed": "Snapshot refreshed",
+      "loading": "Loading the Studio console...",
+      "loadFailed": "Could not load the Studio console.",
+      "generate": "Generate package",
+      "generating": "Generating package...",
+      "generated": "Package generated",
+      "generateFailed": "Failed to generate package: {{error}}",
+      "run": "Run workflow",
+      "running": "Running workflow...",
+      "ran": "Workflow launched",
+      "runFailed": "Failed to run workflow: {{error}}",
+      "workflowRequired": "Select a workflow before running it.",
+      "workflowLabel": "Workflow",
+    "noWorkflow": "No workflow is available in the package.",
+    "officeTitle": "Office snapshot",
+    "officeSummary": "Global health, bootstrap, and local environment.",
+    "agentStatusTitle": "Agent status",
+    "activeTitle": "Active project and flow",
+      "activeSummary": "Enough context to act without hunting across other views.",
+      "blockersTitle": "Unblock console",
+      "blockersSummary": "Prioritized blockers with likely cause and immediate action.",
+      "blockersCount_one": "{{count}} active blocker",
+      "blockersCount_other": "{{count}} active blockers",
+      "focusModeOn": "Focus mode on",
+      "focusModeOff": "Focus mode off",
+      "sessionMode": "Mode",
+      "provider": "Provider",
+      "memoryBackend": "Memory",
+      "runtimeHealth": "Runtime health",
+      "bootstrap": "Bootstrap",
+      "packageTools": "Package tools",
+      "signals": "Signals",
+      "members": "Members",
+      "channels": "Channels",
+      "tasks": "Tasks",
+      "requests": "Requests",
+      "workspaces": "Workspaces",
+      "workflows": "Workflows",
+      "broker": "Broker",
+      "api": "API",
+      "web": "Web",
+      "activeFlow": "Active flow",
+      "primaryChannel": "Primary channel",
+      "directAgent": "Direct agent",
+      "nextSteps": "Next steps",
+      "openChannel": "Open channel",
+      "openTasks": "Open tasks",
+      "channelLoad": "Observed channels",
+      "flowLoad": "Flows and workspaces",
+      "hotTasks": "Hot tasks",
+      "attentionCount_one": "{{count}} attention",
+      "attentionCount_other": "{{count}} attention",
+      "waitingHumanCount_one": "{{count}} waiting",
+      "waitingHumanCount_other": "{{count}} waiting",
+      "activeOwnersCount_one": "{{count}} owner",
+      "activeOwnersCount_other": "{{count}} owners",
+      "lastUpdateBy": "Latest: @{{agent}}",
+      "lastDecisionLabel": "Decision",
+      "noContext": "There is not enough active context for Studio yet.",
+      "noBlockers": "No relevant blockers right now.",
+      "reason": "Likely cause",
+      "waitingOn": "Waiting on",
+      "recommended": "Recommended",
+      "owner": "Owner",
+      "status": "Status",
+      "task": "Task",
+      "actionSucceeded": "{{action}} executed",
+      "actionFailed": "Failed to run {{action}}: {{error}}",
+      "openedTasks": "Task board opened",
+      "openedChannel": "Opened #{{channel}}",
+      "createTaskHint": "Open the composer in #{{channel}} to materialize the task.",
+      "workflowEmptyState": "The package has no runnable workflows right now."
+    },
+    "health": {
+      "title": "Health Check",
+      "checking": "Checking health...",
+      "unreachable": "Could not reach health endpoint.",
+      "brokerStatus": "Broker Status",
+      "agents": "Agents ({{count}})",
+      "noAgentData": "No agent health data available."
+    },
+    "skills": {
+      "title": "Skills",
+      "loading": "Loading skills...",
+      "loadFailed": "Could not load skills.",
+      "empty": "No skills registered yet.",
+      "untitled": "Untitled",
+      "source": "Source: {{source}}",
+      "invoke": "Invoke",
+      "invoking": "Invoking...",
+      "invoked": "Invoked",
+      "invokeFailed": "Invoke failed: {{error}}"
+    },
+    "calendar": {
+      "title": "Schedule",
+      "loading": "Loading schedule...",
+      "loadFailed": "Could not load schedule.",
+      "empty": "No scheduled jobs.",
+      "upcoming": "Upcoming",
+      "job": "Job",
+      "last": "Last: {{time}}",
+      "next": "Next: {{time}}"
+    },
+    "threads": {
+      "title": "Threads",
+      "activeCount_one": "{{count}} active thread",
+      "activeCount_other": "{{count}} active threads",
+      "loading": "Loading threads...",
+      "empty": "No threads yet. Reply to a message to start one.",
+      "noContent": "(no content)",
+      "replies_one": "{{count}} reply",
+      "replies_other": "{{count}} replies"
+    },
+    "requests": {
+      "loading": "Loading requests...",
+      "loadFailed": "Failed to load requests.",
+      "empty": "No requests right now. Your agents are working independently.",
+      "pending": "Pending ({{count}})",
+      "answered": "Answered ({{count}})",
+      "unknown": "Unknown",
+      "blocking": "BLOCKING",
+      "answeredLabel": "Answered",
+      "answering": "Sending...",
+      "customTextPlaceholder": "Add the text to send with this choice",
+      "customTextAria": "Text for {{option}}",
+      "answerFailed": "Answer failed: {{error}}",
+      "answerFailedUnknown": "Unknown error"
+    },
+    "policies": {
+      "subtitle": "Office operating rules. Set explicitly or auto-detected from working patterns.",
+      "addRule": "+ Add rule",
+      "rulePlaceholder": "e.g. \"Always ask before deploying to production\"",
+      "save": "Save",
+      "cancel": "Cancel",
+      "loading": "Loading...",
+      "loadFailed": "Failed to load policies.",
+      "empty": "No policies set. Add one above.",
+      "sections": {
+        "humanDirected": "Human-directed",
+        "autoDetected": "Auto-detected"
+      },
+      "active": "ACTIVE",
+      "deactivate": "Deactivate",
+      "deactivateTitle": "Deactivate policy?",
+      "deactivateBody": "\"{{rule}}\"\n\nThis policy will stop applying to new decisions.",
+      "deactivateBodyNoRule": "This policy will stop applying to new decisions.",
+      "saveFailed": "Save failed: {{error}}",
+      "deleteFailed": "Delete failed: {{error}}"
+    },
+    "receipts": {
+      "title": "Receipts",
+      "subtitle": "What each agent actually did, tool by tool. No claims — just the log.",
+      "loading": "Loading...",
+      "loadFailed": "Could not load receipts.",
+      "empty": "No receipts yet. Agents write one when they use a tool.",
+      "table": {
+        "agent": "Agent",
+        "action": "Action",
+        "time": "Time",
+        "tokens": "Tokens",
+        "cost": "Cost"
+      },
+      "detail": {
+        "back": "← Back to receipts",
+        "subtitle": "Tool-by-tool trace of this task.",
+        "loading": "Loading...",
+        "loadFailed": "Could not load task trace.",
+        "empty": "No tool calls in this task yet.",
+        "unknown": "(unknown)"
+      }
+    },
+    "tasks": {
+      "loading": "Loading inbox...",
+      "loadFailed": "Could not load the inbox.",
+      "empty": "Nothing is waiting on you right now.",
+      "title": "Inbox",
+      "subtitle": "Review and answer what depends on you. The operational board stays below.",
+      "humanQueue": "Needs you",
+      "humanQueueCount_one": "{{count}} item needs your reply",
+      "humanQueueCount_other": "{{count}} items need your reply",
+      "boardTitle": "Operational board",
+      "boardSubtitle": "Active office tasks. Drag a card to move it.",
+      "createFailed": "Failed to create task",
+      "createTitleRequired": "Enter a title before creating the task",
+      "workspaceRequired": "Enter workspace_path for external_workspace",
+      "moveFailed": "Move failed",
+      "untitled": "Untitled",
+      "form": {
+        "title": "Title",
+        "titlePlaceholder": "e.g. Audit external repo",
+        "owner": "Owner",
+        "ownerPlaceholder": "agent slug, e.g. repo-auditor",
+        "details": "Details",
+        "detailsPlaceholder": "Short context for the new task",
+        "executionMode": "Execution mode",
+        "workspacePath": "Workspace path",
+        "workspacePathPlaceholder": "D:\\Repos\\LegacySystemNew",
+        "channelHint": "New tasks are created in #{{channel}}.",
+        "create": "Create task",
+        "creating": "Creating...",
+        "executionModes": {
+          "office": "office",
+          "local_worktree": "local_worktree",
+          "external_workspace": "external_workspace"
+        }
+      },
+      "columns": {
+        "in_progress": "in progress",
+        "open": "open",
+        "review": "review",
+        "pending": "pending",
+        "blocked": "blocked",
+        "done": "done",
+        "canceled": "won't do"
+      }
+    },
+    "deliveries": {
+      "title": "Deliveries",
+      "subtitle": "Track the evolution of reports, documents, and larger asks across the office.",
+      "loading": "Loading deliveries...",
+      "loadFailed": "Could not load deliveries.",
+      "empty": "No deliveries in progress.",
+      "stats": {
+        "active": "Active",
+        "waitingHuman": "Waiting on you",
+        "blocked": "Blocked"
+      },
+      "labels": {
+        "waitingHuman_one": "{{count}} waiting on you",
+        "waitingHuman_other": "{{count}} waiting on you",
+        "blockers_one": "{{count}} blocker",
+        "blockers_other": "{{count}} blockers",
+        "noMilestones": "No milestones yet"
+      },
+      "groups": {
+        "unknownRepository": "No repository",
+        "deliveryCount_one": "{{count}} delivery",
+        "deliveryCount_other": "{{count}} deliveries",
+        "latestUpdate": "Latest update: {{time}}"
+      },
+      "sections": {
+        "active": "Active",
+        "history": "History",
+        "historyHint": "Completed or canceled deliveries"
+      },
+      "detail": {
+        "owner": "Owner",
+        "channel": "Channel",
+        "progress": "Progress",
+        "basis": "Basis",
+        "lastUpdate": "Last update",
+        "lastBy": "Last by",
+        "latestMovement": "Latest movement",
+        "links": "Links",
+        "tasksCount_one": "{{count}} task",
+        "tasksCount_other": "{{count}} tasks",
+        "requestsCount_one": "{{count}} request",
+        "requestsCount_other": "{{count}} requests",
+        "pendingHumanCount_one": "{{count}} waiting on you",
+        "pendingHumanCount_other": "{{count}} waiting on you",
+        "artifacts": "Artifacts",
+        "noArtifacts": "No artifacts yet."
+      }
+    },
+    "taskDetail": {
+      "untitled": "Untitled task",
+      "close": "Close",
+      "status": "Status",
+      "ownership": "Ownership",
+      "description": "Description",
+      "details": "Details",
+      "dependsOn": "Depends on",
+      "metadata": "Metadata",
+      "unassigned": "(unassigned)",
+      "pickOwner": "(pick an owner)",
+      "reassign": "Reassign",
+      "reassigning": "Reassigning...",
+      "reassignFailed": "Reassign failed",
+      "reassignHint": "Reassigning posts to #{{channel}} and DMs both owners. CEO is cc'd.",
+      "cancelTitle": "Mark task as won't do?",
+      "cancelBody": "\"{{title}}\" will move to the Won't Do column. Owners are notified.",
+      "cancelConfirm": "Won't do",
+      "statusBtn": {
+        "release": "Release",
+        "review": "Mark review",
+        "block": "Block",
+        "complete": "Mark done",
+        "cancel": "Won't do",
+        "alreadyInState": "Task is already in this state"
+      },
+      "meta": {
+        "owner": "Owner",
+        "channel": "Channel",
+        "status": "Status",
+        "reviewState": "Review state",
+        "taskType": "Task type",
+        "executionMode": "Execution mode",
+        "workspacePath": "Workspace path",
+        "pipeline": "Pipeline",
+        "pipelineStage": "Pipeline stage",
+        "worktreeBranch": "Worktree branch",
+        "worktreePath": "Worktree path",
+        "sourceSignal": "Source signal",
+        "sourceDecision": "Source decision",
+        "thread": "Thread",
+        "sourceRequest": "Source request",
+        "sourceTask": "Source task",
+        "sourceMessage": "Source message",
+        "delivery": "Delivery",
+        "createdBy": "Created by",
+        "created": "Created",
+        "updated": "Updated",
+        "due": "Due",
+        "followUp": "Follow up",
+        "reminder": "Reminder",
+        "recheck": "Recheck"
+      },
+      "humanAction": {
+        "title": "Human action",
+        "subtitle": "This item is waiting for your response.",
+        "progress": "{{percent}}% complete · {{basis}}",
+        "noProgressBasis": "No milestone basis yet",
+        "waitingSince": "Waiting since {{time}}",
+        "recommendationReady": "Game-master recommendation",
+        "recommendationRequested": "Game-master triage requested. Waiting for recommendation.",
+        "textPlaceholder": "Type your answer...",
+        "back": "Back",
+        "typeHint": "type",
+        "answering": "Answering...",
+        "answerAs": "Answer as {{label}}",
+        "askGameMaster": "Ask @game-master",
+        "askingGameMaster": "Asking @game-master...",
+        "openContext": "Open context",
+        "answerFailed": "Failed to answer request",
+        "recommendationFailed": "Failed to request recommendation",
+        "noOptions": "No reply options were provided for this request."
+      }
+    },
+    "agentPanel": {
+      "liveStream": "Live stream",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "noOutput": "No output yet",
+      "recentActivity": "Recent activity",
+      "loading": "Loading...",
+      "noRecentActivity": "No recent activity",
+      "close": "Close agent panel",
+      "slug": "slug",
+      "runtime": "runtime",
+      "setRuntime": "set runtime",
+      "save": "Save runtime",
+      "saving": "Saving...",
+      "runtimeHint": "Agents can inherit the office default or pin a runtime explicitly.",
+      "modelHint": "Optional per-agent model. Examples: claude-haiku-4-5, gpt-5.4, qwen2.5-coder:7b.",
+      "modelPlaceholder": "Optional per-agent model",
+      "useOfficeDefault": "Use office default",
+      "runtimeUpdated": "Runtime updated for {{name}}",
+      "runtimeUpdateFailed": "Failed to update runtime",
+      "status": "status",
+      "task": "task",
+      "openDM": "Open DM",
+      "opening": "Opening...",
+      "openDMFailed": "Failed to open DM",
+      "viewLogs": "View logs"
+    },
+    "artifacts": {
+      "loading": "Loading office activity...",
+      "title": "Office activity",
+      "subtitle": "Which lanes are moving, which agents are active, what decisions just got made, and where work is blocked.",
+      "stats": {
+        "activeLanes": "Active lanes",
+        "activeLanesCopy": "Live tasks currently moving.",
+        "blocked": "Blocked",
+        "blockedCopy": "Lanes and watchdogs needing intervention.",
+        "agentsInMotion": "Agents in motion",
+        "agentsInMotionCopy": "Specialists currently shipping or plotting.",
+        "recentActions": "Recent actions",
+        "recentActionsCopy": "Automation and system actions logged.",
+        "dueAutomations": "Due automations",
+        "dueAutomationsCopy": "Scheduled jobs that are due now.",
+        "sessionTokens": "Session tokens",
+        "sessionTokensCopy": "Live token burn this session."
+      },
+      "sections": {
+        "activeLanes": "Active lanes",
+        "activeLanesMeta_one": "{{count}} open or moving",
+        "activeLanesMeta_other": "{{count}} open or moving",
+        "activeLanesEmpty": "No active lanes right now.",
+        "agentPulse": "Agent pulse",
+        "agentPulseMeta_one": "{{count}} active right now",
+        "agentPulseMeta_other": "{{count}} active right now",
+        "agentPulseEmpty": "No agents are visibly moving right now.",
+        "recentActions": "Recent actions",
+        "recentActionsMeta_one": "{{count}} recorded",
+        "recentActionsMeta_other": "{{count}} recorded",
+        "recentActionsEmpty": "No actions recorded yet.",
+        "needsAttention": "Needs attention",
+        "needsAttentionMeta_one": "{{count}} item",
+        "needsAttentionMeta_other": "{{count}} items",
+        "needsAttentionEmpty": "No active blockers or watchdog alerts.",
+        "recentActivity": "Recent activity",
+        "recentActivityMeta_one": "{{count}} event",
+        "recentActivityMeta_other": "{{count}} events",
+        "recentActivityEmpty": "No decisions or actions logged yet.",
+        "dueAutomations": "Due automations",
+        "dueAutomationsMeta_one": "{{count}} due now",
+        "dueAutomationsMeta_other": "{{count}} due now",
+        "dueAutomationsEmpty": "No jobs are due right now."
+      },
+      "labels": {
+        "blockedTask": "Blocked task",
+        "watchdogAlert": "Watchdog alert",
+        "decision": "Decision",
+        "action": "Action",
+        "untitledTask": "Untitled task",
+        "scheduledJob": "Scheduled job",
+        "shipping": "Shipping",
+        "plotting": "Plotting",
+        "idle": "Idle",
+        "related": "Related: {{id}}",
+        "scheduled": "scheduled",
+        "watchdog": "watchdog"
+      }
+    }
+  },
+  "wizards": {
+    "common": {
+      "describeTab": "Describe",
+      "manualTab": "Manual",
+      "cancel": "Cancel",
+      "back": "Back",
+      "continue": "Continue",
+      "generate": "Generate",
+      "generating": "Generating...",
+      "create": "Create",
+      "creating": "Creating..."
+    },
+    "agent": {
+      "title": "Create agent",
+      "describePlaceholder": "e.g. \"A DevOps engineer who manages CI/CD and infrastructure\"",
+      "describeLabel": "Describe the agent you want",
+      "describeHint": "AI will draft a slug, name, role, expertise, and personality. You can edit before creating.",
+      "describeEmpty": "Describe the agent you want first.",
+      "generateFailed": "Generation failed",
+      "fields": {
+        "name": "Name",
+        "namePlaceholder": "e.g. Sales Rep",
+        "slug": "Slug",
+        "slugPlaceholder": "auto-generated-from-name",
+        "role": "Role",
+        "rolePlaceholder": "e.g. SDR, Engineer, Support",
+        "emoji": "Emoji",
+        "emojiPlaceholder": "e.g. robot face",
+        "provider": "Provider",
+        "providerHint": "Use the office default unless this agent needs a dedicated runtime.",
+        "expertise": "Expertise",
+        "expertiseHint": "(comma-separated)",
+        "expertisePlaceholder": "e.g. outreach, cold email, pipeline"
+      },
+      "providers": {
+        "officeDefault": "Use office default"
+      },
+      "createFailed": "Failed to create agent"
+    },
+    "channel": {
+      "title": "Create channel",
+      "describeLabel": "Describe what this channel is for",
+      "describePlaceholder": "e.g. A channel for the design team to share mockups and get feedback",
+      "describeHint": "AI will generate a slug, name, and description for you.",
+      "describeEmpty": "Please describe the channel you want to create.",
+      "manualRequired": "Slug and name are required.",
+      "fields": {
+        "name": "Name",
+        "namePlaceholder": "e.g. Design Team",
+        "slug": "Slug",
+        "slugPlaceholder": "auto-generated-from-name",
+        "description": "Description",
+        "descriptionPlaceholder": "What is this channel about?"
+      },
+      "createFailed": "Failed to create channel"
+    },
+    "onboarding": {
+      "ready": "Ready to set up",
+      "copy": {
+        "step1Headline": "Your office, visible and doing real work.",
+        "step1Subhead": "DunderIA gives operators one room where AI specialists can claim real business work, show progress in public, and pull in a human only when judgment is required. Live runs are judged on real outcomes, not proof artifacts or demo theater.",
+        "step1Cta": "Open the office",
+        "step2PrereqsTitle": "First, make sure you have the tools",
+        "step2KeysTitle": "Connect your AI providers",
+        "step2Cta": "Ready",
+        "step3Title": "What should this office do first?",
+        "step3Placeholder": "What should the office invent and start operating?",
+        "step3Skip": "Open the office without a first task",
+        "step3Cta": "Start the first loop"
+      },
+      "templates": {
+        "eyebrow": "Pick the operating model the office starts with",
+        "headline": "Choose a blueprint",
+        "subhead": "Blueprints set the team, stages, and workflows this office will run. Start from a preset or from scratch.",
+        "loading": "Loading blueprints…",
+        "scratchName": "From scratch",
+        "scratchDesc": "Start with an empty office and add agents manually."
+      },
+      "identity": {
+        "panelTitle": "Tell us about this office",
+        "companyLabel": "Company or project name",
+        "companyPlaceholder": "Acme Operations, or your real project name",
+        "descriptionLabel": "One-liner description",
+        "descriptionPlaceholder": "What real business or workflow should this office run?",
+        "priorityLabel": "Top priority right now",
+        "priorityPlaceholder": "Win the first real customer loop",
+        "reviewTeam": "Review the team"
+      },
+      "team": {
+        "panelTitle": "Your team",
+        "subhead": "These are the specialists your blueprint assembled. Toggle anyone you don't need.",
+        "empty": "No teammates yet. Go back and pick a blueprint, or open the office and add agents from the team panel."
+      },
+      "setup": {
+        "runtimeHint": "The CLI that runs your agents. Pick the one you already use.",
+        "keysHint": "Add provider keys now, or leave this blank and configure them later.",
+        "memoryTitle": "Organizational memory",
+        "memoryHint": "DunderIA currently keeps organizational memory local-only. You can review the current mode later in Settings or via",
+        "memoryOptions": {
+          "none": {
+            "label": "Local-only",
+            "hint": "Shared external memory is off. Agents rely on local persistence, channel history, and cloud backup snapshots."
+          }
+        },
+        "apiKeys": {
+          "anthropic": {
+            "label": "Anthropic",
+            "hint": "Powers Claude-based agents"
+          },
+          "openai": {
+            "label": "OpenAI",
+            "hint": "Powers GPT-based agents"
+          },
+          "google": {
+            "label": "Google",
+            "hint": "Powers Gemini-based agents"
+          }
+        }
+      },
+      "task": {
+        "describeLabel": "Or describe the first real business loop",
+        "starting": "Starting...",
+        "completeFailed": "Failed to finish onboarding: {{error}}"
+      }
+    }
+  }
+}

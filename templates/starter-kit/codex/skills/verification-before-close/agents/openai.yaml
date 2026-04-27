@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verification Before Close"
+  short_description: "Re-check evidence and validation before declaring work done."
+  default_prompt: "Use this skill to verify the fix, list validation actually run, and surface remaining gaps before closing."

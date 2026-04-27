@@ -1,0 +1,10 @@
+# Sanitized default approval rules from the active local profile.
+# Private repository-specific command approvals were intentionally removed.
+
+prefix_rule(pattern=["C:\\windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command"], decision="allow")
+prefix_rule(pattern=["C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-NoProfile", "-Command"], decision="allow")
+prefix_rule(pattern=["C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-Command"], decision="allow")
+prefix_rule(pattern=["C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-NoProfile", "-Command", "cmd /c echo ok"], decision="allow")
+
+# Add project-specific command approvals locally after reviewing their scope.
+# Do not publish rules that include customer paths, credentials, or destructive commands.

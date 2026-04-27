@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="nex">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DunderIA - Local-first office orchestration for AI agents</title>
+<meta name="description" content="DunderIA is a local-first AI office where agents with roles, memory, and channels work in the open.">
+<meta name="theme-color" content="#1A1610">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  #skeleton { display: flex; align-items: center; justify-content: center; height: 100vh; color: #6b6b6b; font-size: 14px; background: #fff; }
+  #skeleton .dot { width: 8px; height: 8px; border-radius: 50%; background: #1264a3; margin: 0 3px; animation: pulse 1.4s infinite; display: inline-block; }
+  #skeleton .dot:nth-child(2) { animation-delay: 0.16s; }
+  #skeleton .dot:nth-child(3) { animation-delay: 0.32s; }
+  @keyframes pulse { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
+  #fatal-error { position: fixed; top: 0; left: 0; right: 0; padding: 16px 20px; background: #fee; color: #900; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; border-bottom: 2px solid #900; z-index: 10000; white-space: pre-wrap; word-break: break-word; max-height: 50vh; overflow-y: auto; }
+  #fatal-error h2 { margin: 0 0 8px 0; font-size: 14px; }
+  #fatal-error pre { margin: 8px 0 0; font-family: SFMono-Regular, Menlo, monospace; font-size: 11px; color: #600; }
+</style>
+<script>
+  // Apply persisted theme + language before the bundle loads to avoid a flash on reload.
+  (function() {
+    try {
+      var t = localStorage.getItem('dunderia.theme');
+      if (t && ['nex','slack','slack-dark','windows-98'].indexOf(t) !== -1) {
+        document.documentElement.setAttribute('data-theme', t);
+      }
+      var lng = localStorage.getItem('dunderia.language');
+      if (lng && ['en','pt-BR'].indexOf(lng) !== -1) {
+        document.documentElement.setAttribute('lang', lng);
+      }
+    } catch (_) {}
+  })();
+</script>
+</head>
+<body>
+  <div id="root">
+    <div id="skeleton">
+      <span>Loading DunderIA</span>
+      <span style="margin-left:8px;">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </span>
+    </div>
+  </div>
+  <script>
+    // Fail-loud diagnostics: if ANYTHING breaks during bootstrap, show it.
+    // These fire BEFORE main.tsx runs, so even module-level errors surface.
+    (function() {
+      var BOOT_TIMEOUT_MS = 10000;
+      var bootDone = false;
+
+      function showFatal(title, detail) {
+        if (bootDone) return; // app already rendered; let it handle errors
+        var existing = document.getElementById('fatal-error');
+        if (existing) existing.remove();
+        var box = document.createElement('div');
+        box.id = 'fatal-error';
+        var h = document.createElement('h2');
+        h.textContent = title;
+        box.appendChild(h);
+        if (detail) {
+          var pre = document.createElement('pre');
+          pre.textContent = detail;
+          box.appendChild(pre);
+        }
+        document.body.appendChild(box);
+      }
+
+      window.addEventListener('error', function(e) {
+        showFatal(
+          'Uncaught error: ' + (e.message || 'unknown'),
+          (e.filename ? e.filename + ':' + e.lineno + ':' + e.colno + '\n' : '') +
+          (e.error && e.error.stack ? e.error.stack : '')
+        );
+      });
+
+      window.addEventListener('unhandledrejection', function(e) {
+        var reason = e.reason;
+        var detail = '';
+        if (reason) {
+          if (reason.stack) detail = reason.stack;
+          else if (typeof reason === 'string') detail = reason;
+          else detail = JSON.stringify(reason, null, 2);
+        }
+        showFatal('Unhandled promise rejection', detail);
+      });
+
+      window.__wuphfBootDone = function() { bootDone = true; };
+
+      // If app hasn't rendered anything after 10s, show a timeout error
+      setTimeout(function() {
+        if (bootDone) return;
+        var root = document.getElementById('root');
+        // If root still only has the skeleton, React never mounted
+        if (root && root.children.length === 1 && root.children[0].id === 'skeleton') {
+          showFatal(
+            'Boot timeout',
+            'React did not mount after ' + (BOOT_TIMEOUT_MS / 1000) + ' seconds.\n' +
+            'Check the Network tab for failed module loads and the Console for errors.'
+          );
+        }
+      }, BOOT_TIMEOUT_MS);
+    })();
+  </script>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

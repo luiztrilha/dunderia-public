@@ -1,0 +1,82 @@
+name: Bug report
+description: Report a regression, runtime failure, install issue, or unexpected behavior.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for reproducible product or runtime bugs.
+
+        For security issues, do not use public issues. Follow `SECURITY.md`.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What broke, and what did you expect instead?
+      placeholder: A short description of the problem and the expected behavior.
+    validations:
+      required: true
+  - type: dropdown
+    id: install_path
+    attributes:
+      label: Install path
+      options:
+        - npm / npx
+        - source build
+        - local binary
+        - other
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Runtime provider
+      options:
+        - claude-code
+        - codex
+        - gemini
+        - gemini-vertex
+        - ollama
+        - not applicable
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and architecture
+      placeholder: Windows 11 x64, macOS arm64, Ubuntu 24.04 amd64...
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command or action
+      description: Include the exact command, flag set, or UI path you used.
+      placeholder: |
+        npx wuphf --provider codex
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Start the app with...
+        2. Open...
+        3. Click...
+        4. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Redact secrets, tokens, and private message content before posting.
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Anything else that narrows down the failure.

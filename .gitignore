@@ -1,0 +1,74 @@
+# Go binary
+/wuphf
+/nex
+/bridge
+/wuphf-oc-probe
+
+# Local artifacts
+/docs/*
+!/docs/specs/
+!/docs/specs/**
+!/docs/evals/
+!/docs/evals/**
+!/docs/REVOPS_TEST_PLAN.md
+/termwright-artifacts/
+.worktrees/
+.vexp/
+.DS_Store
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+
+# Dependency installs
+**/node_modules/
+.gstack/
+
+# Local caches
+.cache/
+.gocache/
+.gomodcache/
+.megamemory/
+.playwright-mcp/
+.playwright-cli/
+.tmp-*
+.tmp-*/
+.wuphf/
+
+# QA/browse scratch artifacts
+task*-buttons.json
+
+# Local Windows binaries/logs from manual runs
+/.serena/
+/wuphf.exe
+/wuphf.exe.prev
+/wuphf.exe~
+/wuphf.stdout.log
+/wuphf.stderr.log
+/wuphf-current.exe
+/wuphf-current.exe~
+/wuphf-current.prev.exe
+/wuphf-current.stdout.log
+/wuphf-current.stderr.log
+/web/test-results/
+
+# Video renders and intermediate audio
+video/out/*.mp4
+video/public/audio/bg-music-a.mp3
+video/public/audio/bg-music-b.mp3
+video/public/audio/bg-music-c.mp3
+video/public/audio/bg-music-d.mp3
+video/public/audio/test-*.mp3
+
+# VHS visual regression artifacts — only .txt goldens are diffed;
+# .gif output and .actual drift files regenerate on every run of
+# testdata/vhs/check.sh and are not tracked in git.
+testdata/vhs/*.gif
+testdata/vhs/*.actual
+
+.superpowers/

@@ -1,0 +1,48 @@
+{
+  "name": "wuphf",
+  "version": "0.0.0",
+  "description": "Local-first multi-agent office runtime. A visible office where AI agents collaborate, claim tasks, and work in isolated git worktrees.",
+  "bin": {
+    "wuphf": "bin/wuphf.js"
+  },
+  "files": [
+    "bin/wuphf.js",
+    "scripts/download-binary.js",
+    "scripts/postinstall.js",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luiztrilha/dunderia.git"
+  },
+  "homepage": "https://github.com/luiztrilha/dunderia#readme",
+  "bugs": {
+    "url": "https://github.com/luiztrilha/dunderia/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "wuphf",
+    "dunderia",
+    "ai-agents",
+    "multi-agent",
+    "agent-office",
+    "claude-code",
+    "codex",
+    "ollama",
+    "cli"
+  ]
+}
