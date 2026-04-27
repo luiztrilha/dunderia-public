@@ -12,6 +12,7 @@ The goal is to ship the validated operating profile, not a copy of a private off
 - Sanitized global agent rules: `templates/starter-kit/codex/AGENTS.validated.md`.
 - Validated skills from the active local profile, excluding private/customer-specific skills.
 - Sanitized active config shape: `templates/starter-kit/codex/config.sanitized.toml`.
+- Public local runtime profile guide: `docs/local-runtime-profile.md`, describing how to separate reusable skills, Markdown orientation and sanitized config without shipping private state.
 - Public base office topology in code: `ceo`, `pm`, `backend`, `builder`, `frontend`, `reviewer`, `estagiario`, and `game-master` in `#general`.
 - Public web experience: shell, layout, themes, message views, channel/DM navigation, and onboarding screens aligned with the validated local `web/` source.
 - Public starter DMs for the validated base agents, seeded without message history.

@@ -6,6 +6,7 @@
 
 # Local artifacts
 /docs/*
+!/docs/local-runtime-profile.md
 !/docs/specs/
 !/docs/specs/**
 !/docs/evals/
