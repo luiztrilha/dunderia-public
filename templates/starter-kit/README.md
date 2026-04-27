@@ -38,6 +38,7 @@ The script installs:
 - Superpowers into `$HOME\.codex\superpowers\skills`
 - Prompts into `$HOME\.codex\prompts`
 - Rules into `$HOME\.codex\rules`
+- Validated policies into `$HOME\.codex\policies.validated.md`
 - Agent skills into `$HOME\.agents\skills`
 
 It does not install `auth.json`, live state, private database skills, or cloud credentials.
@@ -67,6 +68,8 @@ Fresh offices created from this public repo start with the validated base topolo
 All eight agents start in `#general`, with the same public role/personality defaults as the validated local office. The first-run broker also seeds starter DMs between `human` and each base agent, so the sidebar and direct-message workflow are ready immediately.
 
 The public web shell is aligned with the validated local `web/` source: layout, themes, message views, channel/DM navigation, onboarding, and app surfaces are shipped as real defaults rather than placeholder examples.
+
+Fresh broker state also seeds the validated public operating policies and visible skill shortcuts for every packaged Codex, Superpowers, and `.agents` skill. The full skill bodies remain in this starter kit as `SKILL.md` files; the broker records make those validated capabilities discoverable from a new office immediately.
 
 Private customer channels, linked repositories, DM/message history, tasks, requests, and workflow state are intentionally not included.
 

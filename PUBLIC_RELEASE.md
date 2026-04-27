@@ -11,6 +11,7 @@ The goal is to ship the validated operating profile, not a copy of a private off
 - Operation and employee blueprints: `templates/operations/` and `templates/employees/`, after reviewing for customer-specific language.
 - Sanitized global agent rules: `templates/starter-kit/codex/AGENTS.validated.md`.
 - Validated skills from the active local profile, excluding private/customer-specific skills.
+- Validated operating policies and public skill shortcuts seeded by the broker for fresh offices.
 - Sanitized active config shape: `templates/starter-kit/codex/config.sanitized.toml`.
 - Public local runtime profile guide: `docs/local-runtime-profile.md`, describing how to separate reusable skills, Markdown orientation and sanitized config without shipping private state.
 - Public base office topology in code: `ceo`, `pm`, `backend`, `builder`, `frontend`, `reviewer`, `estagiario`, and `game-master` in `#general`.
@@ -49,7 +50,7 @@ Recommended public onboarding flow:
 3. User reviews `templates/starter-kit/EXCLUSIONS.md`.
 4. User installs the validated profile with `templates/starter-kit/install-profile.ps1`.
 5. User merges supported settings from `templates/starter-kit/codex/config.sanitized.toml`.
-6. User starts with the public office shell, agent DMs, and a blueprint from `templates/operations/` or with `wuphf --from-scratch`.
+6. User starts with the public office shell, agent DMs, seeded policies, visible skill shortcuts, and a blueprint from `templates/operations/` or with `wuphf --from-scratch`.
 
 ## Sanitization Pass
 

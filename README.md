@@ -193,7 +193,7 @@ Voce configura isso dentro do escritorio:
 - [DEVELOPMENT.md](DEVELOPMENT.md): fluxo de desenvolvimento local
 - [CHANGELOG.md](CHANGELOG.md): historico de releases
 - [FORKING.md](FORKING.md): notas de branding e customizacao se voce for adaptar o projeto
-- [templates/starter-kit](templates/starter-kit): perfil validado com skills, prompts, regras e config sanitizada para onboarding inicial
+- [templates/starter-kit](templates/starter-kit): perfil validado com skills, politicas, prompts, regras e config sanitizada para onboarding inicial
 - [docs/local-runtime-profile.md](docs/local-runtime-profile.md): modelo publico para separar `skills`, orientacao Markdown e config sanitizada sem publicar estado privado
 - [SECURITY.md](SECURITY.md): como reportar vulnerabilidades
 - [CONTRIBUTING.md](CONTRIBUTING.md): como contribuir com codigo e docs

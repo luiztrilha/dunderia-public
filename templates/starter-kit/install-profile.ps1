@@ -41,6 +41,7 @@ Copy-Children (Join-Path $kit "agents\skills") (Join-Path $agentsHome "skills")
 
 Copy-Item -LiteralPath (Join-Path $kit "codex\AGENTS.validated.md") -Destination (Join-Path $codexHome "AGENTS.md") -Force
 Copy-Item -LiteralPath (Join-Path $kit "agents\skill-lock.json") -Destination (Join-Path $agentsHome ".skill-lock.json") -Force
+Copy-Item -LiteralPath (Join-Path $kit "policies.validated.md") -Destination (Join-Path $codexHome "policies.validated.md") -Force
 
 $configTarget = Join-Path $codexHome "config.toml"
 if ($OverwriteConfig -or -not (Test-Path -LiteralPath $configTarget)) {

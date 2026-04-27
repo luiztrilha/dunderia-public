@@ -840,6 +840,7 @@
       "loadFailed": "Falha ao carregar políticas.",
       "empty": "Nenhuma política definida. Adicione uma acima.",
       "sections": {
+        "validatedProfile": "Perfil validado",
         "humanDirected": "Direcionadas por humano",
         "autoDetected": "Auto-detectadas"
       },

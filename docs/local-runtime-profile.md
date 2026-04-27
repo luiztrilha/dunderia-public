@@ -30,6 +30,11 @@ and an installer script. It is meant to help a new DunderIA workspace start with
 a useful baseline while still forcing local credentials and private state to be
 created on the new machine.
 
+The broker also seeds this public baseline into fresh offices: active operating
+policies plus visible shortcuts for every packaged Codex, Superpowers, and
+`.agents` skill. The shortcut records point back to the starter-kit `SKILL.md`
+files so the full validated workflow remains file-based and reviewable.
+
 ## Private Backup Shape
 
 For personal backup, keep a private snapshot with this shape:

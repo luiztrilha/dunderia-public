@@ -840,6 +840,7 @@
       "loadFailed": "Failed to load policies.",
       "empty": "No policies set. Add one above.",
       "sections": {
+        "validatedProfile": "Validated profile",
         "humanDirected": "Human-directed",
         "autoDetected": "Auto-detected"
       },
