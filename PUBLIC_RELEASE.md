@@ -13,11 +13,13 @@ The goal is to ship the validated operating profile, not a copy of a private off
 - Validated skills from the active local profile, excluding private/customer-specific skills.
 - Sanitized active config shape: `templates/starter-kit/codex/config.sanitized.toml`.
 - Public base office topology in code: `ceo`, `pm`, `backend`, `builder`, `frontend`, `reviewer`, `estagiario`, and `game-master` in `#general`.
+- Public web experience: shell, layout, themes, message views, channel/DM navigation, and onboarding screens aligned with the validated local `web/` source.
+- Public starter DMs for the validated base agents, seeded without message history.
 
 ## Do Not Ship
 
 - Auth and secrets: `~/.codex/auth.json`, API keys, cloud credentials, ADC files, `.env*`, certificates, private tokens.
-- Live office state: `company.json`, `broker-state.json`, `onboarded.json`, cloud backup bootstrap state, workflow state, task receipts, channel history.
+- Live office state: `company.json`, `broker-state.json`, `onboarded.json`, cloud backup bootstrap state, workflow state, task receipts, channel history, and DM messages.
 - Protected topology from a private office: customer-specific channels, linked repos, saved workflows that recreate a private team, or blueprints generated from private operations.
 - Local mirrors and client code: `.links/`, private archive folders, generated help mirrors, local customer repos.
 - Scratch artifacts: `.tmp-*`, test logs, local binaries, screenshots unless they are intentionally documented assets.
@@ -46,7 +48,7 @@ Recommended public onboarding flow:
 3. User reviews `templates/starter-kit/EXCLUSIONS.md`.
 4. User installs the validated profile with `templates/starter-kit/install-profile.ps1`.
 5. User merges supported settings from `templates/starter-kit/codex/config.sanitized.toml`.
-6. User starts with a blueprint from `templates/operations/` or with `wuphf --from-scratch`.
+6. User starts with the public office shell, agent DMs, and a blueprint from `templates/operations/` or with `wuphf --from-scratch`.
 
 ## Sanitization Pass
 

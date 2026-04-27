@@ -64,7 +64,11 @@ Fresh offices created from this public repo start with the validated base topolo
 - `estagiario`
 - `game-master`
 
-All eight agents start in `#general`. Private customer channels, linked repositories, message history, tasks, requests, and workflow state are intentionally not included.
+All eight agents start in `#general`, with the same public role/personality defaults as the validated local office. The first-run broker also seeds starter DMs between `human` and each base agent, so the sidebar and direct-message workflow are ready immediately.
+
+The public web shell is aligned with the validated local `web/` source: layout, themes, message views, channel/DM navigation, onboarding, and app surfaces are shipped as real defaults rather than placeholder examples.
+
+Private customer channels, linked repositories, DM/message history, tasks, requests, and workflow state are intentionally not included.
 
 ## What Was Sanitized
 
@@ -72,4 +76,4 @@ All eight agents start in `#general`. Private customer channels, linked reposito
 - Auth, history, sessions, sqlite state, logs, and cloud credentials were not copied.
 - `.codex/skills/.system` was not copied because it belongs to the Codex runtime distribution.
 - `sql-exampleworkflow` was not copied because it is tied to private database and repository context.
-- Live office history was not copied. The public base topology is encoded in the runtime default manifest; private channels and state remain excluded from `company.json` and `broker-state.json`.
+- Live office history was not copied. The public base topology, agent personalities, starter DMs, and web shell are encoded in reusable defaults; private channels and state remain excluded from `company.json` and `broker-state.json`.

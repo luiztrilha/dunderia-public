@@ -20,7 +20,7 @@ type DeliverySection = {
   orderedDeliveries: Delivery[]
 }
 
-const repositoryFamilyPattern = /^(LegacyWeb|legacyticketweb|publicportalweb|sharedsystemswebforms|integrationapi|dunderia|superpowers|relatorios|memory|scripts|codex-lb|vibeyard)/i
+const repositoryFamilyPattern = /^(legacyweb|legacyticketweb|publicportalweb|sharedsystemswebforms|integrationapi|dunderia|superpowers|relatorios|memory|scripts|codex-lb|vibeyard)/i
 
 function normalizeStatus(status?: string): string {
   return (status || 'in_progress').replace(/_/g, ' ')
@@ -97,8 +97,8 @@ function repositoryFromRepoSegments(segments: string[], drivePrefix: string): { 
     'api',
     'backend',
     'bin',
-    'ExampleBank',
-    'ExampleBankinterno',
+    'examplebank',
+    'examplebankinterno',
     'build',
     'debug',
     'dist',

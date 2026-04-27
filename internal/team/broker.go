@@ -4726,7 +4726,7 @@ func defaultTeamChannels() []teamChannel {
 	if !ok {
 		manifest = company.DefaultManifest()
 	}
-	channels := make([]teamChannel, 0, len(manifest.Channels))
+	channels := make([]teamChannel, 0, len(manifest.Channels)+len(manifest.Members))
 	for _, channel := range manifest.Channels {
 		tc := teamChannel{
 			Slug:        channel.Slug,
@@ -4749,6 +4749,55 @@ func defaultTeamChannels() []teamChannel {
 			}
 		}
 		channels = append(channels, tc)
+	}
+	channels = append(channels, defaultDirectMessageChannels(manifest.Members, now)...)
+	return channels
+}
+
+func defaultDirectMessageChannels(members []company.MemberSpec, now string) []teamChannel {
+	preferred := []string{"estagiario", "builder", "backend", "frontend", "reviewer", "game-master", "ceo", "pm"}
+	bySlug := make(map[string]company.MemberSpec, len(members))
+	for _, member := range members {
+		slug := normalizeChannelSlug(member.Slug)
+		if slug == "" || slug == "human" {
+			continue
+		}
+		member.Slug = slug
+		bySlug[slug] = member
+	}
+
+	ordered := make([]string, 0, len(bySlug))
+	seen := make(map[string]struct{}, len(bySlug))
+	for _, slug := range preferred {
+		if _, ok := bySlug[slug]; !ok {
+			continue
+		}
+		ordered = append(ordered, slug)
+		seen[slug] = struct{}{}
+	}
+	remaining := make([]string, 0, len(bySlug))
+	for slug := range bySlug {
+		if _, ok := seen[slug]; ok {
+			continue
+		}
+		remaining = append(remaining, slug)
+	}
+	sort.Strings(remaining)
+	ordered = append(ordered, remaining...)
+
+	channels := make([]teamChannel, 0, len(ordered))
+	for _, slug := range ordered {
+		dmSlug := channel.DirectSlug("human", slug)
+		channels = append(channels, teamChannel{
+			Slug:        dmSlug,
+			Name:        dmSlug,
+			Type:        "dm",
+			Description: "Direct messages with " + slug,
+			Members:     []string{"human", slug},
+			CreatedBy:   "wuphf",
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		})
 	}
 	return channels
 }
