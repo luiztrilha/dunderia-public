@@ -12,12 +12,13 @@ The goal is to ship the validated operating profile, not a copy of a private off
 - Sanitized global agent rules: `templates/starter-kit/codex/AGENTS.validated.md`.
 - Validated skills from the active local profile, excluding private/customer-specific skills.
 - Sanitized active config shape: `templates/starter-kit/codex/config.sanitized.toml`.
+- Public base office topology in code: `ceo`, `pm`, `backend`, `builder`, `frontend`, `reviewer`, `estagiario`, and `game-master` in `#general`.
 
 ## Do Not Ship
 
 - Auth and secrets: `~/.codex/auth.json`, API keys, cloud credentials, ADC files, `.env*`, certificates, private tokens.
 - Live office state: `company.json`, `broker-state.json`, `onboarded.json`, cloud backup bootstrap state, workflow state, task receipts, channel history.
-- Protected topology from a real office: agent roster, channel list, saved workflows that recreate a private team, or blueprints generated from private operations.
+- Protected topology from a private office: customer-specific channels, linked repos, saved workflows that recreate a private team, or blueprints generated from private operations.
 - Local mirrors and client code: `.links/`, private archive folders, generated help mirrors, local customer repos.
 - Scratch artifacts: `.tmp-*`, test logs, local binaries, screenshots unless they are intentionally documented assets.
 - Personal model preferences that only work on your machine.

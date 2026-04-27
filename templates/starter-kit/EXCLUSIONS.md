@@ -14,6 +14,7 @@ This profile intentionally does not export everything byte-for-byte. It exports 
 - `~/.codex/memories/serena-runtime-*`: local tool runtime distribution.
 - Private `.megamemory` database paths and disabled private MCP server entries.
 - Live DunderIA state: `company.json`, `broker-state.json`, onboarding state, saved workflows, task receipts, and channel history.
+- Private office topology: customer-specific channels, linked repositories, and saved workflows that recreate private operations.
 - Cloud backup bootstrap files, ADC credentials, API keys, private keys, `.env*`, certificates, and local browser profiles.
 
 ## Exported Instead
@@ -25,6 +26,7 @@ This profile intentionally does not export everything byte-for-byte. It exports 
 - Validated design/UI skills in `agents/skills/`.
 - Prompt commands in `prompts/`.
 - Local rules in `rules/default.rules`.
+- Public base topology in the runtime default manifest: `ceo`, `pm`, `backend`, `builder`, `frontend`, `reviewer`, `estagiario`, and `game-master` in `#general`.
 
 ## Private Skill Note
 

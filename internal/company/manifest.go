@@ -239,45 +239,52 @@ func DefaultManifest() Manifest {
 	manifest.Members = []MemberSpec{
 		{
 			Slug:           "ceo",
-			Name:           "CEO",
-			Role:           "Owns priorities, approvals, and escalation decisions",
+			Name:           "Coordenacao",
+			Role:           "Coordenacao, prioridade, decisao e delegacao",
 			PermissionMode: "plan",
 			System:         true,
 		},
 		{
-			Slug:           "research-lead",
-			Name:           "Research Lead",
-			Role:           "Frames the problem, gathers proof, and shapes the first backlog",
+			Slug:           "pm",
+			Name:           "Produto",
+			Role:           "Escopo, backlog e refinamento",
 			PermissionMode: "plan",
-			Expertise:      []string{"Discovery", "Problem framing", "Backlog design"},
 		},
 		{
-			Slug:           "writer",
-			Name:           "Writer",
-			Role:           "Turns discoveries into briefs, plans, and durable working drafts",
+			Slug:           "backend",
+			Name:           "Backend",
+			Role:           "Arquitetura e implementacao backend",
 			PermissionMode: "auto",
-			Expertise:      []string{"Briefs", "Plans", "Drafting"},
 		},
 		{
-			Slug:           "operator",
-			Name:           "Operator",
-			Role:           "Owns delivery coordination, runbooks, and execution hygiene",
-			PermissionMode: "plan",
-			Expertise:      []string{"Runbooks", "Execution hygiene", "Delivery coordination"},
-		},
-		{
-			Slug:           "growth-ops",
-			Name:           "Growth Ops",
-			Role:           "Owns review loops, adoption signals, and operating cadence",
-			PermissionMode: "plan",
-			Expertise:      []string{"Review cadence", "Feedback loops", "Operating metrics"},
-		},
-		{
-			Slug:           "monetization",
-			Name:           "Monetization",
-			Role:           "Defines offers, value capture, and commercial next steps",
+			Slug:           "builder",
+			Name:           "Full Stack",
+			Role:           "Implementacao ponta a ponta e integracao",
 			PermissionMode: "auto",
-			Expertise:      []string{"Offers", "Value capture", "Commercial design"},
+		},
+		{
+			Slug:           "frontend",
+			Name:           "Frontend",
+			Role:           "UI, UX e implementacao frontend",
+			PermissionMode: "auto",
+		},
+		{
+			Slug:           "reviewer",
+			Name:           "Revisao Tecnica",
+			Role:           "Revisao tecnica, risco, regressao e criterios de aceite",
+			PermissionMode: "plan",
+		},
+		{
+			Slug:           "estagiario",
+			Name:           "Estagiario",
+			Role:           "Pesquisa e triagem de baixo risco",
+			PermissionMode: "auto",
+		},
+		{
+			Slug:           "game-master",
+			Name:           "Game Master",
+			Role:           "Intervencao total sob demanda, com autoridade maxima e execucao direta.",
+			PermissionMode: "all",
 		},
 	}
 	generalMembers := make([]string, 0, len(manifest.Members))
@@ -287,7 +294,7 @@ func DefaultManifest() Manifest {
 	manifest.Channels = []ChannelSpec{{
 		Slug:        "general",
 		Name:        "general",
-		Description: "The default company-wide room for top-level coordination, announcements, and cross-functional discussion.",
+		Description: "Canal unico inicial para coordenacao, triagem e execucao.",
 		Members:     generalMembers,
 	}}
 	return normalizeManifest(manifest)

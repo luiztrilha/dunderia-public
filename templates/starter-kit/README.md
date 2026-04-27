@@ -2,7 +2,7 @@
 
 This folder contains a sanitized export of the working profile currently used to develop and operate DunderIA.
 
-It is not a toy example. The skills, prompts, rules, and operating defaults here come from the local setup that has been used in practice. Items that would leak credentials, private customer context, local office state, or live topology are excluded or replaced with placeholders.
+It is not a toy example. The skills, prompts, rules, and operating defaults here come from the local setup that has been used in practice. Items that would leak credentials, private customer context, or local office history are excluded or replaced with placeholders.
 
 ## Contents
 
@@ -51,10 +51,25 @@ wuphf init
 wuphf
 ```
 
+## Public Base Office
+
+Fresh offices created from this public repo start with the validated base topology:
+
+- `ceo`
+- `pm`
+- `backend`
+- `builder`
+- `frontend`
+- `reviewer`
+- `estagiario`
+- `game-master`
+
+All eight agents start in `#general`. Private customer channels, linked repositories, message history, tasks, requests, and workflow state are intentionally not included.
+
 ## What Was Sanitized
 
 - Absolute private repo paths were replaced with placeholders where they mattered.
 - Auth, history, sessions, sqlite state, logs, and cloud credentials were not copied.
 - `.codex/skills/.system` was not copied because it belongs to the Codex runtime distribution.
 - `sql-exampleworkflow` was not copied because it is tied to private database and repository context.
-- Live office topology was not copied. Use blueprints instead of shipping `company.json` or `broker-state.json`.
+- Live office history was not copied. The public base topology is encoded in the runtime default manifest; private channels and state remain excluded from `company.json` and `broker-state.json`.
