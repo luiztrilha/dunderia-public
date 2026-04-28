@@ -2343,6 +2343,8 @@ func normalizeProviderKind(raw string) string {
 		return provider.KindCodex
 	case "gemini":
 		return provider.KindGemini
+	case "gemini-cli":
+		return provider.KindGeminiCLI
 	case "gemini-vertex":
 		return provider.KindGeminiVertex
 	case "ollama":

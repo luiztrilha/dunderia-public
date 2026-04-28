@@ -9,6 +9,7 @@ const (
 	KindClaudeCode   = "claude-code"
 	KindCodex        = "codex"
 	KindGemini       = "gemini"
+	KindGeminiCLI    = "gemini-cli"
 	KindGeminiVertex = "gemini-vertex"
 	KindOllama       = "ollama"
 	KindOpenclaude   = "openclaude"
@@ -27,15 +28,16 @@ type ProviderBinding struct {
 // The empty string is valid and means "use install-wide default."
 func ValidateKind(s string) error {
 	switch s {
-	case "", KindClaudeCode, KindCodex, KindGemini, KindGeminiVertex, KindOllama, KindOpenclaude:
+	case "", KindClaudeCode, KindCodex, KindGemini, KindGeminiCLI, KindGeminiVertex, KindOllama, KindOpenclaude:
 		return nil
 	default:
 		return fmt.Errorf(
-			"unknown provider kind %q (valid: %s, %s, %s, %s, %s, %s, or empty)",
+			"unknown provider kind %q (valid: %s, %s, %s, %s, %s, %s, %s, or empty)",
 			s,
 			KindClaudeCode,
 			KindCodex,
 			KindGemini,
+			KindGeminiCLI,
 			KindGeminiVertex,
 			KindOllama,
 			KindOpenclaude,

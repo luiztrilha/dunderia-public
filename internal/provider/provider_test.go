@@ -27,6 +27,13 @@ func TestCodexStreamFnBuilds(t *testing.T) {
 	}
 }
 
+func TestGeminiCLIStreamFnBuilds(t *testing.T) {
+	fn := provider.CreateGeminiCLIStreamFn("test-agent")
+	if fn == nil {
+		t.Fatal("expected non-nil StreamFn for gemini-cli")
+	}
+}
+
 func TestOllamaStreamFnBuilds(t *testing.T) {
 	fn := provider.CreateOllamaStreamFn("http://localhost:11434", provider.OllamaDefaultModel)
 	if fn == nil {

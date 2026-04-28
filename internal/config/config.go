@@ -532,6 +532,8 @@ func normalizeLLMProvider(value string) string {
 		return "codex"
 	case "gemini":
 		return "gemini"
+	case "gemini-cli":
+		return "gemini-cli"
 	case "gemini-vertex":
 		return "gemini-vertex"
 	case "ollama":
