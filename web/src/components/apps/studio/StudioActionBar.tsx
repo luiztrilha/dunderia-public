@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { TFunction } from 'i18next'
 import type {
   StudioActionDefinition,
   StudioActionInvocation,
@@ -11,7 +12,10 @@ interface StudioActionBarProps {
   membersByChannel: Record<string, string[]>
   pendingKey: string | null
   onAction: (action: string, blocker: StudioBlocker, extras?: { owner?: string }) => void
+  t: TFunction
 }
+
+const DELEGATE_GAME_MASTER_ACTION = 'delegate_game_master'
 
 function actionKey(blockerId: string, action: string): string {
   return `${blockerId}:${action}`
@@ -23,6 +27,7 @@ export function StudioActionBar({
   membersByChannel,
   pendingKey,
   onAction,
+  t,
 }: StudioActionBarProps) {
   const members = useMemo(() => {
     const pool = membersByChannel[blocker.channel ?? ''] ?? []
@@ -34,6 +39,8 @@ export function StudioActionBar({
   }, [actionDefinitions, blocker.available_actions])
 
   const [selectedOwner, setSelectedOwner] = useState<string>('')
+  const canDelegateToGameMaster = Boolean(blocker.task_id) && blocker.owner !== 'game-master'
+  const delegatingToGameMaster = pendingKey === actionKey(blocker.id, DELEGATE_GAME_MASTER_ACTION)
 
   useEffect(() => {
     setSelectedOwner((current) => {
@@ -42,12 +49,22 @@ export function StudioActionBar({
     })
   }, [members])
 
-  if (actions.length === 0) {
+  if (actions.length === 0 && !canDelegateToGameMaster) {
     return null
   }
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+      {canDelegateToGameMaster && (
+        <button
+          className="btn btn-sm btn-primary"
+          disabled={delegatingToGameMaster}
+          onClick={() => onAction(DELEGATE_GAME_MASTER_ACTION, blocker)}
+          title={t('apps.studio.delegateGameMasterTitle')}
+        >
+          {delegatingToGameMaster ? t('apps.studio.delegatingGameMaster') : t('apps.studio.delegateGameMaster')}
+        </button>
+      )}
       {actions.map((action) => {
         if (action.action === 'reassign_task') {
           const disabled = members.length === 0 || !selectedOwner || pendingKey === actionKey(blocker.id, action.action)

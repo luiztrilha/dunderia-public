@@ -19,14 +19,14 @@ test.describe('config draft durability', () => {
 
     await page.getByRole('button', { name: /new channel/i }).click();
     await page.getByRole('button', { name: /manual/i }).click();
-    await page.locator('#channel-name').fill('ExampleWorkflow Legado');
+    await page.locator('#channel-name').fill('Convenios Legado');
     await page.locator('#channel-description').fill('Incidentes e contexto do legado');
 
     await page.reload();
     await waitForReactMount(page);
 
     await page.getByRole('button', { name: /new channel/i }).click();
-    await expect(page.locator('#channel-name')).toHaveValue('ExampleWorkflow Legado');
+    await expect(page.locator('#channel-name')).toHaveValue('Convenios Legado');
     await expect(page.locator('#channel-description')).toHaveValue('Incidentes e contexto do legado');
   });
 
@@ -85,13 +85,13 @@ test.describe('config draft durability', () => {
     await page.getByPlaceholder('Operation blueprint ID').fill('legacy-stabilization');
 
     await page.getByRole('button', { name: /Company|Empresa/i }).click();
-    await page.getByPlaceholder('Acme Corp').fill('ExampleWorkflow Web');
+    await page.getByPlaceholder('Acme Corp').fill('Convenios Web');
 
     await page.getByRole('button', { name: /API Keys|Chaves de API/i }).click();
     await page.locator('input[type="password"]').first().fill('nex_persisted_key');
 
     await page.getByRole('button', { name: /Integrations|Integrações/i }).click();
-    await page.getByPlaceholder('<REPOS_ROOT>/dunderia/mcp/dunderia-mcp-settings.json').fill('<REPOS_ROOT>/dunderia/mcp/custom-persisted.json');
+    await page.getByPlaceholder('D:/Repos/dunderia/mcp/dunderia-mcp-settings.json').fill('D:/Repos/dunderia/mcp/custom-persisted.json');
 
     await page.getByRole('button', { name: /Polling|Sondagem/i }).click();
     await page.getByPlaceholder('60').fill('77');
@@ -104,7 +104,7 @@ test.describe('config draft durability', () => {
     await expect(page.getByPlaceholder(/Operation blueprint ID|ID do blueprint de operação/i)).toHaveValue('legacy-stabilization');
 
     await page.getByRole('button', { name: /Company|Empresa/i }).click();
-    await expect(page.getByPlaceholder('Acme Corp')).toHaveValue('ExampleWorkflow Web');
+    await expect(page.getByPlaceholder('Acme Corp')).toHaveValue('Convenios Web');
 
     await page.getByRole('button', { name: /API Keys|Chaves de API/i }).click();
     const keysDraft = await page.evaluate(() => window.localStorage.getItem('settings-draft:keys'));
@@ -112,7 +112,7 @@ test.describe('config draft durability', () => {
     await expect(page.locator('input[type="password"]').first()).toHaveValue('');
 
     await page.getByRole('button', { name: /Integrations|Integrações/i }).click();
-    await expect(page.getByPlaceholder('<REPOS_ROOT>/dunderia/mcp/dunderia-mcp-settings.json')).toHaveValue('<REPOS_ROOT>/dunderia/mcp/custom-persisted.json');
+    await expect(page.getByPlaceholder('D:/Repos/dunderia/mcp/dunderia-mcp-settings.json')).toHaveValue('D:/Repos/dunderia/mcp/custom-persisted.json');
 
     await page.getByRole('button', { name: /Polling|Sondagem/i }).click();
     await expect(page.getByPlaceholder('60')).toHaveValue('77');
@@ -124,13 +124,13 @@ test.describe('config draft durability', () => {
 
     await page.getByRole('button', { name: /Integrations|Integrações/i }).click();
 
-    const input = page.getByPlaceholder('<REPOS_ROOT>/dunderia/mcp/dunderia-mcp-settings.json');
-    await input.fill('<REPOS_ROOT>/dunderia/mcp/in-flight-draft.json');
+    const input = page.getByPlaceholder('D:/Repos/dunderia/mcp/dunderia-mcp-settings.json');
+    await input.fill('D:/Repos/dunderia/mcp/in-flight-draft.json');
     await input.focus();
 
     await page.waitForTimeout(6500);
 
-    await expect(input).toHaveValue('<REPOS_ROOT>/dunderia/mcp/in-flight-draft.json');
+    await expect(input).toHaveValue('D:/Repos/dunderia/mcp/in-flight-draft.json');
     await expect(input).toBeFocused();
   });
 });

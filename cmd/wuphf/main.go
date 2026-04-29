@@ -85,7 +85,9 @@ func printSubcommandHelp(sub string) {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Usage:")
 		fmt.Fprintln(os.Stderr, "  wuphf repair-channel-memory")
-		fmt.Fprintln(os.Stderr, "  wuphf repair-channel-memory exampleworkflow-legacy legado-para-novo")
+		fmt.Fprintln(os.Stderr, "  wuphf repair-channel-memory convenios-legacy legado-para-novo")
+	case "secret":
+		printSecretHelp()
 	default:
 		fmt.Fprintf(os.Stderr, "wuphf: unknown subcommand %q — run `wuphf --help` for the list.\n", sub)
 	}
@@ -150,6 +152,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s shred        Stop the running office without deleting local state\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s import --from legacy  Import from a running external orchestrator (auto-detect)\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s log          Show what your agents actually did (task receipts)\n", appName)
+		fmt.Fprintf(os.Stderr, "  %s secret       Manage the local encrypted secret store\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s repair-channel-memory  Rebuild channel memory from saved broker history\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s --cmd <cmd>  Run a command non-interactively\n", appName)
 		fmt.Fprintf(os.Stderr, "\nFlags:\n")
@@ -252,6 +255,9 @@ func main() {
 			return
 		case "log":
 			runLogCmd(args[1:])
+			return
+		case "secret":
+			runSecretCmd(args[1:])
 			return
 		case "repair-channel-memory":
 			stats, err := team.RepairChannelMemory(args[1:]...)

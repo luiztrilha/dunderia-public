@@ -22,7 +22,7 @@ Describe 'watch_legado_channel' {
       "id": "msg-1",
       "from": "ceo",
       "channel": "legado-para-novo",
-      "content": "Vamos refatorar o StudioApp do DunderIA em <DUNDERIA_REPO> e ajustar web/src/App.tsx",
+      "content": "Vamos refatorar o StudioApp do DunderIA em D:\\Repos\\dunderia e ajustar web/src/App.tsx",
       "timestamp": "2026-04-19T01:00:00Z"
     }
   ]
@@ -39,8 +39,8 @@ Describe 'watch_legado_channel' {
         $result.ok | Should Be $true
         $result.drift_detected | Should Be $true
         $result.latest_message_id | Should Be 'msg-1'
-        $result.correction_message | Should Match 'LegacySystemOld\\LegacyWeb'
-        $result.correction_message | Should Match 'LegacySystemExternal'
+        $result.correction_message | Should Match 'ConveniosWebBNB_Antigo\\BNB'
+        $result.correction_message | Should Match 'ConveniosWebExterno'
     }
 
     It 'ignores messages scoped to the four migration repos' {
@@ -55,7 +55,7 @@ Describe 'watch_legado_channel' {
       "id": "msg-2",
       "from": "repo-auditor",
       "channel": "legado-para-novo",
-      "content": "Mapeei LegacyWeb em <REPOS_ROOT>\\LegacySystemOld\\LegacyWeb e equivalentes no frontend em <REPOS_ROOT>\\LegacySystemExternal",
+      "content": "Mapeei BNB em D:\\Repos\\ConveniosWebBNB_Antigo\\BNB e equivalentes no frontend em D:\\Repos\\ConveniosWebExterno",
       "timestamp": "2026-04-19T01:10:00Z"
     }
   ]
@@ -86,7 +86,7 @@ Describe 'watch_legado_channel' {
       "id": "msg-3",
       "from": "nex",
       "channel": "legado-para-novo",
-      "content": "Correção automática de escopo: este canal deve tratar somente a conversão entre estes caminhos:\n- <REPOS_ROOT>\\LegacySystemOld\\LegacyWeb\n- <REPOS_ROOT>\\LegacySystemOld\\WSExampleAgreement\n- <REPOS_ROOT>\\LegacySystemNew\n- <REPOS_ROOT>\\LegacySystemExternal\n\nDesconsiderem referências a DunderIA, WUPHF, StudioApp, index.legacy.html, web/src ou qualquer outro repositório fora desses quatro diretórios.",
+      "content": "Correção automática de escopo: este canal deve tratar somente a conversão entre estes caminhos:\n- D:\\Repos\\ConveniosWebBNB_Antigo\\BNB\n- D:\\Repos\\ConveniosWebBNB_Antigo\\WSConvenio\n- D:\\Repos\\ConveniosWebBNB_Novo\n- D:\\Repos\\ConveniosWebExterno\n\nDesconsiderem referências a DunderIA, WUPHF, StudioApp, index.legacy.html, web/src ou qualquer outro repositório fora desses quatro diretórios.",
       "timestamp": "2026-04-19T01:20:00Z"
     }
   ]

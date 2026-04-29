@@ -163,7 +163,7 @@ func TestBuildSessionMemorySnapshotFromOfficeStateUsesExternalWorkspacePath(t *t
 			Owner:         "repo-auditor",
 			Status:        "in_progress",
 			ExecutionMode: "external_workspace",
-			WorkspacePath: "<REPOS_ROOT>/LegacySystemNew",
+			WorkspacePath: "D:/Repos/ConveniosWebBNB_Novo",
 			ThreadID:      "msg-11",
 		},
 	}, nil, nil, nil)
@@ -171,14 +171,14 @@ func TestBuildSessionMemorySnapshotFromOfficeStateUsesExternalWorkspacePath(t *t
 	if len(snapshot.Tasks) != 1 {
 		t.Fatalf("expected one task summary, got %+v", snapshot.Tasks)
 	}
-	if snapshot.Tasks[0].WorkspacePath != "<REPOS_ROOT>/LegacySystemNew" {
+	if snapshot.Tasks[0].WorkspacePath != "D:/Repos/ConveniosWebBNB_Novo" {
 		t.Fatalf("expected workspace path summary, got %+v", snapshot.Tasks[0])
 	}
 	restore := snapshot.RestorationContext()
-	if len(restore.WorkingDirectories) != 1 || restore.WorkingDirectories[0] != "<REPOS_ROOT>/LegacySystemNew" {
+	if len(restore.WorkingDirectories) != 1 || restore.WorkingDirectories[0] != "D:/Repos/ConveniosWebBNB_Novo" {
 		t.Fatalf("expected external workspace restore hint, got %+v", restore)
 	}
-	if len(snapshot.NextSteps) == 0 || !strings.Contains(strings.Join(snapshot.NextSteps, "\n"), "<REPOS_ROOT>/LegacySystemNew") {
+	if len(snapshot.NextSteps) == 0 || !strings.Contains(strings.Join(snapshot.NextSteps, "\n"), "D:/Repos/ConveniosWebBNB_Novo") {
 		t.Fatalf("expected next steps to mention external workspace, got %+v", snapshot.NextSteps)
 	}
 }

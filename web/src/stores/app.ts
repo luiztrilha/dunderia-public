@@ -127,7 +127,7 @@ export const useAppStore = create<AppStore>((set) => ({
   primaryRail: 'home',
   setPrimaryRail: (primaryRail) => set({ primaryRail }),
 
-  sidebarAgentsOpen: true,
+  sidebarAgentsOpen: false,
   toggleSidebarAgents: () => set((s) => ({ sidebarAgentsOpen: !s.sidebarAgentsOpen })),
 
   activeThreadId: null,

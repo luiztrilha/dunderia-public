@@ -504,7 +504,7 @@ func TestOverlayPersistedTaskWorktreesSkipsDifferentRepository(t *testing.T) {
 	root := t.TempDir()
 	statePath := filepath.Join(root, "broker-state.json")
 	currentRepo := filepath.Join(root, "dunderia")
-	otherRepo := filepath.Join(root, "ExampleWorkflowLegacyWeb")
+	otherRepo := filepath.Join(root, "ConveniosWebBNB")
 
 	oldStatePath := brokerStatePath
 	defer func() { brokerStatePath = oldStatePath }()

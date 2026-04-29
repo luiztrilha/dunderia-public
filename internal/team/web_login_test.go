@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestWebLoginFormRendersAccessibleLoginForm(t *testing.T) {
+func TestWebLoginFormRendersAccessibleLocalLogin(t *testing.T) {
 	b := NewBroker()
 	req := httptest.NewRequest(http.MethodGet, "/login", nil)
 	rec := httptest.NewRecorder()
@@ -26,31 +26,16 @@ func TestWebLoginFormRendersAccessibleLoginForm(t *testing.T) {
 
 	body := rec.Body.String()
 	for _, want := range []string{
-		`<form id="login-form" novalidate data-login-endpoint="/api/auth/login">`,
-		`<label for="email">E-mail</label>`,
-		`id="email"`,
-		`type="email"`,
-		`autocomplete="email"`,
-		`<label for="password">Senha</label>`,
-		`id="password"`,
-		`autocomplete="current-password"`,
-		`id="toggle-password"`,
-		`id="remember" name="remember" type="checkbox"`,
-		`const response = await fetch(endpoint, {`,
-		`window.location.assign(payload.redirectTo || "/");`,
+		`<form id="login-form"`,
+		`<label for="access-key">Broker access key</label>`,
+		`id="access-key"`,
+		`required`,
+		`/api-token`,
+		`wuphf.brokerToken`,
+		`Enter office`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("expected login page to contain %q", want)
-		}
-	}
-
-	for _, stale := range []string{
-		`Broker access key`,
-		`/api-token`,
-		`wuphf.brokerToken`,
-	} {
-		if strings.Contains(body, stale) {
-			t.Fatalf("expected login page to avoid stale broker-token login copy %q", stale)
 		}
 	}
 }

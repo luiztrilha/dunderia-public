@@ -35,7 +35,17 @@ func TestLauncherSessionObservabilitySnapshotIncludesQueuesAndActivity(t *testin
 		DeferredTotal: 2,
 	}
 	b.activity = map[string]agentActivitySnapshot{
-		agentLaneKey("engineering", "eng"): {Slug: "eng", Channel: "engineering", Status: "active", Activity: "tool_use", Detail: "running tests"},
+		agentLaneKey("engineering", "eng"): {
+			Slug:           "eng",
+			Channel:        "engineering",
+			Status:         "active",
+			Activity:       "tool_use",
+			Detail:         "running tests",
+			LivenessState:  "advanced",
+			LivenessReason: "task state changed during turn",
+			LivenessTaskID: "task-9",
+			LivenessAt:     "2026-04-29T12:00:00Z",
+		},
 	}
 	b.scheduler = []schedulerJob{
 		{Slug: "job-1", Kind: "task_follow_up", TargetType: "task", TargetID: "task-1", Channel: "general", NextRun: time.Now().UTC().Add(-time.Minute).Format(time.RFC3339), DueAt: time.Now().UTC().Add(-time.Minute).Format(time.RFC3339), Status: "scheduled"},
@@ -118,6 +128,9 @@ func TestLauncherSessionObservabilitySnapshotIncludesQueuesAndActivity(t *testin
 	if eng.Channel != "engineering" || eng.ActiveTaskID != "task-9" || eng.QueueDepth != 1 || eng.WorkingDirectory != "/tmp/task-9" {
 		t.Fatalf("unexpected eng observability: %+v", eng)
 	}
+	if eng.LivenessState != "advanced" || eng.LivenessTaskID != "task-9" {
+		t.Fatalf("expected liveness observability, got %+v", eng)
+	}
 }
 
 func TestSessionObservabilityFormatLinesIncludesQueueAndTask(t *testing.T) {
@@ -170,6 +183,9 @@ func TestSessionObservabilityFormatLinesIncludesQueueAndTask(t *testing.T) {
 			ActiveTaskID:         "task-9",
 			WorkingDirectory:     "/tmp/task-9",
 			Detail:               "running tests",
+			LivenessState:        "plan_only",
+			LivenessReason:       "agent only described future work without durable task progress",
+			LivenessTaskID:       "task-9",
 		}},
 	}.FormatLines()
 	text := strings.Join(lines, "\n")
@@ -190,7 +206,7 @@ func TestSessionObservabilityFormatLinesIncludesQueueAndTask(t *testing.T) {
 		"Cloud backup error: temporary gcs 429",
 		"Observability history: 2026-04-23T12:05:00Z due=1 req=1 gh=3",
 		"HTTP hot path: /messages max=40ms last=25ms requests=4",
-		"@eng · #engineering · status=active · activity=running · queue=1 · quick=1 · task=task-9 · wd=/tmp/task-9 · detail=running tests",
+		"@eng · #engineering · status=active · activity=running · queue=1 · quick=1 · task=task-9 · wd=/tmp/task-9 · liveness=plan_only · detail=running tests · liveness_reason=agent only described future work without durable task progress",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("expected %q in %q", want, text)

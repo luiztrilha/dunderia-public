@@ -18,8 +18,8 @@ func TestSyncTaskWorktreeLockedPrefersExplicitWorkspacePathMention(t *testing.T)
 
 	workspaceRoot := t.TempDir()
 	currentRepo := filepath.Join(workspaceRoot, "dunderia")
-	targetRepo := filepath.Join(workspaceRoot, "LegacySystemOld")
-	targetDir := filepath.Join(targetRepo, "LegacyWeb")
+	targetRepo := filepath.Join(workspaceRoot, "ConveniosWebBNB_Antigo")
+	targetDir := filepath.Join(targetRepo, "BNB")
 	targetFile := filepath.Join(targetDir, "RecursoHumano.Cadastro.aspx.cs")
 
 	initUsableGitWorktree(t, currentRepo)
@@ -39,7 +39,7 @@ func TestSyncTaskWorktreeLockedPrefersExplicitWorkspacePathMention(t *testing.T)
 
 	task := &teamTask{
 		ID:            "task-1",
-		Channel:       "ExampleWorkflow-legacy",
+		Channel:       "convenios-legacy",
 		Owner:         "builder",
 		Status:        "in_progress",
 		ExecutionMode: "local_worktree",
@@ -79,8 +79,8 @@ func TestInferExplicitWorkspacePathForTaskPreservesExplicitSubdirectory(t *testi
 
 	workspaceRoot := t.TempDir()
 	currentRepo := filepath.Join(workspaceRoot, "dunderia")
-	targetRepo := filepath.Join(workspaceRoot, "LegacySystemOld")
-	targetDir := filepath.Join(targetRepo, "WSExampleAgreement")
+	targetRepo := filepath.Join(workspaceRoot, "ConveniosWebBNB_Antigo")
+	targetDir := filepath.Join(targetRepo, "WSConvenio")
 
 	initUsableGitWorktree(t, currentRepo)
 	initUsableGitWorktree(t, targetRepo)
@@ -91,7 +91,7 @@ func TestInferExplicitWorkspacePathForTaskPreservesExplicitSubdirectory(t *testi
 	currentTaskRepoRoot = func() (string, error) { return currentRepo, nil }
 
 	task := &teamTask{
-		Channel:       "ExampleWorkflow-legacy",
+		Channel:       "convenios-legacy",
 		ExecutionMode: "local_worktree",
 		Title:         "Atacar slice do servico legado",
 		Details:       "Workspace confirmado: `" + targetDir + "` para editar somente o servico alvo.",
@@ -129,7 +129,7 @@ func TestInferSiblingWorkspacePathForTaskSkipsDotDirectories(t *testing.T) {
 	currentTaskRepoRoot = func() (string, error) { return currentRepo, nil }
 
 	task := &teamTask{
-		Channel:       "ExampleWorkflow-legacy",
+		Channel:       "convenios-legacy",
 		Owner:         "builder",
 		Status:        "in_progress",
 		ExecutionMode: "local_worktree",

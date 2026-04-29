@@ -47,12 +47,12 @@ func TestKillStaleHeadlessTaskRunnersKillsOnlyMatchingProcesses(t *testing.T) {
 }
 
 func TestParseWindowsHeadlessTaskRunnerProcesses(t *testing.T) {
-	input := []byte(`[{"ProcessId":123,"CommandLine":"node codex exec -C <USER_HOME>\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-3 -c mcp_servers.wuphf-office.command=\"<DUNDERIA_REPO>\\.tmp-wuphf-live2.exe\" -"},{"ProcessId":456,"CommandLine":"C:\\Windows\\System32\\notepad.exe"}]`)
+	input := []byte(`[{"ProcessId":123,"CommandLine":"node codex exec -C C:\\Users\\l.sousa\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-3 -c mcp_servers.wuphf-office.command=\"D:\\Repos\\dunderia\\.tmp-wuphf-live2.exe\" -"},{"ProcessId":456,"CommandLine":"C:\\Windows\\System32\\notepad.exe"}]`)
 	got := parseWindowsHeadlessTaskRunnerProcesses(input)
 	want := []headlessTaskRunnerProcess{
 		{
 			PID:     123,
-			Command: `node codex exec -C <USER_HOME>\.wuphf\task-worktrees\dunderia\wuphf-task-task-3 -c mcp_servers.wuphf-office.command="<REPOS_ROOT>\dunderia\.tmp-wuphf-live2.exe" -`,
+			Command: `node codex exec -C C:\Users\l.sousa\.wuphf\task-worktrees\dunderia\wuphf-task-task-3 -c mcp_servers.wuphf-office.command="D:\Repos\dunderia\.tmp-wuphf-live2.exe" -`,
 		},
 		{
 			PID:     456,

@@ -173,6 +173,30 @@
       "pluginName": "ui-ux-pro-max",
       "installedAt": "2026-04-16T14:41:41.426Z",
       "updatedAt": "2026-04-16T14:41:41.426Z"
+    },
+    "dunderia-plan-to-tasks": {
+      "source": "paperclipai/paperclip inspiration, DunderIA-adapted",
+      "sourceType": "curated",
+      "sourceUrl": "https://github.com/paperclipai/paperclip",
+      "skillPath": "templates/starter-kit/agents/skills/dunderia-plan-to-tasks/SKILL.md",
+      "installedAt": "2026-04-29T00:00:00.000Z",
+      "updatedAt": "2026-04-29T00:00:00.000Z"
+    },
+    "dunderia-doc-maintenance": {
+      "source": "paperclipai/paperclip inspiration, DunderIA-adapted",
+      "sourceType": "curated",
+      "sourceUrl": "https://github.com/paperclipai/paperclip",
+      "skillPath": "templates/starter-kit/agents/skills/dunderia-doc-maintenance/SKILL.md",
+      "installedAt": "2026-04-29T00:00:00.000Z",
+      "updatedAt": "2026-04-29T00:00:00.000Z"
+    },
+    "contribution-report": {
+      "source": "paperclipai/paperclip inspiration, DunderIA-adapted",
+      "sourceType": "curated",
+      "sourceUrl": "https://github.com/paperclipai/paperclip",
+      "skillPath": "templates/starter-kit/agents/skills/contribution-report/SKILL.md",
+      "installedAt": "2026-04-29T00:00:00.000Z",
+      "updatedAt": "2026-04-29T00:00:00.000Z"
     }
   },
   "dismissed": {

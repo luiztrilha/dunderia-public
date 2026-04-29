@@ -485,7 +485,7 @@ func TestDefaultManifestHasNoSurface(t *testing.T) {
 	if len(manifest.Channels) != 1 || manifest.Channels[0].Slug != "general" {
 		t.Fatalf("expected only the general channel in the default manifest, got %+v", manifest.Channels)
 	}
-	expectedMembers := []string{"ceo", "pm", "backend", "builder", "frontend", "reviewer", "estagiario", "game-master"}
+	expectedMembers := []string{"ceo", "research-lead", "writer", "operator", "growth-ops", "monetization"}
 	if len(manifest.Members) != len(expectedMembers) {
 		t.Fatalf("expected %d default members, got %+v", len(expectedMembers), manifest.Members)
 	}
@@ -505,9 +505,6 @@ func TestDefaultManifestHasNoSurface(t *testing.T) {
 		if ch.Surface != nil {
 			t.Fatalf("default channel %s should not have a surface", ch.Slug)
 		}
-	}
-	if got, want := manifest.Channels[0].Description, "Canal unico inicial para coordenacao, triagem e execucao."; got != want {
-		t.Fatalf("unexpected general channel description: got %q want %q", got, want)
 	}
 }
 

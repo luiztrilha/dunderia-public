@@ -114,8 +114,8 @@ func TestBuildDeliveriesLockedAggregatesArtifactsAndPendingHuman(t *testing.T) {
 		Owner:         "builder",
 		Status:        "review",
 		ThreadID:      "msg-1",
-		WorkspacePath: "<REPOS_ROOT>\\ExampleDataRepo",
-		WorktreePath:  "<REPOS_ROOT>\\worktrees\\migration-report",
+		WorkspacePath: "D:\\Repos\\ConveniosWebData",
+		WorktreePath:  "D:\\Repos\\worktrees\\migration-report",
 		CreatedAt:     "2026-04-23T11:55:00Z",
 		UpdatedAt:     "2026-04-23T12:04:00Z",
 	}}
@@ -151,7 +151,7 @@ func TestBuildDeliveriesLockedAggregatesArtifactsAndPendingHuman(t *testing.T) {
 	if delivery.ProgressBasis != "3 of 4 milestones complete" {
 		t.Fatalf("unexpected progress basis %q", delivery.ProgressBasis)
 	}
-	if delivery.WorkspacePath != "<REPOS_ROOT>\\ExampleDataRepo" {
+	if delivery.WorkspacePath != "D:\\Repos\\ConveniosWebData" {
 		t.Fatalf("expected workspace path to prefer repo workspace, got %q", delivery.WorkspacePath)
 	}
 	if len(delivery.Artifacts) < 3 {
@@ -169,41 +169,41 @@ func TestBuildDeliveriesLockedPrefersBusinessWorkspaceOverHelperReposAndDunderia
 	b.tasks = []teamTask{
 		{
 			ID:            "task-1",
-			Channel:       "ExampleWorkflow-web-legado",
+			Channel:       "convenios-web-legado",
 			Title:         "Legacy bugfix",
 			Owner:         "builder",
 			Status:        "in_progress",
 			PipelineID:    "bugfix",
-			WorkspacePath: "<REPOS_ROOT>\\scripts",
+			WorkspacePath: "D:\\Repositórios\\scripts",
 			UpdatedAt:     "2026-04-24T13:26:54Z",
 		},
 		{
 			ID:           "task-2",
-			Channel:      "ExampleWorkflow-web-legado",
+			Channel:      "convenios-web-legado",
 			Title:        "Legacy bugfix follow-up",
 			Owner:        "builder",
 			Status:       "in_progress",
 			PipelineID:   "bugfix",
-			WorktreePath: "<USER_HOME>\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-946",
+			WorktreePath: "C:\\Users\\l.sousa\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-946",
 			UpdatedAt:    "2026-04-24T13:27:54Z",
 		},
 		{
 			ID:            "task-3",
-			Channel:       "ExampleWorkflow-web-legado",
+			Channel:       "convenios-web-legado",
 			Title:         "Legacy bugfix canonical workspace",
 			Owner:         "builder",
 			Status:        "blocked",
 			PipelineID:    "bugfix",
-			WorkspacePath: "<REPOS_ROOT>\\LegacySystemOld",
+			WorkspacePath: "D:\\Repos\\ConveniosWebBNB_Antigo",
 			UpdatedAt:     "2026-04-24T12:26:54Z",
 		},
 	}
 
-	deliveries := b.buildDeliveriesLocked("ExampleWorkflow-web-legado", false, true)
+	deliveries := b.buildDeliveriesLocked("convenios-web-legado", false, true)
 	if len(deliveries) != 1 {
 		t.Fatalf("expected 1 delivery bucket, got %#v", deliveries)
 	}
-	if deliveries[0].WorkspacePath != "<REPOS_ROOT>\\LegacySystemOld" {
+	if deliveries[0].WorkspacePath != "D:\\Repos\\ConveniosWebBNB_Antigo" {
 		t.Fatalf("expected business repo workspace to win, got %q", deliveries[0].WorkspacePath)
 	}
 }
@@ -218,31 +218,31 @@ func TestBuildDeliveriesLockedPrefersDunderiaWorktreeOverHelperWorkspaceWhenNoBu
 	b.tasks = []teamTask{
 		{
 			ID:            "task-1",
-			Channel:       "ExampleWorkflow-web-azure",
+			Channel:       "convenios-web-azure",
 			Title:         "Runtime helper lane",
 			Owner:         "watchdog",
 			Status:        "canceled",
 			PipelineID:    "bugfix",
-			WorkspacePath: "<REPOS_ROOT>\\scripts",
+			WorkspacePath: "D:\\Repositórios\\scripts",
 			UpdatedAt:     "2026-04-24T14:54:58Z",
 		},
 		{
 			ID:           "task-2",
-			Channel:      "ExampleWorkflow-web-azure",
+			Channel:      "convenios-web-azure",
 			Title:        "Dunderia worktree lane",
 			Owner:        "ceo",
 			Status:       "canceled",
 			PipelineID:   "bugfix",
-			WorktreePath: "<USER_HOME>\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-2478",
+			WorktreePath: "C:\\Users\\l.sousa\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-2478",
 			UpdatedAt:    "2026-04-24T13:55:41Z",
 		},
 	}
 
-	deliveries := b.buildDeliveriesLocked("ExampleWorkflow-web-azure", false, true)
+	deliveries := b.buildDeliveriesLocked("convenios-web-azure", false, true)
 	if len(deliveries) != 1 {
 		t.Fatalf("expected 1 delivery bucket, got %#v", deliveries)
 	}
-	if deliveries[0].WorkspacePath != "<USER_HOME>\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-2478" {
+	if deliveries[0].WorkspacePath != "C:\\Users\\l.sousa\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-2478" {
 		t.Fatalf("expected dunderia worktree to win over helper workspace, got %q", deliveries[0].WorkspacePath)
 	}
 }
@@ -256,11 +256,11 @@ func TestBuildDeliveriesLockedUsesChannelLinkedRepoWhenTaskHasNoRepository(t *te
 
 	b.channels = []teamChannel{
 		{
-			Slug: "ExampleWorkflow-web-azure",
-			Name: "Fluxo Exemplo Web Azure",
+			Slug: "convenios-web-azure",
+			Name: "Convênios Web Azure",
 			LinkedRepos: []linkedRepoRef{
 				{
-					RepoPath: "<REPOS_ROOT>\\ExampleAzureRepo",
+					RepoPath: "D:\\Repos\\ConveniosWebVSAzure_Default",
 					Primary:  true,
 				},
 			},
@@ -269,21 +269,21 @@ func TestBuildDeliveriesLockedUsesChannelLinkedRepoWhenTaskHasNoRepository(t *te
 	b.tasks = []teamTask{
 		{
 			ID:           "task-1",
-			Channel:      "ExampleWorkflow-web-azure",
+			Channel:      "convenios-web-azure",
 			Title:        "Azure deployment lane",
 			Owner:        "builder",
 			Status:       "blocked",
 			PipelineID:   "launch",
-			WorktreePath: "<USER_HOME>\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-3059",
+			WorktreePath: "C:\\Users\\l.sousa\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-3059",
 			UpdatedAt:    "2026-04-24T18:29:14Z",
 		},
 	}
 
-	deliveries := b.buildDeliveriesLocked("ExampleWorkflow-web-azure", false, true)
+	deliveries := b.buildDeliveriesLocked("convenios-web-azure", false, true)
 	if len(deliveries) != 1 {
 		t.Fatalf("expected 1 delivery bucket, got %#v", deliveries)
 	}
-	if deliveries[0].WorkspacePath != "<REPOS_ROOT>\\ExampleAzureRepo" {
+	if deliveries[0].WorkspacePath != "D:\\Repos\\ConveniosWebVSAzure_Default" {
 		t.Fatalf("expected channel linked repo to win, got %q", deliveries[0].WorkspacePath)
 	}
 }
@@ -346,7 +346,7 @@ func TestBuildDeliveriesLockedKeepsPipelineBucketsScopedPerChannel(t *testing.T)
 		},
 		{
 			ID:         "task-2",
-			Channel:    "ExampleWorkflow-web-legado",
+			Channel:    "convenios-web-legado",
 			Title:      "Legacy follow-up",
 			Owner:      "reviewer",
 			Status:     "in_progress",
@@ -377,11 +377,11 @@ func TestBuildDeliveriesLockedKeepsPipelineBucketsScopedPerChannel(t *testing.T)
 		t.Fatalf("expected only task-1 in general delivery, got %#v", generalDelivery.TaskIDs)
 	}
 
-	legacyDelivery, ok := byID["delivery-channel-ExampleWorkflow-web-legado-pipeline-follow_up"]
+	legacyDelivery, ok := byID["delivery-channel-convenios-web-legado-pipeline-follow_up"]
 	if !ok {
 		t.Fatalf("expected legacy channel delivery bucket, got %#v", deliveries)
 	}
-	if legacyDelivery.Channel != "ExampleWorkflow-web-legado" {
+	if legacyDelivery.Channel != "convenios-web-legado" {
 		t.Fatalf("expected legacy delivery channel, got %#v", legacyDelivery)
 	}
 	if len(legacyDelivery.TaskIDs) != 1 || legacyDelivery.TaskIDs[0] != "task-2" {
@@ -399,15 +399,15 @@ func TestBuildOperatorTasksLockedLinksHumanRequestToSemanticallyMatchedTask(t *t
 	b.appendMessageLocked(channelMessage{
 		ID:        "msg-1",
 		From:      "you",
-		Channel:   "ExampleWorkflow-web-azure",
+		Channel:   "convenios-web-azure",
 		Content:   "@ceo Realize uma revisão abrangente do código da base. Produza um relatório .md priorizado.",
 		Timestamp: "2026-04-24T01:58:07Z",
 	})
 
 	b.tasks = []teamTask{{
 		ID:        "task-1",
-		Channel:   "ExampleWorkflow-web-azure",
-		Title:     "Revisao tecnica abrangente da base ExampleAzureRepo",
+		Channel:   "convenios-web-azure",
+		Title:     "Revisao tecnica abrangente da base ConveniosWebVSAzure",
 		Details:   "Produzir relatorio .md priorizado com achados P0-P3.",
 		Owner:     "reviewer",
 		Status:    "in_progress",
@@ -418,7 +418,7 @@ func TestBuildOperatorTasksLockedLinksHumanRequestToSemanticallyMatchedTask(t *t
 	b.requests = []humanInterview{{
 		ID:        "request-1",
 		From:      "ceo",
-		Channel:   "ExampleWorkflow-web-azure",
+		Channel:   "convenios-web-azure",
 		Status:    "pending",
 		Question:  "Qual task cobre este pedido?",
 		ReplyTo:   "msg-1",
@@ -426,7 +426,7 @@ func TestBuildOperatorTasksLockedLinksHumanRequestToSemanticallyMatchedTask(t *t
 		UpdatedAt: "2026-04-24T01:58:29Z",
 	}}
 
-	tasks := b.buildOperatorTasksLocked("ExampleWorkflow-web-azure", false, true, "", "human")
+	tasks := b.buildOperatorTasksLocked("convenios-web-azure", false, true, "", "human")
 
 	var humanTask *teamTask
 	for i := range tasks {
@@ -450,7 +450,7 @@ func TestBuildOperatorTasksLockedPrefersExplicitWorkspaceMatch(t *testing.T) {
 	isolateBrokerPersistenceEnv(t)
 
 	workspaceRoot := t.TempDir()
-	targetRepo := filepath.Join(workspaceRoot, "ExampleAzureRepo")
+	targetRepo := filepath.Join(workspaceRoot, "ConveniosWebVSAzure_Default")
 	initUsableGitWorktree(t, targetRepo)
 
 	b := NewBroker()
@@ -460,7 +460,7 @@ func TestBuildOperatorTasksLockedPrefersExplicitWorkspaceMatch(t *testing.T) {
 	b.appendMessageLocked(channelMessage{
 		ID:        "msg-1",
 		From:      "you",
-		Channel:   "ExampleWorkflow-web-azure",
+		Channel:   "convenios-web-azure",
 		Content:   "@ceo Realize uma revisão abrangente da base. Faça isso limitado ao repositório " + targetRepo,
 		Timestamp: "2026-04-24T01:58:07Z",
 	})
@@ -468,7 +468,7 @@ func TestBuildOperatorTasksLockedPrefersExplicitWorkspaceMatch(t *testing.T) {
 	b.tasks = []teamTask{
 		{
 			ID:        "task-1",
-			Channel:   "ExampleWorkflow-web-azure",
+			Channel:   "convenios-web-azure",
 			Title:     "Revisao tecnica abrangente da base DunderIA",
 			Details:   "Produzir relatorio .md priorizado.",
 			Owner:     "reviewer",
@@ -479,8 +479,8 @@ func TestBuildOperatorTasksLockedPrefersExplicitWorkspaceMatch(t *testing.T) {
 		},
 		{
 			ID:            "task-2",
-			Channel:       "ExampleWorkflow-web-azure",
-			Title:         "Revisao tecnica abrangente da base ExampleAzureRepo",
+			Channel:       "convenios-web-azure",
+			Title:         "Revisao tecnica abrangente da base ConveniosWebVSAzure_Default",
 			Details:       "Produzir relatorio .md priorizado.",
 			Owner:         "reviewer",
 			Status:        "in_progress",
@@ -494,7 +494,7 @@ func TestBuildOperatorTasksLockedPrefersExplicitWorkspaceMatch(t *testing.T) {
 	b.requests = []humanInterview{{
 		ID:        "request-1",
 		From:      "ceo",
-		Channel:   "ExampleWorkflow-web-azure",
+		Channel:   "convenios-web-azure",
 		Status:    "pending",
 		Question:  "Qual task cobre este pedido?",
 		ReplyTo:   "msg-1",
@@ -502,7 +502,7 @@ func TestBuildOperatorTasksLockedPrefersExplicitWorkspaceMatch(t *testing.T) {
 		UpdatedAt: "2026-04-24T01:58:29Z",
 	}}
 
-	tasks := b.buildOperatorTasksLocked("ExampleWorkflow-web-azure", false, true, "", "human")
+	tasks := b.buildOperatorTasksLocked("convenios-web-azure", false, true, "", "human")
 
 	var humanTask *teamTask
 	for i := range tasks {

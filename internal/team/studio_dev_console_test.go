@@ -46,6 +46,16 @@ func TestHandleStudioDevConsoleReturnsSnapshot(t *testing.T) {
 	if resp.ActiveContext.Focus == "" || resp.ActiveContext.PrimaryChannel == "" || len(resp.ActiveContext.Channels) == 0 || len(resp.ActiveContext.Flows) == 0 || len(resp.ActiveContext.Workspaces) == 0 {
 		t.Fatalf("expected active context to be populated, got %+v", resp.ActiveContext)
 	}
+	var taskOne studioTaskSnapshot
+	for _, task := range resp.ActiveContext.Tasks {
+		if task.ID == "task-1" {
+			taskOne = task
+			break
+		}
+	}
+	if taskOne.ID == "" || taskOne.LivenessState != "plan_only" || taskOne.LivenessReason == "" {
+		t.Fatalf("expected task liveness in studio snapshot, got %+v", taskOne)
+	}
 
 	gotBlockers := map[string]bool{}
 	for _, blocker := range resp.Blockers {
@@ -378,6 +388,77 @@ func TestStudioChannelSnapshotsIgnoreTerminalTaskBlockersForAttention(t *testing
 	}
 }
 
+func TestStudioActiveContextFiltersResolvedRequests(t *testing.T) {
+	state := studioDevConsoleState{
+		Requests: []humanInterview{
+			{
+				ID:       "request-answered",
+				Status:   "answered",
+				From:     "builder",
+				Channel:  "general",
+				Title:    "Already handled",
+				Question: "Still pending?",
+				Blocking: true,
+				Required: true,
+			},
+			{
+				ID:       "request-open",
+				Status:   "pending",
+				From:     "builder",
+				Channel:  "general",
+				Title:    "Needs direction",
+				Question: "Which path?",
+				Blocking: true,
+				Required: true,
+			},
+		},
+	}
+
+	snapshots := studioRequestSnapshotsFromRequests(state.Requests)
+	if len(snapshots) != 1 || snapshots[0].ID != "request-open" {
+		t.Fatalf("expected only active requests in studio context, got %+v", snapshots)
+	}
+
+	blockers := buildStudioBlockersFromState(state)
+	for _, blocker := range blockers {
+		if blocker.ID == "request:request-answered" {
+			t.Fatalf("answered request should not create studio blocker: %+v", blocker)
+		}
+	}
+}
+
+func TestStudioOwnerNotInChannelIgnoresWatchdogOwner(t *testing.T) {
+	state := studioDevConsoleState{
+		Channels: []teamChannel{
+			{Slug: "general", Name: "General", Members: []string{"ceo", "builder"}},
+		},
+		Tasks: []teamTask{
+			{
+				ID:      "task-watchdog",
+				Channel: "general",
+				Title:   "Validate unanswered CEO follow-up",
+				Owner:   "watchdog",
+				Status:  "open",
+			},
+			{
+				ID:      "task-missing-owner",
+				Channel: "general",
+				Title:   "Real owner mismatch",
+				Owner:   "reviewer",
+				Status:  "open",
+			},
+		},
+	}
+
+	blockers := buildStudioBlockersFromState(state)
+	if findStudioBlockerByTaskAndKind(blockers, "task-watchdog", "owner_not_in_channel") != nil {
+		t.Fatalf("watchdog owner should not create owner_not_in_channel blocker: %+v", blockers)
+	}
+	if findStudioBlockerByTaskAndKind(blockers, "task-missing-owner", "owner_not_in_channel") == nil {
+		t.Fatalf("real missing owner should still create owner_not_in_channel blocker: %+v", blockers)
+	}
+}
+
 func TestHandleStudioDevConsoleActionRetriesTask(t *testing.T) {
 	restore := useStudioDevConsoleStatePath(t)
 	defer restore()
@@ -654,7 +735,7 @@ func newStudioDevConsoleFixture(t *testing.T) (*Broker, time.Time) {
 			Owner:         "qa",
 			Status:        "in_progress",
 			ExecutionMode: "local_worktree",
-			WorkspacePath: "<DUNDERIA_REPO>",
+			WorkspacePath: "D:\\Repos\\dunderia",
 			CreatedAt:     now.Add(-11 * time.Minute).Format(time.RFC3339),
 			UpdatedAt:     now.Add(-7 * time.Minute).Format(time.RFC3339),
 		},
@@ -679,6 +760,16 @@ func newStudioDevConsoleFixture(t *testing.T) (*Broker, time.Time) {
 	b.actions = []officeActionLog{
 		{ID: "action-1", Kind: "task_updated", Source: "office", Channel: "general", Actor: "builder", Summary: "Slice backend [blocked]", RelatedID: "task-1", CreatedAt: now.Add(-11 * time.Minute).Format(time.RFC3339)},
 	}
+	b.activity = map[string]agentActivitySnapshot{
+		agentLaneKey("general", "builder"): {
+			Slug:           "builder",
+			Channel:        "general",
+			LivenessState:  "plan_only",
+			LivenessReason: "agent only described future work without durable task progress",
+			LivenessTaskID: "task-1",
+			LivenessAt:     now.Add(-9 * time.Minute).Format(time.RFC3339),
+		},
+	}
 	b.mu.Unlock()
 	return b, now
 }
@@ -694,6 +785,15 @@ func studioActionDefinitionsByName(defs []studioActionDefinition) map[string]stu
 func findStudioBlockerByKind(blockers []studioBlocker, kind string) *studioBlocker {
 	for i := range blockers {
 		if blockers[i].Kind == kind {
+			return &blockers[i]
+		}
+	}
+	return nil
+}
+
+func findStudioBlockerByTaskAndKind(blockers []studioBlocker, taskID, kind string) *studioBlocker {
+	for i := range blockers {
+		if blockers[i].TaskID == taskID && blockers[i].Kind == kind {
 			return &blockers[i]
 		}
 	}

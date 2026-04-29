@@ -61,7 +61,7 @@ var awaitingHumanInputPhrases = []string{
 var taskLaneStopWords = map[string]struct{}{
 	"ajustar": {}, "api": {}, "backend": {}, "builder": {}, "canal": {}, "cidades": {},
 	"com": {}, "compatibilidade": {}, "compatível": {}, "controller": {}, "controllers": {},
-	"LegacySystem": {}, "criar": {}, "corte": {}, "coverage": {}, "cobertura": {},
+	"convenioswebbnb": {}, "criar": {}, "corte": {}, "coverage": {}, "cobertura": {},
 	"detalhes": {}, "endpoint": {}, "externo": {}, "feature": {}, "filtro": {},
 	"general": {}, "implementacao": {}, "implementar": {}, "lane": {},
 	"legado": {}, "local_worktree": {}, "mapper": {}, "novo": {}, "office": {},
@@ -73,7 +73,7 @@ var taskLaneStopWords = map[string]struct{}{
 var coordinationGuidanceKeywords = []string{
 	"gate", "review", "revis", "criter", "diff", "workspace", "worktree",
 	"blocked", "bloque", "destrav", "semant", "compat", "arquivo",
-	"storagecompat", "datalength", "ExampleBankinterno",
+	"storagecompat", "datalength", "bnbinterno",
 }
 
 var coordinationGuidanceStopWords = map[string]struct{}{

@@ -130,7 +130,7 @@ func TestAwaitingHumanInputFreezesThreadUntilHumanReplies(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	humanReply, err := b.PostMessage("you", "general", "Repo em <DUNDERIA_REPO>, arquivo internal/team/broker.go.", nil, root.ID)
+	humanReply, err := b.PostMessage("you", "general", "Repo em D:\\Repos\\dunderia, arquivo internal/team/broker.go.", nil, root.ID)
 	if err != nil {
 		t.Fatalf("post human reply: %v", err)
 	}

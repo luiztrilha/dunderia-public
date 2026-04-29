@@ -104,14 +104,9 @@ export function StudioOfficeSnapshot({
           <div style={{ fontSize: 16, fontWeight: 700 }}>{t('apps.studio.officeTitle')}</div>
           <div className="app-card-meta">{t('apps.studio.officeSummary')}</div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn btn-secondary btn-sm" onClick={onRefresh} disabled={refreshing}>
-            {refreshing ? t('apps.studio.refreshing') : t('apps.studio.refresh')}
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={onGenerate} disabled={generating}>
-            {generating ? t('apps.studio.generating') : t('apps.studio.generate')}
-          </button>
-        </div>
+        <button className="btn btn-secondary btn-sm" onClick={onRefresh} disabled={refreshing}>
+          {refreshing ? t('apps.studio.refreshing') : t('apps.studio.refresh')}
+        </button>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -216,48 +211,60 @@ export function StudioOfficeSnapshot({
             </div>
           </div>
         </SnapshotCard>
+      </div>
 
-        <SnapshotCard title={t('apps.studio.packageTools')} tone={statusColor(packageData?.status ?? 'warning')}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>
-                {packageLabel}
-              </div>
+      <details className="studio-advanced-tools">
+        <summary className="studio-advanced-summary">
+          <span>{t('apps.studio.advancedTools')}</span>
+          <span>{packageLabel}</span>
+        </summary>
+        <div className="studio-advanced-body">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+            <FactLabel>{t('apps.studio.packageTools')}</FactLabel>
+            <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{packageLabel}</div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               {packageData?.description || t('apps.studio.workflowEmptyState')}
             </div>
+          </div>
+          <div className="studio-advanced-actions">
+            <button className="btn btn-secondary btn-sm" onClick={onGenerate} disabled={generating}>
+              {generating ? t('apps.studio.generating') : t('apps.studio.generate')}
+            </button>
             {workflows.length > 0 ? (
-              <>
-                <FactLabel>{t('apps.studio.workflowLabel')}</FactLabel>
-                <select
-                  value={selectedWorkflowKey}
-                  onChange={(event) => onWorkflowChange(event.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '9px 12px',
-                    borderRadius: 12,
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg)',
-                    color: 'var(--text-primary)',
-                    fontSize: 12,
-                  }}
-                >
-                  {workflows.map((workflow) => (
-                    <option key={workflow.key} value={workflow.key}>
-                      {workflow.label}
-                      {workflow.status ? ` · ${workflow.status}` : ''}
-                    </option>
-                  ))}
-                </select>
+              <div className="studio-advanced-workflow">
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                  <FactLabel>{t('apps.studio.workflowLabel')}</FactLabel>
+                  <select
+                    value={selectedWorkflowKey}
+                    onChange={(event) => onWorkflowChange(event.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: 8,
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg)',
+                      color: 'var(--text-primary)',
+                      fontSize: 12,
+                    }}
+                  >
+                    {workflows.map((workflow) => (
+                      <option key={workflow.key} value={workflow.key}>
+                        {workflow.label}
+                        {workflow.status ? ` · ${workflow.status}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <button className="btn btn-secondary btn-sm" onClick={onRun} disabled={running}>
                   {running ? t('apps.studio.running') : t('apps.studio.run')}
                 </button>
-              </>
+              </div>
             ) : (
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{t('apps.studio.noWorkflow')}</div>
             )}
           </div>
-        </SnapshotCard>
-      </div>
+        </div>
+      </details>
     </section>
   )
 }
@@ -285,9 +292,7 @@ function SnapshotCard({
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 700 }}>{title}</div>
-        <span style={{ padding: '4px 8px', borderRadius: 999, background: tone.bg, color: tone.fg, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          {title}
-        </span>
+        <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 999, background: tone.fg, boxShadow: `0 0 0 4px ${tone.bg}` }} />
       </div>
       {children}
     </div>

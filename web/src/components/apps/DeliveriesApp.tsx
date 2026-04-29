@@ -20,7 +20,7 @@ type DeliverySection = {
   orderedDeliveries: Delivery[]
 }
 
-const repositoryFamilyPattern = /^(legacyweb|legacyticketweb|publicportalweb|sharedsystemswebforms|integrationapi|dunderia|superpowers|relatorios|memory|scripts|codex-lb|vibeyard)/i
+const repositoryFamilyPattern = /^(conveniosweb|chamadoweb|transparenciaweb|sistemascompartilhadoswebforms|tectrilhaapi|dunderia|superpowers|relatorios|memory|scripts|codex-lb|vibeyard)/i
 
 function normalizeStatus(status?: string): string {
   return (status || 'in_progress').replace(/_/g, ' ')
@@ -64,11 +64,11 @@ function repositoryPriority(label?: string): number {
   const token = normalizeRepositoryToken(label || '')
   if (!token) return 0
   if (
-    token.startsWith('legacyweb')
-    || token.startsWith('legacyticketweb')
-    || token.startsWith('publicportalweb')
-    || token.startsWith('sharedsystemswebforms')
-    || token.startsWith('integrationapi')
+    token.startsWith('conveniosweb')
+    || token.startsWith('chamadoweb')
+    || token.startsWith('transparenciaweb')
+    || token.startsWith('sistemascompartilhadoswebforms')
+    || token.startsWith('tectrilhaapi')
   ) {
     return 300
   }
@@ -97,8 +97,8 @@ function repositoryFromRepoSegments(segments: string[], drivePrefix: string): { 
     'api',
     'backend',
     'bin',
-    'examplebank',
-    'examplebankinterno',
+    'bnb',
+    'bnbinterno',
     'build',
     'debug',
     'dist',

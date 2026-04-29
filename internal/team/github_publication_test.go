@@ -174,7 +174,7 @@ func TestPublishTaskIssueDefersPublicRepoWhenRedactionRiskDetected(t *testing.T)
 	task, reused, err := b.EnsurePlannedTask(plannedTaskInput{
 		Channel:       "general",
 		Title:         "Protect public repo publication",
-		Details:       "Internal path <DUNDERIA_REPO>\\secret.txt should never leave the office.",
+		Details:       "Internal path D:\\Repos\\dunderia\\secret.txt should never leave the office.",
 		Owner:         "builder",
 		CreatedBy:     "ceo",
 		TaskType:      "feature",

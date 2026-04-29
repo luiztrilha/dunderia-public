@@ -1,89 +1,80 @@
 # Local Runtime Profile
 
-DunderIA treats a working agent setup as a local runtime profile: the reusable
-parts of a machine that make agents behave consistently without turning a
-private computer into a public artifact.
+DunderIA uses two different profile shapes. Keep them separate.
 
-The profile has three layers:
+## Active Runtime
 
-- `skills`: executable agent capabilities, each with its own `SKILL.md` and
-  supporting references or scripts.
-- `orientation`: Markdown guidance for agents, commands, prompts, READMEs and
-  operating notes that shape behavior but are not themselves installable skills.
-- `config`: restorable settings, shell profiles, lock files and sanitized tool
-  configuration.
+The active private runtime lives outside this repo:
 
-This split keeps publication and backup decisions simple. Skills can be shared
-when their content is reusable. Orientation can be reviewed as documentation.
-Config must be sanitized before it is published.
+- Codex config and skills: `C:\Users\l.sousa\.codex`
+- Shared agent skills: `C:\Users\l.sousa\.agents`
+- Workspace rules and memory: `D:\Repos`
+
+This is the source of truth for the local machine. Do not infer active behavior from an exported template without checking the active paths above.
 
 ## Public Starter Kit
 
-The public starter profile lives in:
+The reusable public baseline lives in:
 
-```text
-templates/starter-kit/
-```
+- `templates/starter-kit/`
 
-It contains a sanitized Codex/agent profile, validated skills, prompts, rules
-and an installer script. It is meant to help a new DunderIA workspace start with
-a useful baseline while still forcing local credentials and private state to be
-created on the new machine.
+Use this when a fresh DunderIA install should receive validated public defaults:
 
-The broker also seeds this public baseline into fresh offices: active operating
-policies plus visible shortcuts for every packaged Codex, Superpowers, and
-`.agents` skill. The shortcut records point back to the starter-kit `SKILL.md`
-files so the full validated workflow remains file-based and reviewable.
+- Codex skills
+- Superpowers skills
+- `.agents` design skills
+- OpenSpec prompts
+- sanitized rules and config shape
+- public base office bootstrap
 
-## Private Backup Shape
+The broker may point to `templates/starter-kit/...` skill paths to make packaged skills visible in a fresh office.
 
-For personal backup, keep a private snapshot with this shape:
+## Local Runtime Profile Template
 
-```text
-local-runtime/
-  config/
-  orientation/
-  skills/
-```
+The broad reference snapshot lives in the public export repo:
 
-The private snapshot can include machine-specific preferences and local
-orientation, but it should still exclude volatile or secret-bearing files.
+- `D:\Repos\dunderia-public-export\templates\local-runtime-profile`
+- `D:\Repositórios\dunderia-public-export\templates\local-runtime-profile`
 
-## Never Publish
+Treat it as reference-only material. It is useful for comparing what existed in a private runtime snapshot, but it should not be installed wholesale into this repo or into a live Codex profile.
 
-Do not publish:
+It includes extra material that the active Codex setup may not consume directly, including Claude plugin docs, Opencode skills, broad orientation docs and sanitized config examples.
 
-- auth files, OAuth credentials, API keys, session files or tokens
-- database files, logs, shell history, model caches or local telemetry
-- private repository paths, customer names, channel history or task receipts
-- live office state such as `company.json`, `broker-state.json` or direct
-  message history
-- encrypted vault passphrases or files that explain how to decrypt a private
-  recovery bundle
+## Promotion Rules
 
-## Safe Publication Checklist
+Promote from `local-runtime-profile` only when all are true:
 
-Before making a runtime profile public:
+- the content is reusable outside the private machine
+- it does not contain secrets, live state, history, customer context or private paths
+- it fits an active consumer: Codex, DunderIA starter-kit, `.agents`, docs or prompts
+- it has a clear canonical destination
+
+Preferred destinations:
+
+- reusable Codex behavior: `C:\Users\l.sousa\.codex\AGENTS.md`
+- reusable DunderIA repo behavior: this repo under `docs/` or `AGENTS.md`
+- public bootstrap assets: `templates/starter-kit/`
+- public explanation: `docs/`
+- private daily/context memory: `D:\Repos\memory\YYYY-MM-DD.md`
+
+Do not promote:
+
+- `MEMORY.md` snapshots
+- `history.jsonl`, sessions, logs, sqlite databases or browser state
+- `company.json`, `broker-state.json`, request journals or DM history
+- raw `config.toml`, approval rules with private paths, tokens or credentials
+- private database skills such as repo-local SQL helpers
+
+## Drift Check
+
+Use this when deciding whether the exported profile has anything worth promoting:
 
 ```powershell
-rg -n "api_key|token|secret|password|credential|Authorization|Bearer|BEGIN .*PRIVATE|client_secret|refresh_token" .
-rg -n "C:\\\\Users|D:\\\\|auth\\.json|company\\.json|broker-state|application_default_credentials" .
-git status --short
+$profile = 'D:\Repos\dunderia-public-export\templates\local-runtime-profile'
+Get-ChildItem -Directory "$profile\skills\codex" | Select-Object -ExpandProperty Name
+Get-ChildItem -Directory "$HOME\.codex\skills" | Select-Object -ExpandProperty Name
+Get-ChildItem -Directory "$profile\skills\agents" | Select-Object -ExpandProperty Name
+Get-ChildItem -Directory "$HOME\.agents\skills" | Select-Object -ExpandProperty Name
 ```
 
-Every match should be reviewed manually. Some matches are expected in docs that
-describe exclusions, but no match should reveal a real credential, private path
-or live state.
-
-## Restore Rule
-
-Restore public profile files selectively. A public profile should bootstrap a
-workspace, not overwrite a user's existing runtime blindly.
-
-Recommended order:
-
-1. Install DunderIA.
-2. Run `wuphf init`.
-3. Review `templates/starter-kit/EXCLUSIONS.md`.
-4. Install the starter kit with `templates/starter-kit/install-profile.ps1`.
-5. Add credentials locally through the target tool's normal login flow.
+Compare only names and intended consumers first. Review file content manually before copying.

@@ -993,16 +993,20 @@ type officeActionLog struct {
 }
 
 type agentActivitySnapshot struct {
-	Slug         string `json:"slug"`
-	Channel      string `json:"channel,omitempty"`
-	Status       string `json:"status,omitempty"`
-	Activity     string `json:"activity,omitempty"`
-	Detail       string `json:"detail,omitempty"`
-	LastTime     string `json:"lastTime,omitempty"`
-	TotalMs      int64  `json:"totalMs,omitempty"`
-	FirstEventMs int64  `json:"firstEventMs,omitempty"`
-	FirstTextMs  int64  `json:"firstTextMs,omitempty"`
-	FirstToolMs  int64  `json:"firstToolMs,omitempty"`
+	Slug           string `json:"slug"`
+	Channel        string `json:"channel,omitempty"`
+	Status         string `json:"status,omitempty"`
+	Activity       string `json:"activity,omitempty"`
+	Detail         string `json:"detail,omitempty"`
+	LastTime       string `json:"lastTime,omitempty"`
+	TotalMs        int64  `json:"totalMs,omitempty"`
+	FirstEventMs   int64  `json:"firstEventMs,omitempty"`
+	FirstTextMs    int64  `json:"firstTextMs,omitempty"`
+	FirstToolMs    int64  `json:"firstToolMs,omitempty"`
+	LivenessState  string `json:"liveness_state,omitempty"`
+	LivenessReason string `json:"liveness_reason,omitempty"`
+	LivenessTaskID string `json:"liveness_task_id,omitempty"`
+	LivenessAt     string `json:"liveness_at,omitempty"`
 }
 
 type officeSignalRecord struct {
@@ -1771,13 +1775,6 @@ func NewBroker() *Broker {
 	if startupGuardTriggered {
 		if err := b.saveLocked(); err != nil {
 			log.Printf("broker: persist startup reconcile guard: %v", err)
-		}
-	}
-	policiesChanged := b.ensureDefaultPoliciesLocked()
-	skillsChanged := b.ensureDefaultSkillsLocked()
-	if policiesChanged || skillsChanged {
-		if err := b.saveLocked(); err != nil {
-			log.Printf("broker: persist public profile defaults: %v", err)
 		}
 	}
 	b.mu.Unlock()
@@ -2689,6 +2686,18 @@ func (b *Broker) UpdateAgentActivity(update agentActivitySnapshot) {
 	if update.FirstToolMs >= 0 {
 		current.FirstToolMs = update.FirstToolMs
 	}
+	if update.LivenessState != "" {
+		current.LivenessState = update.LivenessState
+	}
+	if update.LivenessReason != "" {
+		current.LivenessReason = update.LivenessReason
+	}
+	if update.LivenessTaskID != "" {
+		current.LivenessTaskID = update.LivenessTaskID
+	}
+	if update.LivenessAt != "" {
+		current.LivenessAt = update.LivenessAt
+	}
 	b.activity[key] = current
 	b.publishActivityLocked(current)
 	b.mu.Unlock()
@@ -3208,15 +3217,13 @@ func (b *Broker) ServeWebUI(port int) {
 
 	// Resolution order for the web UI assets:
 	//   1. filesystem web/dist/ (local dev after `npm run build`)
-	//   2. filesystem web/ with index.legacy.html fallback (source checkout w/o React build)
-	//   3. embedded FS (single-binary installs via curl | bash)
+	//   2. embedded FS (single-binary installs via curl | bash)
 	exePath, _ := os.Executable()
 	webDir := filepath.Join(filepath.Dir(exePath), "web")
 	if _, err := os.Stat(webDir); os.IsNotExist(err) {
 		webDir = "web"
 	}
 	var fileServer http.Handler
-	serveLegacyFallback := false
 	distDir := filepath.Join(webDir, "dist")
 	distIndex := filepath.Join(distDir, "index.html")
 	if _, err := os.Stat(distIndex); err == nil {
@@ -3225,13 +3232,12 @@ func (b *Broker) ServeWebUI(port int) {
 	} else if embeddedFS, ok := wuphf.WebFS(); ok {
 		// No on-disk build; use embedded assets.
 		fileServer = http.FileServer(http.FS(embeddedFS))
-	} else if _, err := os.Stat(filepath.Join(webDir, "index.legacy.html")); err == nil {
-		// Source checkout without a React build — fall back to the legacy UI.
-		fileServer = http.FileServer(http.Dir(webDir))
-		serveLegacyFallback = true
 	} else {
-		// Nothing available; serve webDir as-is so 404s come from the actual FS.
-		fileServer = http.FileServer(http.Dir(webDir))
+		// Nothing available; fail loudly instead of serving the source
+		// web/index.html skeleton as a pretend UI.
+		fileServer = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "web UI build missing; run npm --prefix web run build", http.StatusServiceUnavailable)
+		})
 	}
 	mux := http.NewServeMux()
 	brokerURL := brokeraddr.ResolveBaseURL()
@@ -3250,18 +3256,7 @@ func (b *Broker) ServeWebUI(port int) {
 			"broker_url": brokerURL,
 		})
 	})
-	if serveLegacyFallback {
-		// Rewrite bare / and /index.html to /index.legacy.html so the legacy
-		// vanilla-JS UI loads when the React build output is not present.
-		mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/" || r.URL.Path == "/index.html" {
-				r.URL.Path = "/index.legacy.html"
-			}
-			fileServer.ServeHTTP(w, r)
-		}))
-	} else {
-		mux.Handle("/", fileServer)
-	}
+	mux.Handle("/", fileServer)
 	go func() {
 		if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), mux); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("broker web UI proxy: listen on :%d: %v", port, err)
@@ -3856,8 +3851,6 @@ func (b *Broker) Reset() {
 	b.usage = teamUsageState{Agents: make(map[string]usageTotals)}
 	b.ensureDefaultOfficeMembersLocked()
 	b.ensureDefaultChannelsLocked()
-	b.ensureDefaultPoliciesLocked()
-	b.ensureDefaultSkillsLocked()
 	b.normalizeLoadedStateLocked()
 	b.rebuildTaskIndexesLocked()
 	// Restore session preferences after normalization: Reset() clears content but
@@ -4140,8 +4133,6 @@ func (b *Broker) applyLoadedStateLocked(state brokerState) error {
 	}
 	b.ensureDefaultChannelsLocked()
 	b.ensureDefaultOfficeMembersLocked()
-	b.ensureDefaultPoliciesLocked()
-	b.ensureDefaultSkillsLocked()
 	b.normalizeLoadedStateLocked()
 	b.rebuildTaskIndexesLocked()
 	return nil
@@ -4737,7 +4728,7 @@ func defaultTeamChannels() []teamChannel {
 	if !ok {
 		manifest = company.DefaultManifest()
 	}
-	channels := make([]teamChannel, 0, len(manifest.Channels)+len(manifest.Members))
+	channels := make([]teamChannel, 0, len(manifest.Channels))
 	for _, channel := range manifest.Channels {
 		tc := teamChannel{
 			Slug:        channel.Slug,
@@ -4760,55 +4751,6 @@ func defaultTeamChannels() []teamChannel {
 			}
 		}
 		channels = append(channels, tc)
-	}
-	channels = append(channels, defaultDirectMessageChannels(manifest.Members, now)...)
-	return channels
-}
-
-func defaultDirectMessageChannels(members []company.MemberSpec, now string) []teamChannel {
-	preferred := []string{"estagiario", "builder", "backend", "frontend", "reviewer", "game-master", "ceo", "pm"}
-	bySlug := make(map[string]company.MemberSpec, len(members))
-	for _, member := range members {
-		slug := normalizeChannelSlug(member.Slug)
-		if slug == "" || slug == "human" {
-			continue
-		}
-		member.Slug = slug
-		bySlug[slug] = member
-	}
-
-	ordered := make([]string, 0, len(bySlug))
-	seen := make(map[string]struct{}, len(bySlug))
-	for _, slug := range preferred {
-		if _, ok := bySlug[slug]; !ok {
-			continue
-		}
-		ordered = append(ordered, slug)
-		seen[slug] = struct{}{}
-	}
-	remaining := make([]string, 0, len(bySlug))
-	for slug := range bySlug {
-		if _, ok := seen[slug]; ok {
-			continue
-		}
-		remaining = append(remaining, slug)
-	}
-	sort.Strings(remaining)
-	ordered = append(ordered, remaining...)
-
-	channels := make([]teamChannel, 0, len(ordered))
-	for _, slug := range ordered {
-		dmSlug := channel.DirectSlug("human", slug)
-		channels = append(channels, teamChannel{
-			Slug:        dmSlug,
-			Name:        dmSlug,
-			Type:        "dm",
-			Description: "Direct messages with " + slug,
-			Members:     []string{"human", slug},
-			CreatedBy:   "wuphf",
-			CreatedAt:   now,
-			UpdatedAt:   now,
-		})
 	}
 	return channels
 }
@@ -4991,199 +4933,6 @@ func (b *Broker) ensureDefaultOfficeMembersLocked() {
 			b.members = append(b.members, member)
 		}
 	}
-}
-
-const defaultPublicProfileCreatedAt = "2026-04-27T00:00:00Z"
-
-type defaultOfficePolicySpec struct {
-	ID     string
-	Source string
-	Rule   string
-}
-
-type defaultTeamSkillSpec struct {
-	Name        string
-	Title       string
-	Description string
-	Path        string
-	Tags        []string
-}
-
-func defaultOfficePolicySpecs() []defaultOfficePolicySpec {
-	return []defaultOfficePolicySpec{
-		{ID: "policy-default-distill-no-auto", Source: "validated_profile", Rule: "Do not call distill automatically."},
-		{ID: "policy-default-distill-explicit-only", Source: "validated_profile", Rule: "Only use distill when the user explicitly asks for it."},
-		{ID: "policy-default-distill-strict-contract", Source: "validated_profile", Rule: "When distill is used, the prompt must be explicit and should request a strict output contract."},
-		{ID: "policy-default-distill-raw-fallback", Source: "validated_profile", Rule: "If distill is unavailable, use raw command output as the fallback."},
-		{ID: "policy-default-skills-natural-match", Source: "validated_profile", Rule: "Prefer local skills when the task naturally matches them."},
-		{ID: "policy-default-skills-aids", Source: "validated_profile", Rule: "Keep skills as aids, not ceremony."},
-		{ID: "policy-default-skills-skip-trivial", Source: "validated_profile", Rule: "Skip skill overhead for trivial requests."},
-		{ID: "policy-default-verification-before-close", Source: "validated_profile", Rule: "Use verification-before-close before claiming work is complete."},
-		{ID: "policy-default-code-review-findings", Source: "validated_profile", Rule: "Use code-review-findings when the user asks for a review or audit."},
-		{ID: "policy-default-systematic-debugging", Source: "validated_profile", Rule: "Use systematic-debugging-lite for bugs and failing tests when the root cause is not proven."},
-		{ID: "policy-default-implementation-planning", Source: "validated_profile", Rule: "Use implementation-planning-lite for larger, ambiguous, or multi-file tasks."},
-		{ID: "policy-default-no-secrets", Source: "validated_profile", Rule: "Do not publish auth files, tokens, cloud credentials, ADC files, private keys, .env files, local session logs, sqlite state, or command history."},
-		{ID: "policy-default-no-live-office-state", Source: "validated_profile", Rule: "Do not publish live office state: company.json, broker-state.json, onboarding state, channel history, saved workflows, task receipts, or cloud backup bootstrap state."},
-		{ID: "policy-default-no-private-context", Source: "validated_profile", Rule: "Do not publish private customer or employer context."},
-		{ID: "policy-default-generic-skills", Source: "validated_profile", Rule: "Keep public skills generic unless a domain-specific skill has been explicitly sanitized."},
-		{ID: "policy-default-protect-topology", Source: "validated_profile", Rule: "Do not create, delete, rename, reorder, reassign, or reconfigure agents or channels without explicit user authorization in the current conversation."},
-		{ID: "policy-default-topology-indirect", Source: "validated_profile", Rule: "Treat topology changes as protected even when they happen indirectly through config files, onboarding, reset flows, blueprints, broker restores, or web actions."},
-		{ID: "policy-default-topology-ask", Source: "validated_profile", Rule: "If authorization is absent, stop and ask before changing topology."},
-		{ID: "policy-default-repo-patterns", Source: "validated_profile", Rule: "Prefer repo-local patterns over new abstractions."},
-		{ID: "policy-default-scoped-edits", Source: "validated_profile", Rule: "Keep edits scoped to the task."},
-		{ID: "policy-default-dirty-worktree", Source: "validated_profile", Rule: "Do not revert unrelated dirty worktree changes."},
-		{ID: "policy-default-windows-safe-paths", Source: "validated_profile", Rule: "Preserve Windows-safe tracked paths."},
-		{ID: "policy-default-meaningful-validation", Source: "validated_profile", Rule: "Validate with the smallest meaningful command or inspection before declaring success."},
-		{ID: "policy-default-local-reference-optional", Source: "validated_profile", Rule: "The active local profile can consult a local engineering reference mirror."},
-		{ID: "policy-default-local-reference-placeholder", Source: "validated_profile", Rule: "Public users should treat local engineering references as optional and replace <LOCAL_ENGINEERING_REFERENCES> with their own local reference path if they have one."},
-	}
-}
-
-func defaultTeamSkillSpecs() []defaultTeamSkillSpec {
-	return []defaultTeamSkillSpec{
-		{Name: "code-review-findings", Title: "Code Review Findings", Description: "Review code with findings first: bugs, regressions, risks, and missing tests.", Path: "templates/starter-kit/codex/skills/code-review-findings/SKILL.md", Tags: []string{"codex", "review", "quality"}},
-		{Name: "doc", Title: "DOCX Documents", Description: "Work with Word documents where layout, styles, fields, comments, or fidelity matter.", Path: "templates/starter-kit/codex/skills/doc/SKILL.md", Tags: []string{"codex", "documents"}},
-		{Name: "grill-me", Title: "Grill Me", Description: "Stress-test a plan or design through focused questioning until the decision tree is clear.", Path: "templates/starter-kit/codex/skills/grill-me/SKILL.md", Tags: []string{"codex", "planning"}},
-		{Name: "implementation-planning-lite", Title: "Implementation Planning Lite", Description: "Create a short file-aware plan for larger, ambiguous, or multi-file implementation work.", Path: "templates/starter-kit/codex/skills/implementation-planning-lite/SKILL.md", Tags: []string{"codex", "planning"}},
-		{Name: "pdf", Title: "PDF Documents", Description: "Read, create, or review PDFs with visual/layout verification when fidelity matters.", Path: "templates/starter-kit/codex/skills/pdf/SKILL.md", Tags: []string{"codex", "documents"}},
-		{Name: "playwright", Title: "Playwright Browser Automation", Description: "Automate a browser for navigation, UI checks, screenshots, data extraction, and flow debugging.", Path: "templates/starter-kit/codex/skills/playwright/SKILL.md", Tags: []string{"codex", "browser", "verification"}},
-		{Name: "playwright-interactive", Title: "Playwright Interactive", Description: "Use persistent browser or Electron interaction for iterative UI debugging.", Path: "templates/starter-kit/codex/skills/playwright-interactive/SKILL.md", Tags: []string{"codex", "browser", "debugging"}},
-		{Name: "pptx", Title: "PowerPoint Decks", Description: "Work with PowerPoint presentations, placeholders, notes, charts, templates, and visual QA.", Path: "templates/starter-kit/codex/skills/pptx/SKILL.md", Tags: []string{"codex", "documents"}},
-		{Name: "screenshot", Title: "System Screenshot", Description: "Capture desktop, app, window, or pixel-region screenshots when OS-level capture is needed.", Path: "templates/starter-kit/codex/skills/screenshot/SKILL.md", Tags: []string{"codex", "verification"}},
-		{Name: "security-best-practices", Title: "Security Best Practices", Description: "Review supported JavaScript, TypeScript, Python, or Go code for secure-by-default practices when explicitly requested.", Path: "templates/starter-kit/codex/skills/security-best-practices/SKILL.md", Tags: []string{"codex", "security"}},
-		{Name: "self-improvement-lite", Title: "Self Improvement Lite", Description: "Capture verified, reusable workflow facts into canonical memory or instruction files when appropriate.", Path: "templates/starter-kit/codex/skills/self-improvement-lite/SKILL.md", Tags: []string{"codex", "memory"}},
-		{Name: "skill-vetter", Title: "Skill Vetter", Description: "Vet third-party skills for security, permission scope, and suspicious patterns before installation.", Path: "templates/starter-kit/codex/skills/skill-vetter/SKILL.md", Tags: []string{"codex", "security", "skills"}},
-		{Name: "systematic-debugging-lite", Title: "Systematic Debugging Lite", Description: "Debug bugs, regressions, flaky behavior, and runtime errors by proving the root cause first.", Path: "templates/starter-kit/codex/skills/systematic-debugging-lite/SKILL.md", Tags: []string{"codex", "debugging"}},
-		{Name: "verification-before-close", Title: "Verification Before Close", Description: "Run final verification before claiming work is done, separating evidence from assumptions.", Path: "templates/starter-kit/codex/skills/verification-before-close/SKILL.md", Tags: []string{"codex", "verification", "quality"}},
-		{Name: "xlsx", Title: "Excel Workbooks", Description: "Work with spreadsheets where formulas, dates, formatting, recalculation, or template preservation matter.", Path: "templates/starter-kit/codex/skills/xlsx/SKILL.md", Tags: []string{"codex", "documents"}},
-
-		{Name: "superpowers:brainstorming", Title: "Superpowers Brainstorming", Description: "Explore intent, requirements, and design before creative implementation work.", Path: "templates/starter-kit/codex/superpowers/skills/brainstorming/SKILL.md", Tags: []string{"superpowers", "planning"}},
-		{Name: "superpowers:dispatching-parallel-agents", Title: "Dispatching Parallel Agents", Description: "Split independent work across parallel agents when the task has clear non-overlapping parts.", Path: "templates/starter-kit/codex/superpowers/skills/dispatching-parallel-agents/SKILL.md", Tags: []string{"superpowers", "agents"}},
-		{Name: "superpowers:executing-plans", Title: "Executing Plans", Description: "Execute a written implementation plan with review checkpoints.", Path: "templates/starter-kit/codex/superpowers/skills/executing-plans/SKILL.md", Tags: []string{"superpowers", "planning"}},
-		{Name: "superpowers:finishing-a-development-branch", Title: "Finishing A Development Branch", Description: "Choose the right completion path after implementation and verification.", Path: "templates/starter-kit/codex/superpowers/skills/finishing-a-development-branch/SKILL.md", Tags: []string{"superpowers", "git"}},
-		{Name: "superpowers:receiving-code-review", Title: "Receiving Code Review", Description: "Handle review feedback with verification and technical rigor.", Path: "templates/starter-kit/codex/superpowers/skills/receiving-code-review/SKILL.md", Tags: []string{"superpowers", "review"}},
-		{Name: "superpowers:requesting-code-review", Title: "Requesting Code Review", Description: "Request review after meaningful implementation work before merging or shipping.", Path: "templates/starter-kit/codex/superpowers/skills/requesting-code-review/SKILL.md", Tags: []string{"superpowers", "review"}},
-		{Name: "superpowers:subagent-driven-development", Title: "Subagent Driven Development", Description: "Coordinate independent implementation subtasks across agents from a plan.", Path: "templates/starter-kit/codex/superpowers/skills/subagent-driven-development/SKILL.md", Tags: []string{"superpowers", "agents"}},
-		{Name: "superpowers:systematic-debugging", Title: "Superpowers Systematic Debugging", Description: "Use a structured root-cause workflow for unexpected behavior or failing validation.", Path: "templates/starter-kit/codex/superpowers/skills/systematic-debugging/SKILL.md", Tags: []string{"superpowers", "debugging"}},
-		{Name: "superpowers:test-driven-development", Title: "Test Driven Development", Description: "Drive implementation by writing the failing test first when tests are in scope.", Path: "templates/starter-kit/codex/superpowers/skills/test-driven-development/SKILL.md", Tags: []string{"superpowers", "quality"}},
-		{Name: "superpowers:using-git-worktrees", Title: "Using Git Worktrees", Description: "Create isolated git worktrees for feature work when separation is needed.", Path: "templates/starter-kit/codex/superpowers/skills/using-git-worktrees/SKILL.md", Tags: []string{"superpowers", "git"}},
-		{Name: "superpowers:using-superpowers", Title: "Using Superpowers", Description: "Find and apply Superpowers skills at the start of a conversation.", Path: "templates/starter-kit/codex/superpowers/skills/using-superpowers/SKILL.md", Tags: []string{"superpowers", "skills"}},
-		{Name: "superpowers:verification-before-completion", Title: "Verification Before Completion", Description: "Verify before claiming a change is complete, fixed, or passing.", Path: "templates/starter-kit/codex/superpowers/skills/verification-before-completion/SKILL.md", Tags: []string{"superpowers", "verification"}},
-		{Name: "superpowers:writing-plans", Title: "Writing Plans", Description: "Write executable implementation plans for multi-step work.", Path: "templates/starter-kit/codex/superpowers/skills/writing-plans/SKILL.md", Tags: []string{"superpowers", "planning"}},
-		{Name: "superpowers:writing-skills", Title: "Writing Skills", Description: "Create, edit, and verify skills before deployment.", Path: "templates/starter-kit/codex/superpowers/skills/writing-skills/SKILL.md", Tags: []string{"superpowers", "skills"}},
-
-		{Name: "agents:adapt", Title: "Adapt", Description: "Adapt designs across screen sizes, devices, contexts, and platforms.", Path: "templates/starter-kit/agents/skills/adapt/SKILL.md", Tags: []string{"agents", "design", "responsive"}},
-		{Name: "agents:animate", Title: "Animate", Description: "Enhance a feature with purposeful animations, micro-interactions, and motion.", Path: "templates/starter-kit/agents/skills/animate/SKILL.md", Tags: []string{"agents", "design", "motion"}},
-		{Name: "agents:audit", Title: "Audit", Description: "Run technical UI quality checks across accessibility, performance, theming, and responsive behavior.", Path: "templates/starter-kit/agents/skills/audit/SKILL.md", Tags: []string{"agents", "design", "quality"}},
-		{Name: "agents:bolder", Title: "Bolder", Description: "Make safe or flat designs more visually interesting while preserving usability.", Path: "templates/starter-kit/agents/skills/bolder/SKILL.md", Tags: []string{"agents", "design", "visual"}},
-		{Name: "agents:brainstorming", Title: "Design Brainstorming", Description: "Explore user intent, requirements, and design direction before building.", Path: "templates/starter-kit/agents/skills/brainstorming/SKILL.md", Tags: []string{"agents", "design", "planning"}},
-		{Name: "agents:clarify", Title: "Clarify", Description: "Improve UX copy, labels, error messages, and instructions.", Path: "templates/starter-kit/agents/skills/clarify/SKILL.md", Tags: []string{"agents", "design", "copy"}},
-		{Name: "agents:colorize", Title: "Colorize", Description: "Add strategic color to designs that feel dull, gray, or under-expressive.", Path: "templates/starter-kit/agents/skills/colorize/SKILL.md", Tags: []string{"agents", "design", "color"}},
-		{Name: "agents:critique", Title: "Critique", Description: "Evaluate UX, hierarchy, information architecture, cognitive load, and design quality.", Path: "templates/starter-kit/agents/skills/critique/SKILL.md", Tags: []string{"agents", "design", "review"}},
-		{Name: "agents:distill", Title: "Distill", Description: "Simplify and declutter designs when the user explicitly asks for that direction.", Path: "templates/starter-kit/agents/skills/distill/SKILL.md", Tags: []string{"agents", "design", "simplify"}},
-		{Name: "agents:frontend-design", Title: "Frontend Design", Description: "Create distinctive production-grade frontend interfaces and polished UI code.", Path: "templates/starter-kit/agents/skills/frontend-design/SKILL.md", Tags: []string{"agents", "design", "frontend"}},
-		{Name: "agents:impeccable", Title: "Impeccable", Description: "Shape, build, teach, or extract high-quality frontend design systems and interfaces.", Path: "templates/starter-kit/agents/skills/impeccable/SKILL.md", Tags: []string{"agents", "design", "frontend"}},
-		{Name: "agents:layout", Title: "Layout", Description: "Improve spacing, alignment, visual rhythm, and hierarchy.", Path: "templates/starter-kit/agents/skills/layout/SKILL.md", Tags: []string{"agents", "design", "layout"}},
-		{Name: "agents:optimize", Title: "Optimize", Description: "Improve UI performance, rendering, animations, image handling, and bundle behavior.", Path: "templates/starter-kit/agents/skills/optimize/SKILL.md", Tags: []string{"agents", "design", "performance"}},
-		{Name: "agents:overdrive", Title: "Overdrive", Description: "Push interfaces with ambitious technical effects such as shaders, physics, and advanced motion.", Path: "templates/starter-kit/agents/skills/overdrive/SKILL.md", Tags: []string{"agents", "design", "advanced"}},
-		{Name: "agents:polish", Title: "Polish", Description: "Make a final UI quality pass for alignment, spacing, consistency, and micro-details.", Path: "templates/starter-kit/agents/skills/polish/SKILL.md", Tags: []string{"agents", "design", "quality"}},
-		{Name: "agents:quieter", Title: "Quieter", Description: "Tone down visually aggressive or overstimulating designs while preserving quality.", Path: "templates/starter-kit/agents/skills/quieter/SKILL.md", Tags: []string{"agents", "design", "refine"}},
-		{Name: "agents:shape", Title: "Shape", Description: "Plan UX and UI direction before implementation.", Path: "templates/starter-kit/agents/skills/shape/SKILL.md", Tags: []string{"agents", "design", "planning"}},
-		{Name: "agents:typeset", Title: "Typeset", Description: "Improve typography, hierarchy, sizing, font choices, and readability.", Path: "templates/starter-kit/agents/skills/typeset/SKILL.md", Tags: []string{"agents", "design", "typography"}},
-		{Name: "agents:ui-ux-pro-max", Title: "UI UX Pro Max", Description: "Use broad UI/UX design intelligence across stacks, styles, palettes, components, and audits.", Path: "templates/starter-kit/agents/skills/ui-ux-pro-max/SKILL.md", Tags: []string{"agents", "design", "frontend"}},
-	}
-}
-
-func defaultOfficePolicies() []officePolicy {
-	specs := defaultOfficePolicySpecs()
-	out := make([]officePolicy, 0, len(specs))
-	for _, spec := range specs {
-		out = append(out, officePolicy{
-			ID:        spec.ID,
-			Source:    spec.Source,
-			Rule:      spec.Rule,
-			Active:    true,
-			CreatedAt: defaultPublicProfileCreatedAt,
-		})
-	}
-	return out
-}
-
-func defaultTeamSkillContent(spec defaultTeamSkillSpec) string {
-	return fmt.Sprintf("Validated public starter-kit skill.\n\nSource: %s\n\nInstall templates/starter-kit to make the full SKILL.md workflow available to local agents. This broker record keeps the skill visible and invokable from the default office.", spec.Path)
-}
-
-func defaultTeamSkills() []teamSkill {
-	specs := defaultTeamSkillSpecs()
-	out := make([]teamSkill, 0, len(specs))
-	for _, spec := range specs {
-		out = append(out, teamSkill{
-			ID:          fmt.Sprintf("skill-%s", skillSlug(spec.Name)),
-			Name:        spec.Name,
-			Title:       spec.Title,
-			Description: spec.Description,
-			Content:     defaultTeamSkillContent(spec),
-			CreatedBy:   "dunderia-public",
-			Channel:     globalSkillChannel,
-			Tags:        normalizeStringList(append([]string{"validated", "default"}, spec.Tags...)),
-			Status:      "active",
-			CreatedAt:   defaultPublicProfileCreatedAt,
-			UpdatedAt:   defaultPublicProfileCreatedAt,
-		})
-	}
-	return out
-}
-
-func (b *Broker) ensureDefaultPoliciesLocked() bool {
-	changed := false
-	seen := make(map[string]struct{}, len(b.policies))
-	for _, policy := range b.policies {
-		if id := strings.TrimSpace(policy.ID); id != "" {
-			seen["id:"+id] = struct{}{}
-		}
-		if rule := strings.TrimSpace(policy.Rule); rule != "" {
-			seen["rule:"+strings.ToLower(rule)] = struct{}{}
-		}
-	}
-	for _, policy := range defaultOfficePolicies() {
-		if _, ok := seen["id:"+policy.ID]; ok {
-			continue
-		}
-		if _, ok := seen["rule:"+strings.ToLower(policy.Rule)]; ok {
-			continue
-		}
-		b.policies = append(b.policies, policy)
-		seen["id:"+policy.ID] = struct{}{}
-		seen["rule:"+strings.ToLower(policy.Rule)] = struct{}{}
-		changed = true
-	}
-	return changed
-}
-
-func (b *Broker) ensureDefaultSkillsLocked() bool {
-	changed := false
-	seen := make(map[string]struct{}, len(b.skills))
-	for _, skill := range b.skills {
-		if id := strings.TrimSpace(skill.ID); id != "" {
-			seen["id:"+id] = struct{}{}
-		}
-		if name := skillSlug(skill.Name); name != "" {
-			seen["name:"+name] = struct{}{}
-		}
-	}
-	for _, skill := range defaultTeamSkills() {
-		if _, ok := seen["id:"+skill.ID]; ok {
-			continue
-		}
-		if _, ok := seen["name:"+skillSlug(skill.Name)]; ok {
-			continue
-		}
-		b.skills = append(b.skills, skill)
-		seen["id:"+skill.ID] = struct{}{}
-		seen["name:"+skillSlug(skill.Name)] = struct{}{}
-		changed = true
-	}
-	return changed
 }
 
 func (b *Broker) normalizeLoadedStateLocked() {
@@ -11848,20 +11597,24 @@ func (b *Broker) handleMembers(w http.ResponseWriter, r *http.Request) {
 	b.mu.Unlock()
 
 	type memberEntry struct {
-		Slug         string `json:"slug"`
-		Name         string `json:"name,omitempty"`
-		Role         string `json:"role,omitempty"`
-		Disabled     bool   `json:"disabled,omitempty"`
-		LastMessage  string `json:"lastMessage"`
-		LastTime     string `json:"lastTime"`
-		LiveActivity string `json:"liveActivity,omitempty"`
-		Status       string `json:"status,omitempty"`
-		Activity     string `json:"activity,omitempty"`
-		Detail       string `json:"detail,omitempty"`
-		TotalMs      int64  `json:"totalMs,omitempty"`
-		FirstEventMs int64  `json:"firstEventMs,omitempty"`
-		FirstTextMs  int64  `json:"firstTextMs,omitempty"`
-		FirstToolMs  int64  `json:"firstToolMs,omitempty"`
+		Slug           string `json:"slug"`
+		Name           string `json:"name,omitempty"`
+		Role           string `json:"role,omitempty"`
+		Disabled       bool   `json:"disabled,omitempty"`
+		LastMessage    string `json:"lastMessage"`
+		LastTime       string `json:"lastTime"`
+		LiveActivity   string `json:"liveActivity,omitempty"`
+		Status         string `json:"status,omitempty"`
+		Activity       string `json:"activity,omitempty"`
+		Detail         string `json:"detail,omitempty"`
+		TotalMs        int64  `json:"totalMs,omitempty"`
+		FirstEventMs   int64  `json:"firstEventMs,omitempty"`
+		FirstTextMs    int64  `json:"firstTextMs,omitempty"`
+		FirstToolMs    int64  `json:"firstToolMs,omitempty"`
+		LivenessState  string `json:"liveness_state,omitempty"`
+		LivenessReason string `json:"liveness_reason,omitempty"`
+		LivenessTaskID string `json:"liveness_task_id,omitempty"`
+		LivenessAt     string `json:"liveness_at,omitempty"`
 	}
 
 	// Capture pane activity via diff detection.
@@ -11891,6 +11644,10 @@ func (b *Broker) handleMembers(w http.ResponseWriter, r *http.Request) {
 			entry.FirstEventMs = snapshot.FirstEventMs
 			entry.FirstTextMs = snapshot.FirstTextMs
 			entry.FirstToolMs = snapshot.FirstToolMs
+			entry.LivenessState = snapshot.LivenessState
+			entry.LivenessReason = snapshot.LivenessReason
+			entry.LivenessTaskID = snapshot.LivenessTaskID
+			entry.LivenessAt = snapshot.LivenessAt
 			if snapshot.LastTime != "" {
 				entry.LastTime = snapshot.LastTime
 			}
@@ -11961,6 +11718,33 @@ func (b *Broker) handleAgentLogs(w http.ResponseWriter, r *http.Request) {
 		// Guard against path traversal — the task id is a single directory name.
 		if strings.Contains(task, "..") || strings.ContainsAny(task, `/\`) {
 			http.Error(w, "invalid task id", http.StatusBadRequest)
+			return
+		}
+		if parseSearchBool(r.URL.Query().Get("raw")) || strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("format")), "raw") {
+			offset := int64(0)
+			if raw := strings.TrimSpace(r.URL.Query().Get("offset")); raw != "" {
+				if n, err := strconv.ParseInt(raw, 10, 64); err == nil && n >= 0 {
+					offset = n
+				}
+			}
+			limitBytes := int64(256_000)
+			if raw := strings.TrimSpace(firstNonEmpty(r.URL.Query().Get("limit_bytes"), r.URL.Query().Get("limitBytes"))); raw != "" {
+				if n, err := strconv.ParseInt(raw, 10, 64); err == nil && n > 0 {
+					limitBytes = n
+				}
+			}
+			includeHash := parseSearchBool(r.URL.Query().Get("sha256"))
+			chunk, err := agent.ReadTaskLogRange(root, task, offset, limitBytes, includeHash)
+			if err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					http.Error(w, "task not found", http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(chunk)
 			return
 		}
 		entries, err := agent.ReadTaskLog(root, task)

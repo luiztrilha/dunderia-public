@@ -667,8 +667,8 @@ func TestResolveActionProviderUsesOneConfig(t *testing.T) {
 
 func TestResolveCustomMCPConfigPathUsesConfig(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		_ = Save(Config{CustomMCPConfig: `<DUNDERIA_REPO>\mcp\dunderia-mcp-settings.json`})
-		if got := ResolveCustomMCPConfigPath(); got != `<DUNDERIA_REPO>\mcp\dunderia-mcp-settings.json` {
+		_ = Save(Config{CustomMCPConfig: `D:\Repos\dunderia\mcp\dunderia-mcp-settings.json`})
+		if got := ResolveCustomMCPConfigPath(); got != `D:\Repos\dunderia\mcp\dunderia-mcp-settings.json` {
 			t.Fatalf("expected custom MCP path from config, got %q", got)
 		}
 	})

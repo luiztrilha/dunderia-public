@@ -327,7 +327,7 @@ Context: A task foi planejada sem um destino de workspace utilizavel.
 
 	answerBody, _ := json.Marshal(map[string]any{
 		"id":          requests.Requests[0].ID,
-		"choice_text": "Use <DUNDERIA_REPO>",
+		"choice_text": "Use D:\\Repos\\dunderia",
 	})
 	req, _ = http.NewRequest(http.MethodPost, base+"/requests/answer", bytes.NewReader(answerBody))
 	req.Header.Set("Authorization", "Bearer "+b.Token())

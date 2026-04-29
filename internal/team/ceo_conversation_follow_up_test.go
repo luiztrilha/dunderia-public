@@ -221,7 +221,7 @@ func TestCEOConversationFollowUpIgnoresAdministrativeAndSupersededThreadMessages
 			ID:        "msg-human-clarify",
 			From:      "you",
 			Channel:   "general",
-			Content:   "O alvo parece ser LegacyWeb/RecursoHumano.Cadastro.aspx.",
+			Content:   "O alvo parece ser BNB/RecursoHumano.Cadastro.aspx.",
 			ReplyTo:   "msg-root",
 			Timestamp: now.Add(-28 * time.Minute).Format(time.RFC3339),
 		},
@@ -393,15 +393,15 @@ func TestCEOConversationFollowUpCoalescesEquivalentGuidanceAcrossThreads(t *test
 		{
 			ID:        "msg-root-a",
 			From:      "you",
-			Channel:   "ExampleWorkflow-web-legado",
+			Channel:   "convenios-web-legado",
 			Content:   "Erro antigo em PrestacaoContas.",
 			Timestamp: now.Add(-31 * time.Minute).Format(time.RFC3339),
 		},
 		{
 			ID:        "msg-ceo-a",
 			From:      "ceo",
-			Channel:   "ExampleWorkflow-web-legado",
-			Content:   "@builder investigue `LegacyWeb/PrestacaoContas.Detalhes.aspx` e reporte o diagnóstico técnico na thread.",
+			Channel:   "convenios-web-legado",
+			Content:   "@builder investigue `BNB/PrestacaoContas.Detalhes.aspx` e reporte o diagnóstico técnico na thread.",
 			Tagged:    []string{"builder"},
 			ReplyTo:   "msg-root-a",
 			Timestamp: now.Add(-30 * time.Minute).Format(time.RFC3339),
@@ -409,15 +409,15 @@ func TestCEOConversationFollowUpCoalescesEquivalentGuidanceAcrossThreads(t *test
 		{
 			ID:        "msg-root-b",
 			From:      "you",
-			Channel:   "ExampleWorkflow-web-legado",
+			Channel:   "convenios-web-legado",
 			Content:   "Retomando a frente da PrestacaoContas.",
 			Timestamp: now.Add(-21 * time.Minute).Format(time.RFC3339),
 		},
 		{
 			ID:        "msg-ceo-b",
 			From:      "ceo",
-			Channel:   "ExampleWorkflow-web-legado",
-			Content:   "@builder retome a auditoria em `LegacyWeb/PrestacaoContas.Detalhes.aspx` e me devolva a causa raiz nesta thread.",
+			Channel:   "convenios-web-legado",
+			Content:   "@builder retome a auditoria em `BNB/PrestacaoContas.Detalhes.aspx` e me devolva a causa raiz nesta thread.",
 			Tagged:    []string{"builder"},
 			ReplyTo:   "msg-root-b",
 			Timestamp: now.Add(-20 * time.Minute).Format(time.RFC3339),
@@ -454,14 +454,14 @@ func TestCEOConversationFollowUpSkipsSemanticLaneWithLaterChannelProgress(t *tes
 		{
 			ID:        "msg-root-a",
 			From:      "you",
-			Channel:   "ExampleWorkflow-web-legado",
+			Channel:   "convenios-web-legado",
 			Content:   "Erro antigo de ddlExtrato.",
 			Timestamp: now.Add(-31 * time.Minute).Format(time.RFC3339),
 		},
 		{
 			ID:        "msg-ceo-a",
 			From:      "ceo",
-			Channel:   "ExampleWorkflow-web-legado",
+			Channel:   "convenios-web-legado",
 			Content:   "Humano, aplique manualmente a proteção defensiva de `ddlExtrato.SelectedValue` em `ConciliacaoBancaria.Cadastro.aspx.cs`.",
 			ReplyTo:   "msg-root-a",
 			Timestamp: now.Add(-30 * time.Minute).Format(time.RFC3339),
@@ -469,7 +469,7 @@ func TestCEOConversationFollowUpSkipsSemanticLaneWithLaterChannelProgress(t *tes
 		{
 			ID:        "msg-builder-progress",
 			From:      "builder",
-			Channel:   "ExampleWorkflow-web-legado",
+			Channel:   "convenios-web-legado",
 			Content:   "Patch defensivo de `ddlExtrato.SelectedValue` aplicado em `ConciliacaoBancaria.Cadastro.aspx.cs` e build validada.",
 			Timestamp: now.Add(-12 * time.Minute).Format(time.RFC3339),
 		},
@@ -501,7 +501,7 @@ func TestSyncCEOConversationFollowUpTasksResolvesOrphanedTaskArtifacts(t *testin
 		{
 			ID:        "msg-live",
 			From:      "ceo",
-			Channel:   "ExampleWorkflow-web-legado",
+			Channel:   "convenios-web-legado",
 			Content:   "@builder valide o status dessa frente e me responda na thread.",
 			Tagged:    []string{"builder"},
 			ReplyTo:   "msg-root",
@@ -511,8 +511,8 @@ func TestSyncCEOConversationFollowUpTasksResolvesOrphanedTaskArtifacts(t *testin
 	b.tasks = []teamTask{
 		{
 			ID:            "task-live",
-			Channel:       "ExampleWorkflow-web-legado",
-			ExecutionKey:  "ceo-conversation-follow-up|outgoing|ExampleWorkflow-web-legado|msg-live",
+			Channel:       "convenios-web-legado",
+			ExecutionKey:  "ceo-conversation-follow-up|outgoing|convenios-web-legado|msg-live",
 			Title:         "Validate unanswered CEO follow-up",
 			Owner:         "ceo",
 			Status:        "in_progress",
@@ -528,11 +528,11 @@ func TestSyncCEOConversationFollowUpTasksResolvesOrphanedTaskArtifacts(t *testin
 	}
 	b.scheduler = []schedulerJob{
 		{
-			Slug:       "task-follow-up:ExampleWorkflow-web-legado:task-orphan",
+			Slug:       "task-follow-up:convenios-web-legado:task-orphan",
 			Kind:       "task_follow_up",
 			TargetType: "task",
 			TargetID:   "task-orphan",
-			Channel:    "ExampleWorkflow-web-legado",
+			Channel:    "convenios-web-legado",
 			Status:     "scheduled",
 			DueAt:      now.Add(-1 * time.Minute).Format(time.RFC3339),
 			NextRun:    now.Add(-1 * time.Minute).Format(time.RFC3339),
@@ -542,12 +542,12 @@ func TestSyncCEOConversationFollowUpTasksResolvesOrphanedTaskArtifacts(t *testin
 		{
 			ID:         "watchdog-orphan",
 			Kind:       "task_stalled",
-			Channel:    "ExampleWorkflow-web-legado",
+			Channel:    "convenios-web-legado",
 			TargetType: "task",
 			TargetID:   "task-orphan",
 			Owner:      "ceo",
 			Status:     "active",
-			Summary:    "@ceo still needs to move Validate unanswered CEO follow-up in #ExampleWorkflow-web-legado.",
+			Summary:    "@ceo still needs to move Validate unanswered CEO follow-up in #convenios-web-legado.",
 			CreatedAt:  now.Add(-1 * time.Minute).Format(time.RFC3339),
 			UpdatedAt:  now.Add(-1 * time.Minute).Format(time.RFC3339),
 		},
@@ -601,8 +601,8 @@ func TestSyncCEOConversationFollowUpTasksResolvesDuplicateExecutionKeyTasks(t *t
 	defer func() { brokerStatePath = oldPathFn }()
 
 	now := time.Now().UTC()
-	executionKey := "ceo-conversation-follow-up|outgoing|ExampleWorkflow-web-legado|msg-live"
-	details := "A CEO follow-up is still waiting for a reply in #ExampleWorkflow-web-legado.\n\nPending message: @builder valide o status dessa frente e me responda na thread."
+	executionKey := "ceo-conversation-follow-up|outgoing|convenios-web-legado|msg-live"
+	details := "A CEO follow-up is still waiting for a reply in #convenios-web-legado.\n\nPending message: @builder valide o status dessa frente e me responda na thread."
 
 	b := NewBroker()
 	b.mu.Lock()
@@ -610,7 +610,7 @@ func TestSyncCEOConversationFollowUpTasksResolvesDuplicateExecutionKeyTasks(t *t
 		{
 			ID:        "msg-live",
 			From:      "ceo",
-			Channel:   "ExampleWorkflow-web-legado",
+			Channel:   "convenios-web-legado",
 			Content:   "@builder valide o status dessa frente e me responda na thread.",
 			Tagged:    []string{"builder"},
 			ReplyTo:   "msg-root",
@@ -620,7 +620,7 @@ func TestSyncCEOConversationFollowUpTasksResolvesDuplicateExecutionKeyTasks(t *t
 	b.tasks = []teamTask{
 		{
 			ID:            "task-older",
-			Channel:       "ExampleWorkflow-web-legado",
+			Channel:       "convenios-web-legado",
 			ExecutionKey:  executionKey,
 			Title:         "Validate unanswered CEO follow-up",
 			Details:       details,
@@ -637,7 +637,7 @@ func TestSyncCEOConversationFollowUpTasksResolvesDuplicateExecutionKeyTasks(t *t
 		},
 		{
 			ID:            "task-newer",
-			Channel:       "ExampleWorkflow-web-legado",
+			Channel:       "convenios-web-legado",
 			ExecutionKey:  executionKey,
 			Title:         "Validate unanswered CEO follow-up",
 			Details:       details,
@@ -655,21 +655,21 @@ func TestSyncCEOConversationFollowUpTasksResolvesDuplicateExecutionKeyTasks(t *t
 	}
 	b.scheduler = []schedulerJob{
 		{
-			Slug:       normalizeSchedulerSlug("task_follow_up", "ExampleWorkflow-web-legado", "task-older"),
+			Slug:       normalizeSchedulerSlug("task_follow_up", "convenios-web-legado", "task-older"),
 			Kind:       "task_follow_up",
 			TargetType: "task",
 			TargetID:   "task-older",
-			Channel:    "ExampleWorkflow-web-legado",
+			Channel:    "convenios-web-legado",
 			Status:     "scheduled",
 			DueAt:      now.Add(-1 * time.Minute).Format(time.RFC3339),
 			NextRun:    now.Add(-1 * time.Minute).Format(time.RFC3339),
 		},
 		{
-			Slug:       normalizeSchedulerSlug("task_follow_up", "ExampleWorkflow-web-legado", "task-newer"),
+			Slug:       normalizeSchedulerSlug("task_follow_up", "convenios-web-legado", "task-newer"),
 			Kind:       "task_follow_up",
 			TargetType: "task",
 			TargetID:   "task-newer",
-			Channel:    "ExampleWorkflow-web-legado",
+			Channel:    "convenios-web-legado",
 			Status:     "scheduled",
 			DueAt:      now.Add(-1 * time.Minute).Format(time.RFC3339),
 			NextRun:    now.Add(-1 * time.Minute).Format(time.RFC3339),
@@ -679,12 +679,12 @@ func TestSyncCEOConversationFollowUpTasksResolvesDuplicateExecutionKeyTasks(t *t
 		{
 			ID:         "watchdog-older",
 			Kind:       "task_stalled",
-			Channel:    "ExampleWorkflow-web-legado",
+			Channel:    "convenios-web-legado",
 			TargetType: "task",
 			TargetID:   "task-older",
 			Owner:      "ceo",
 			Status:     "active",
-			Summary:    "@ceo still needs to move Validate unanswered CEO follow-up in #ExampleWorkflow-web-legado.",
+			Summary:    "@ceo still needs to move Validate unanswered CEO follow-up in #convenios-web-legado.",
 			CreatedAt:  now.Add(-1 * time.Minute).Format(time.RFC3339),
 			UpdatedAt:  now.Add(-1 * time.Minute).Format(time.RFC3339),
 		},
@@ -821,7 +821,7 @@ func TestProcessDueCEOConversationFollowUpJobRequeuesExistingActiveTask(t *testi
 		{
 			ID:        "msg-806",
 			From:      "you",
-			Channel:   "ExampleWorkflow-web-azure",
+			Channel:   "convenios-web-azure",
 			Content:   "@ceo onde está o arquivo gerado?",
 			Tagged:    []string{"ceo"},
 			Timestamp: now.Add(-20 * time.Minute).Format(time.RFC3339),
@@ -830,10 +830,10 @@ func TestProcessDueCEOConversationFollowUpJobRequeuesExistingActiveTask(t *testi
 	b.tasks = []teamTask{
 		{
 			ID:            "task-existing",
-			Channel:       "ExampleWorkflow-web-azure",
-			ExecutionKey:  "ceo-conversation-follow-up|incoming|ExampleWorkflow-web-azure|msg-806",
+			Channel:       "convenios-web-azure",
+			ExecutionKey:  "ceo-conversation-follow-up|incoming|convenios-web-azure|msg-806",
 			Title:         "Reply to pending message from @you",
-			Details:       "A stale inbound thread still needs a CEO answer in #ExampleWorkflow-web-azure.",
+			Details:       "A stale inbound thread still needs a CEO answer in #convenios-web-azure.",
 			Owner:         "ceo",
 			Status:        "in_progress",
 			CreatedBy:     "watchdog",
@@ -847,8 +847,8 @@ func TestProcessDueCEOConversationFollowUpJobRequeuesExistingActiveTask(t *testi
 		},
 	}
 	b.channels = []teamChannel{{
-		Slug:    "ExampleWorkflow-web-azure",
-		Name:    "ExampleWorkflow-web-azure",
+		Slug:    "convenios-web-azure",
+		Name:    "convenios-web-azure",
 		Members: []string{"ceo"},
 	}}
 	b.members = []officeMember{{Slug: "ceo", Name: "CEO"}}
@@ -878,7 +878,7 @@ func TestProcessDueCEOConversationFollowUpJobRequeuesExistingActiveTask(t *testi
 			{Slug: "ceo", Name: "CEO"},
 		},
 	}
-	laneKey := agentLaneKey("ExampleWorkflow-web-azure", "ceo")
+	laneKey := agentLaneKey("convenios-web-azure", "ceo")
 	l.headlessWorkers[laneKey] = true
 
 	l.processDueSchedulerJobs()
@@ -904,7 +904,7 @@ func TestSyncCEOConversationFollowUpTasksUsesThreadRootForInboundReplyRoute(t *t
 		{
 			ID:        "msg-806",
 			From:      "you",
-			Channel:   "ExampleWorkflow-web-azure",
+			Channel:   "convenios-web-azure",
 			Content:   "@ceo onde está o arquivo gerado?",
 			Tagged:    []string{"ceo"},
 			Timestamp: now.Add(-20 * time.Minute).Format(time.RFC3339),
@@ -912,7 +912,7 @@ func TestSyncCEOConversationFollowUpTasksUsesThreadRootForInboundReplyRoute(t *t
 		{
 			ID:        "msg-814",
 			From:      "you",
-			Channel:   "ExampleWorkflow-web-azure",
+			Channel:   "convenios-web-azure",
 			Content:   "@ceo responda",
 			Tagged:    []string{"ceo"},
 			ReplyTo:   "msg-806",
@@ -933,7 +933,7 @@ func TestSyncCEOConversationFollowUpTasksUsesThreadRootForInboundReplyRoute(t *t
 	if len(tasks) != 1 {
 		t.Fatalf("expected one follow-up task, got %+v", tasks)
 	}
-	if got := tasks[0].ExecutionKey; got != "ceo-conversation-follow-up|incoming|ExampleWorkflow-web-azure|msg-814" {
+	if got := tasks[0].ExecutionKey; got != "ceo-conversation-follow-up|incoming|convenios-web-azure|msg-814" {
 		t.Fatalf("expected execution key to remain anchored to the latest human follow-up, got %q", got)
 	}
 	if got := tasks[0].ThreadID; got != "msg-806" {

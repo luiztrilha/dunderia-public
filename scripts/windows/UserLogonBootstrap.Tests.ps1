@@ -62,7 +62,7 @@ Describe 'UserLogonBootstrap' {
     }
 
     It 'builds a hidden scheduled-task action for the bootstrap runner' {
-        $startScript = '<REPOS_ROOT>\dunderia\scripts\windows\start_user_logon_bootstrap.ps1'
+        $startScript = 'D:\Repos\dunderia\scripts\windows\start_user_logon_bootstrap.ps1'
 
         $definition = Get-DunderIAUserLogonBootstrapTaskDefinition -StartScriptPath $startScript
 

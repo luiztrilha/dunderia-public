@@ -406,7 +406,7 @@ func TestBrokerResetPreservesConfiguredChannels(t *testing.T) {
 	b.mu.Lock()
 	b.channels = []teamChannel{
 		{Slug: "general", Name: "General", Members: []string{"ceo", "builder"}},
-		{Slug: "exampleworkflow-legacy", Name: "ExampleWorkflow Legacy", Members: []string{"ceo", "builder"}},
+		{Slug: "convenios-legacy", Name: "Convenios Legacy", Members: []string{"ceo", "builder"}},
 		{Slug: "dm-builder", Name: "Builder DM", Members: []string{"ceo", "builder"}},
 	}
 	b.members = append(b.members, officeMember{Slug: "builder", Name: "Builder"})
@@ -420,14 +420,14 @@ func TestBrokerResetPreservesConfiguredChannels(t *testing.T) {
 	foundDM := false
 	for _, ch := range b.channels {
 		switch normalizeChannelSlug(ch.Slug) {
-		case "exampleworkflow-legacy":
+		case "convenios-legacy":
 			foundLegacy = true
 		case "builder__human", "dm-builder":
 			foundDM = true
 		}
 	}
 	if !foundLegacy {
-		t.Fatalf("expected reset to preserve custom channel exampleworkflow-legacy; got channels=%+v", b.channels)
+		t.Fatalf("expected reset to preserve custom channel convenios-legacy; got channels=%+v", b.channels)
 	}
 	if !foundDM {
 		t.Fatalf("expected reset to preserve DM channel; got channels=%+v", b.channels)
@@ -4476,16 +4476,16 @@ func TestEnsurePlannedTaskDoesNotReuseMismatchedExplicitWorkspace(t *testing.T) 
 
 	workspaceRoot := t.TempDir()
 	dunderiaRepo := filepath.Join(workspaceRoot, "dunderia")
-	targetRepo := filepath.Join(workspaceRoot, "LegacyWebAzure")
+	targetRepo := filepath.Join(workspaceRoot, "ConveniosWebVSAzure_Default")
 	initUsableGitWorktree(t, dunderiaRepo)
 	initUsableGitWorktree(t, targetRepo)
 
 	b := NewBroker()
-	ensureTestMemberAccess(b, "exampleworkflow-web-azure", "ceo", "CEO")
-	ensureTestMemberAccess(b, "exampleworkflow-web-azure", "reviewer", "Reviewer")
+	ensureTestMemberAccess(b, "convenios-web-azure", "ceo", "CEO")
+	ensureTestMemberAccess(b, "convenios-web-azure", "reviewer", "Reviewer")
 	b.tasks = []teamTask{{
 		ID:        "task-old",
-		Channel:   "exampleworkflow-web-azure",
+		Channel:   "convenios-web-azure",
 		Title:     "Revisao tecnica abrangente da base DunderIA",
 		Details:   "Produzir relatorio .md priorizado.",
 		Owner:     "reviewer",
@@ -4497,8 +4497,8 @@ func TestEnsurePlannedTaskDoesNotReuseMismatchedExplicitWorkspace(t *testing.T) 
 	}}
 
 	task, reused, err := b.EnsurePlannedTask(plannedTaskInput{
-		Channel:       "exampleworkflow-web-azure",
-		Title:         "Revisao tecnica abrangente da base LegacyWebAzure",
+		Channel:       "convenios-web-azure",
+		Title:         "Revisao tecnica abrangente da base ConveniosWebVSAzure_Default",
 		Details:       "Produzir relatorio .md priorizado.",
 		Owner:         "reviewer",
 		CreatedBy:     "ceo",
@@ -5051,8 +5051,8 @@ func TestBrokerEnsurePlannedTaskPromotesMentionedSiblingRepoToExternalWorkspace(
 
 	workspaceRoot := t.TempDir()
 	currentRepo := filepath.Join(workspaceRoot, "dunderia")
-	legacyRepo := filepath.Join(workspaceRoot, "LegacySystem")
-	targetRepo := filepath.Join(workspaceRoot, "LegacySystemNew")
+	legacyRepo := filepath.Join(workspaceRoot, "ConveniosWebBNB")
+	targetRepo := filepath.Join(workspaceRoot, "ConveniosWebBNB_Novo")
 	initUsableGitWorktree(t, currentRepo)
 	initUsableGitWorktree(t, legacyRepo)
 	initUsableGitWorktree(t, targetRepo)
@@ -5072,8 +5072,8 @@ func TestBrokerEnsurePlannedTaskPromotesMentionedSiblingRepoToExternalWorkspace(
 
 	task, reused, err := b.EnsurePlannedTask(plannedTaskInput{
 		Channel:       "general",
-		Title:         "Implementar endpoint RetornaCidadesUF em LegacySystemNew",
-		Details:       "Criar o slice mínimo no repo LegacySystemNew sem sair do contrato legado.",
+		Title:         "Implementar endpoint RetornaCidadesUF em ConveniosWebBNB_Novo",
+		Details:       "Criar o slice mínimo no repo ConveniosWebBNB_Novo sem sair do contrato legado.",
 		Owner:         "builder",
 		CreatedBy:     "ceo",
 		TaskType:      "feature",
@@ -5102,10 +5102,10 @@ func TestBrokerPostMessageSuppressesRepeatedBlockedNoDeltaAgentStatus(t *testing
 	b := NewBroker()
 	ensureTestMemberAccess(b, "general", "ceo", "CEO")
 	ensureTestMemberAccess(b, "general", "builder", "Builder")
-	if _, err := b.PostMessage("builder", "general", "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que o office me entregar um worktree gravável apontando para `<REPOS_ROOT>\\LegacySystemNew`, eu implemento o slice.", []string{"ceo"}, "msg-root"); err != nil {
+	if _, err := b.PostMessage("builder", "general", "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que o office me entregar um worktree gravável apontando para `D:\\Repositórios\\ConveniosWebBNB_Novo`, eu implemento o slice.", []string{"ceo"}, "msg-root"); err != nil {
 		t.Fatalf("first post: %v", err)
 	}
-	msg, err := b.PostMessage("builder", "general", "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que o office me entregar um worktree gravável apontando para `<REPOS_ROOT>\\LegacySystemNew`, eu implemento o slice.", []string{"ceo"}, "msg-root")
+	msg, err := b.PostMessage("builder", "general", "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que o office me entregar um worktree gravável apontando para `D:\\Repositórios\\ConveniosWebBNB_Novo`, eu implemento o slice.", []string{"ceo"}, "msg-root")
 	if err != nil {
 		t.Fatalf("second post: %v", err)
 	}
@@ -5124,26 +5124,26 @@ func TestChannelTasksCoalescesSemanticDuplicates(t *testing.T) {
 		{
 			ID:            "task-1162",
 			Channel:       "legado-para-novo",
-			Title:         "Implementar GET legado de cidades por UF no LegacySystemNew",
-			Details:       "Preciso de um worktree gravável apontando para <REPOS_ROOT>\\LegacySystemNew para implementar e validar RetornaCidadesUF.",
+			Title:         "Implementar GET legado de cidades por UF no ConveniosWebBNB_Novo",
+			Details:       "Preciso de um worktree gravável apontando para D:\\Repositórios\\ConveniosWebBNB_Novo para implementar e validar RetornaCidadesUF.",
 			Owner:         "builder",
 			Status:        "blocked",
 			TaskType:      "feature",
 			ExecutionMode: "local_worktree",
-			WorktreePath:  `<USER_HOME>\.wuphf\task-worktrees\dunderia\wuphf-task-task-1162`,
+			WorktreePath:  `C:\Users\l.sousa\.wuphf\task-worktrees\dunderia\wuphf-task-task-1162`,
 			CreatedAt:     "2026-04-18T22:48:13Z",
 			UpdatedAt:     "2026-04-18T23:54:01Z",
 		},
 		{
 			ID:            "task-1181",
 			Channel:       "legado-para-novo",
-			Title:         "Implementar endpoint RetornaCidadesUF em LegacySystemNew",
+			Title:         "Implementar endpoint RetornaCidadesUF em ConveniosWebBNB_Novo",
 			Details:       "Criar o slice mínimo do endpoint legado RetornaCidadesUF respeitando filtro Ativo = 1, shape legado e sem ORDER BY extra.",
 			Owner:         "builder",
 			Status:        "open",
 			TaskType:      "feature",
 			ExecutionMode: "external_workspace",
-			WorkspacePath: `<REPOS_ROOT>\LegacySystemNew`,
+			WorkspacePath: `D:\Repositórios\ConveniosWebBNB_Novo`,
 			CreatedAt:     "2026-04-18T22:52:09Z",
 			UpdatedAt:     "2026-04-18T22:52:09Z",
 		},
@@ -7065,14 +7065,14 @@ func TestBrokerSyncTaskWorktreeUsesChannelLinkedRepoInsteadOfDunderiaWorktree(t 
 		prepareTaskWorktree = oldPrepare
 	}()
 
-	repoPath := filepath.Join(t.TempDir(), "LegacySystemOld")
+	repoPath := filepath.Join(t.TempDir(), "ConveniosWebBNB_Antigo")
 	initUsableGitWorktree(t, repoPath)
 
 	b := NewBroker()
 	b.channels = []teamChannel{
 		{
-			Slug: "exampleworkflow-web-legado",
-			Name: "Fluxo Exemplo Web Legado",
+			Slug: "convenios-web-legado",
+			Name: "Convênios Web Legado",
 			LinkedRepos: []linkedRepoRef{
 				{RepoPath: repoPath, Primary: true},
 			},
@@ -7080,12 +7080,12 @@ func TestBrokerSyncTaskWorktreeUsesChannelLinkedRepoInsteadOfDunderiaWorktree(t 
 	}
 	task := &teamTask{
 		ID:             "task-3177",
-		Channel:        "exampleworkflow-web-legado",
+		Channel:        "convenios-web-legado",
 		Title:          "Revisar rota GET de movimentacoes financeiras",
 		Owner:          "ceo",
 		Status:         "in_progress",
 		ExecutionMode:  "local_worktree",
-		WorktreePath:   `<USER_HOME>\.wuphf\task-worktrees\dunderia\wuphf-task-task-3177`,
+		WorktreePath:   `C:\Users\l.sousa\.wuphf\task-worktrees\dunderia\wuphf-task-task-3177`,
 		WorktreeBranch: "wuphf-221fdf9b-task-3177",
 	}
 
@@ -7341,12 +7341,12 @@ func TestHandleChannelsRemoveProtectedChannelRequiresForce(t *testing.T) {
 	b := NewBroker()
 	b.channels = []teamChannel{
 		{Slug: "general", Name: "general", Protected: true},
-		{Slug: "exampleworkflow-web-legado", Name: "ExampleWorkflow Web Legado", Protected: true},
+		{Slug: "convenios-web-legado", Name: "Convenios Web Legado", Protected: true},
 	}
 	b.members = append(b.members, officeMember{Slug: "ceo", Name: "CEO"}, officeMember{Slug: "you", Name: "You"})
 
 	handler := b.requireAuth(b.handleChannels)
-	body := bytes.NewBufferString(`{"action":"remove","slug":"exampleworkflow-web-legado"}`)
+	body := bytes.NewBufferString(`{"action":"remove","slug":"convenios-web-legado"}`)
 	req := httptest.NewRequest(http.MethodPost, "/channels", body)
 	req.Header.Set("Authorization", "Bearer "+b.Token())
 	req.Header.Set("Content-Type", "application/json")
@@ -7359,11 +7359,11 @@ func TestHandleChannelsRemoveProtectedChannelRequiresForce(t *testing.T) {
 		raw, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected 403 for protected channel, got %d: %s", resp.StatusCode, raw)
 	}
-	if found := b.findChannelLocked("exampleworkflow-web-legado"); found == nil {
+	if found := b.findChannelLocked("convenios-web-legado"); found == nil {
 		t.Fatal("expected protected channel to remain when remove attempted without force")
 	}
 
-	body = bytes.NewBufferString(`{"action":"remove","slug":"exampleworkflow-web-legado","force":true,"purge":true,"confirm":"confirm:exampleworkflow-web-legado"}`)
+	body = bytes.NewBufferString(`{"action":"remove","slug":"convenios-web-legado","force":true,"purge":true,"confirm":"confirm:convenios-web-legado"}`)
 	req = httptest.NewRequest(http.MethodPost, "/channels", body)
 	req.Header.Set("Authorization", "Bearer "+b.Token())
 	req.Header.Set("Content-Type", "application/json")
@@ -7376,7 +7376,7 @@ func TestHandleChannelsRemoveProtectedChannelRequiresForce(t *testing.T) {
 		raw, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected 200 when forcing protected channel remove, got %d: %s", resp.StatusCode, raw)
 	}
-	if found := b.findChannelLocked("exampleworkflow-web-legado"); found != nil {
+	if found := b.findChannelLocked("convenios-web-legado"); found != nil {
 		t.Fatalf("expected channel to be removed with force=true, found=%+v", found)
 	}
 }
@@ -7394,7 +7394,7 @@ func TestHandleChannelsCreateUserChannelMarksProtected(t *testing.T) {
 	b.members = append(b.members, officeMember{Slug: "ceo", Name: "CEO"}, officeMember{Slug: "you", Name: "You"})
 
 	handler := b.requireAuth(b.handleChannels)
-	body := bytes.NewBufferString(`{"action":"create","slug":"migration-exampleworkflow","name":"Migração ExampleWorkflow","description":"Controle de migração","created_by":"you","members":["you"]}`)
+	body := bytes.NewBufferString(`{"action":"create","slug":"migracao-convenios","name":"Migração Convenios","description":"Controle de migração","created_by":"you","members":["you"]}`)
 	req := httptest.NewRequest(http.MethodPost, "/channels", body)
 	req.Header.Set("Authorization", "Bearer "+b.Token())
 	req.Header.Set("Content-Type", "application/json")
@@ -7408,7 +7408,7 @@ func TestHandleChannelsCreateUserChannelMarksProtected(t *testing.T) {
 		t.Fatalf("expected 200 creating custom channel, got %d: %s", resp.StatusCode, raw)
 	}
 
-	ch := b.findChannelLocked("migration-exampleworkflow")
+	ch := b.findChannelLocked("migracao-convenios")
 	if ch == nil {
 		t.Fatal("expected channel to be created")
 	}
@@ -7416,7 +7416,7 @@ func TestHandleChannelsCreateUserChannelMarksProtected(t *testing.T) {
 		t.Fatalf("expected newly created user channel to be protected: %+v", ch)
 	}
 
-	body = bytes.NewBufferString(`{"action":"remove","slug":"migration-exampleworkflow"}`)
+	body = bytes.NewBufferString(`{"action":"remove","slug":"migracao-convenios"}`)
 	req = httptest.NewRequest(http.MethodPost, "/channels", body)
 	req.Header.Set("Authorization", "Bearer "+b.Token())
 	req.Header.Set("Content-Type", "application/json")
@@ -7439,8 +7439,8 @@ func TestNormalizeLoadedStateLockedRecoversPublicChannelsFromChannelStore(t *tes
 	b.members = append(b.members, officeMember{Slug: "you", Name: "You"})
 
 	stored, err := b.channelStore.Create(channel.Channel{
-		Slug:        "migration-exampleworkflow",
-		Name:        "Migração Fluxo Exemplo Web",
+		Slug:        "migracao-convenios",
+		Name:        "Migração Convênios Web",
 		Type:        channel.ChannelTypePublic,
 		CreatedBy:   "you",
 		Description: "Coordenação da migração",
@@ -7457,7 +7457,7 @@ func TestNormalizeLoadedStateLockedRecoversPublicChannelsFromChannelStore(t *tes
 
 	b.normalizeLoadedStateLocked()
 
-	ch := b.findChannelLocked("migration-exampleworkflow")
+	ch := b.findChannelLocked("migracao-convenios")
 	if ch == nil {
 		t.Fatal("expected channel to be recovered from channel_store")
 	}
@@ -7488,7 +7488,7 @@ func TestNormalizeLoadedStateLockedRecoversPublicChannelsFromChannelStore(t *tes
 	}
 	found := false
 	for _, listed := range channelList.Channels {
-		if listed.Slug == "migration-exampleworkflow" {
+		if listed.Slug == "migracao-convenios" {
 			found = true
 			break
 		}
@@ -8465,7 +8465,7 @@ func TestPostMessageLinksRepoFromHumanMessage(t *testing.T) {
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
 	defer func() { brokerStatePath = oldPathFn }()
 
-	repo := filepath.Join(tmpDir, "LegacySystemNew")
+	repo := filepath.Join(tmpDir, "ConveniosWebBNB_Novo")
 	initUsableGitWorktree(t, repo)
 
 	b := NewBroker()
@@ -8502,7 +8502,7 @@ func TestPostMessageDoesNotLinkRepoFromAgentMessage(t *testing.T) {
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
 	defer func() { brokerStatePath = oldPathFn }()
 
-	repo := filepath.Join(tmpDir, "LegacySystemNew")
+	repo := filepath.Join(tmpDir, "ConveniosWebBNB_Novo")
 	initUsableGitWorktree(t, repo)
 
 	b := NewBroker()
@@ -8530,7 +8530,7 @@ func TestHandlePostTaskLinksWorkspacePathToChannel(t *testing.T) {
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
 	defer func() { brokerStatePath = oldPathFn }()
 
-	repo := filepath.Join(tmpDir, "LegacyWebExternal")
+	repo := filepath.Join(tmpDir, "ConveniosWebExterno")
 	initUsableGitWorktree(t, repo)
 
 	b := NewBroker()

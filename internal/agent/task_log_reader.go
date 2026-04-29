@@ -3,9 +3,11 @@ package agent
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -34,6 +36,16 @@ type TaskLogEntry struct {
 	Error       string         `json:"error,omitempty"`
 	StartedAt   int64          `json:"started_at,omitempty"`
 	CompletedAt int64          `json:"completed_at,omitempty"`
+}
+
+// TaskLogRange is a byte-range read of a task output.log.
+type TaskLogRange struct {
+	TaskID     string `json:"taskId"`
+	Content    string `json:"content"`
+	Offset     int64  `json:"offset"`
+	NextOffset int64  `json:"nextOffset,omitempty"`
+	SizeBytes  int64  `json:"sizeBytes"`
+	SHA256     string `json:"sha256,omitempty"`
 }
 
 // DefaultTaskLogRoot returns the directory where AgentLoop writes task logs.
@@ -100,6 +112,9 @@ func ReadTaskLog(root, taskID string) ([]TaskLogEntry, error) {
 	if taskID == "" {
 		return nil, errors.New("taskID is required")
 	}
+	if !taskLogIDIsSafe(taskID) {
+		return nil, errors.New("invalid taskID")
+	}
 	path := filepath.Join(root, taskID, "output.log")
 	f, err := os.Open(path)
 	if err != nil {
@@ -134,6 +149,92 @@ func ReadTaskLog(root, taskID string) ([]TaskLogEntry, error) {
 		return nil, fmt.Errorf("scan task log %q: %w", taskID, err)
 	}
 	return entries, nil
+}
+
+// ReadTaskLogRange reads a bounded byte range from root/{taskID}/output.log.
+// It is meant for UI/API callers that need large logs incrementally.
+func ReadTaskLogRange(root, taskID string, offset, limitBytes int64, includeHash bool) (TaskLogRange, error) {
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return TaskLogRange{}, errors.New("taskID is required")
+	}
+	if !taskLogIDIsSafe(taskID) {
+		return TaskLogRange{}, errors.New("invalid taskID")
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if limitBytes <= 0 {
+		limitBytes = 256_000
+	}
+	if limitBytes > 1_000_000 {
+		limitBytes = 1_000_000
+	}
+
+	path := filepath.Join(root, taskID, "output.log")
+	f, err := os.Open(path)
+	if err != nil {
+		return TaskLogRange{}, fmt.Errorf("open task log %q: %w", taskID, err)
+	}
+	defer func() { _ = f.Close() }()
+
+	stat, err := f.Stat()
+	if err != nil {
+		return TaskLogRange{}, fmt.Errorf("stat task log %q: %w", taskID, err)
+	}
+	if !stat.Mode().IsRegular() {
+		return TaskLogRange{}, fmt.Errorf("task log %q is not a regular file", taskID)
+	}
+
+	size := stat.Size()
+	start := offset
+	if start > size {
+		start = size
+	}
+	if _, err := f.Seek(start, io.SeekStart); err != nil {
+		return TaskLogRange{}, fmt.Errorf("seek task log %q: %w", taskID, err)
+	}
+
+	content, err := io.ReadAll(io.LimitReader(f, limitBytes))
+	if err != nil {
+		return TaskLogRange{}, fmt.Errorf("read task log %q: %w", taskID, err)
+	}
+
+	result := TaskLogRange{
+		TaskID:    taskID,
+		Content:   string(content),
+		Offset:    start,
+		SizeBytes: size,
+	}
+	next := start + int64(len(content))
+	if next < size {
+		result.NextOffset = next
+	}
+	if includeHash {
+		sum, err := taskLogSHA256(path)
+		if err != nil {
+			return TaskLogRange{}, err
+		}
+		result.SHA256 = sum
+	}
+	return result, nil
+}
+
+func taskLogIDIsSafe(taskID string) bool {
+	return taskID != "" && !strings.Contains(taskID, "..") && !strings.ContainsAny(taskID, `/\`)
+}
+
+func taskLogSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = f.Close() }()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, f); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func summarizeTaskLog(path, taskID string) TaskLogSummary {

@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -106,6 +108,36 @@ func TestReadTaskLog_EmptyFile(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("expected 0 entries from empty file, got %d", len(entries))
+	}
+}
+
+func TestReadTaskLogRange_ReadsBoundedChunkWithHash(t *testing.T) {
+	dir := t.TempDir()
+	content := "first line\nsecond line\nthird line\n"
+	mustWriteLog(t, filepath.Join(dir, "eng-100", "output.log"), content)
+
+	got, err := ReadTaskLogRange(dir, "eng-100", 0, 12, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Content != "first line\ns" {
+		t.Fatalf("unexpected content %q", got.Content)
+	}
+	if got.NextOffset != 12 {
+		t.Fatalf("expected next offset 12, got %d", got.NextOffset)
+	}
+	sum := sha256.Sum256([]byte(content))
+	if got.SHA256 != fmt.Sprintf("%x", sum[:]) {
+		t.Fatalf("unexpected sha256 %q", got.SHA256)
+	}
+	if got.SizeBytes != int64(len(content)) {
+		t.Fatalf("unexpected size %d", got.SizeBytes)
+	}
+}
+
+func TestReadTaskLogRange_RejectsUnsafeTaskID(t *testing.T) {
+	if _, err := ReadTaskLogRange(t.TempDir(), "../escape", 0, 10, false); err == nil {
+		t.Fatal("expected error for unsafe task id")
 	}
 }
 

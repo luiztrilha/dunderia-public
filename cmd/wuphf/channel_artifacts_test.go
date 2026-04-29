@@ -125,16 +125,16 @@ func TestBuildArtifactLinesShowsExternalWorkspacePath(t *testing.T) {
 		Title:         "Inspect external repo",
 		Status:        "in_progress",
 		ExecutionMode: "external_workspace",
-		WorkspacePath: "<REPOS_ROOT>/LegacySystemNew",
+		WorkspacePath: "D:/Repos/ConveniosWebBNB_Novo",
 	}}
 
 	lines := m.buildArtifactLines(96)
 	plain := stripANSI(joinRenderedLines(lines))
 
-	if !strings.Contains(plain, "<REPOS_ROOT>/LegacySystemNew") {
+	if !strings.Contains(plain, "D:/Repos/ConveniosWebBNB_Novo") {
 		t.Fatalf("expected external workspace path in artifacts view, got %q", plain)
 	}
-	if !strings.Contains(plain, "Resume in <REPOS_ROOT>/LegacySystemNew") {
+	if !strings.Contains(plain, "Resume in D:/Repos/ConveniosWebBNB_Novo") {
 		t.Fatalf("expected external workspace resume hint, got %q", plain)
 	}
 }

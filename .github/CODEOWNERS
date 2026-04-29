@@ -1,0 +1,33 @@
+# DunderIA sensitive-area ownership map.
+#
+# Replace @nex-crm/dunderia-maintainers with the real GitHub team/user before
+# enforcing branch protection. The patterns are intentionally scoped to areas
+# where a small accidental change can affect releases, credentials, topology,
+# runtime safety, or public packaging.
+
+.github/** @nex-crm/dunderia-maintainers
+.goreleaser.yml @nex-crm/dunderia-maintainers
+scripts/install* @nex-crm/dunderia-maintainers
+scripts/*release* @nex-crm/dunderia-maintainers
+PUBLIC_RELEASE.md @nex-crm/dunderia-maintainers
+SECURITY.md @nex-crm/dunderia-maintainers
+
+go.mod @nex-crm/dunderia-maintainers
+go.sum @nex-crm/dunderia-maintainers
+web/package-lock.json @nex-crm/dunderia-maintainers
+web/e2e/bun.lock @nex-crm/dunderia-maintainers
+npm/package.json @nex-crm/dunderia-maintainers
+
+internal/config/** @nex-crm/dunderia-maintainers
+internal/company/** @nex-crm/dunderia-maintainers
+internal/backup/** @nex-crm/dunderia-maintainers
+internal/team/broker*.go @nex-crm/dunderia-maintainers
+internal/team/launcher*.go @nex-crm/dunderia-maintainers
+internal/team/headless_*.go @nex-crm/dunderia-maintainers
+internal/team/worktree*.go @nex-crm/dunderia-maintainers
+internal/agent/** @nex-crm/dunderia-maintainers
+mcp/** @nex-crm/dunderia-maintainers
+
+templates/starter-kit/** @nex-crm/dunderia-maintainers
+templates/employees/** @nex-crm/dunderia-maintainers
+templates/operations/** @nex-crm/dunderia-maintainers

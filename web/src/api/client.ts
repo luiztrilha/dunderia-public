@@ -385,6 +385,10 @@ export interface OfficeMember {
   firstToolMs?: number
   task?: string
   channel?: string
+  liveness_state?: string
+  liveness_reason?: string
+  liveness_task_id?: string
+  liveness_at?: string
   provider?: ProviderBinding
 }
 
@@ -967,6 +971,9 @@ export interface StudioTaskSnapshot {
   worktree_branch?: string
   depends_on?: string[]
   updated_at?: string
+  liveness_state?: string
+  liveness_reason?: string
+  liveness_at?: string
 }
 
 export interface StudioRequestSnapshot {

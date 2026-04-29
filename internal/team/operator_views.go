@@ -982,11 +982,11 @@ func deliveryWorkspaceCandidateScore(path, artifactKind string) int {
 
 func deliveryRepositoryPriority(token string) int {
 	switch {
-	case strings.HasPrefix(token, "LegacyWeb"),
-		strings.HasPrefix(token, "legacyticketweb"),
-		strings.HasPrefix(token, "publicportalweb"),
-		strings.HasPrefix(token, "sharedsystemswebforms"),
-		strings.HasPrefix(token, "integrationapi"):
+	case strings.HasPrefix(token, "conveniosweb"),
+		strings.HasPrefix(token, "chamadoweb"),
+		strings.HasPrefix(token, "transparenciaweb"),
+		strings.HasPrefix(token, "sistemascompartilhadoswebforms"),
+		strings.HasPrefix(token, "tectrilhaapi"):
 		return 300
 	case token == "dunderia", token == "superpowers", token == "codexlb", token == "vibeyard":
 		return 180

@@ -508,7 +508,7 @@ func TestHeadlessCodexRunTurnReroutesLocalWorktreeToCodex(t *testing.T) {
 		Owner:         "reviewer",
 		Status:        "in_progress",
 		ExecutionMode: "local_worktree",
-		WorktreePath:  `<USER_HOME>\.wuphf\task-worktrees\dunderia\wuphf-task-task-782`,
+		WorktreePath:  `C:\Users\l.sousa\.wuphf\task-worktrees\dunderia\wuphf-task-task-782`,
 	})
 	b.memberIndex = nil
 	b.taskIndexes = brokerTaskIndexes{}
@@ -895,7 +895,7 @@ func TestRunHeadlessCodexTurnUsesAssignedExternalWorkspace(t *testing.T) {
 
 func TestRunHeadlessCodexTurnDisablesCodexLBWebsocketsForNonASCIIWorkspace(t *testing.T) {
 	recordFile := filepath.Join(t.TempDir(), "headless-codex-record.jsonl")
-	workspaceDir := filepath.Join(t.TempDir(), "Repositórios", "LegacySystemNew")
+	workspaceDir := filepath.Join(t.TempDir(), "Repositórios", "ConveniosWebBNB_Novo")
 	repoRoot := t.TempDir()
 	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll workspace: %v", err)
@@ -1039,7 +1039,7 @@ func TestRunHeadlessCodexTurnDisablesWebsocketsWhenCodexConfigHasNonASCIITrusted
 		`[model_providers.codex-lb]`,
 		`supports_websockets = true`,
 		``,
-		`[projects.'<REPOS_ROOT>\LegacySystemNew']`,
+		`[projects.'D:\Repositórios\ConveniosWebBNB_Novo']`,
 		`trust_level = "trusted"`,
 		``,
 	}, "\n")
@@ -1756,12 +1756,12 @@ func TestHeadlessCodexNeedsWebsocketHeaderWorkaround(t *testing.T) {
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("WUPHF_GLOBAL_HOME", home)
 
-	asciiWorkspace := filepath.Join(t.TempDir(), "Repos", "LegacySystemNew")
+	asciiWorkspace := filepath.Join(t.TempDir(), "Repos", "ConveniosWebBNB_Novo")
 	if got := headlessCodexNeedsWebsocketHeaderWorkaround(asciiWorkspace); got {
 		t.Fatalf("expected ASCII workspace path to skip workaround, got %t", got)
 	}
 
-	nonASCIIWorkspace := filepath.Join(t.TempDir(), "Repositórios", "LegacySystemNew")
+	nonASCIIWorkspace := filepath.Join(t.TempDir(), "Repositórios", "ConveniosWebBNB_Novo")
 	if got := headlessCodexNeedsWebsocketHeaderWorkaround(nonASCIIWorkspace); !got {
 		t.Fatalf("expected non-ASCII workspace path to require workaround, got %t", got)
 	}
@@ -3899,7 +3899,7 @@ func TestEnqueueHeadlessCodexTurnDoesNotDeferLeadForFollowUpTask(t *testing.T) {
 	b.mu.Lock()
 	b.tasks = []teamTask{{
 		ID:            "task-886",
-		Channel:       "exampleworkflow-web-azure",
+		Channel:       "convenios-web-azure",
 		Owner:         "ceo",
 		Status:        "in_progress",
 		ThreadID:      "msg-814",
@@ -3911,11 +3911,11 @@ func TestEnqueueHeadlessCodexTurnDoesNotDeferLeadForFollowUpTask(t *testing.T) {
 
 	l := newHeadlessLauncherForTest()
 	l.broker = b
-	l.headlessActive[agentLaneKey("exampleworkflow-web-azure", "frontend")] = &headlessCodexActiveTurn{}
+	l.headlessActive[agentLaneKey("convenios-web-azure", "frontend")] = &headlessCodexActiveTurn{}
 
 	l.enqueueHeadlessCodexTurnRecord("ceo", headlessCodexTurn{
-		Prompt:     "[Task update #task-886 on #exampleworkflow-web-azure]: Reply to pending message from @you",
-		Channel:    "exampleworkflow-web-azure",
+		Prompt:     "[Task update #task-886 on #convenios-web-azure]: Reply to pending message from @you",
+		Channel:    "convenios-web-azure",
 		TaskID:     "task-886",
 		EnqueuedAt: time.Now(),
 	})
@@ -4104,13 +4104,13 @@ func TestSendChannelUpdateDoesNotInferTaskIDFromFreeTextMessage(t *testing.T) {
 	l := newHeadlessLauncherForTest()
 	l.webMode = true
 	l.broker = NewBroker()
-	laneKey := agentLaneKey("migration-exampleworkflow", "backend")
+	laneKey := agentLaneKey("migracao-convenios", "backend")
 	l.headlessWorkers[laneKey] = true
 
 	l.sendChannelUpdate(notificationTarget{Slug: "backend"}, channelMessage{
 		ID:      "msg-task-mention",
 		From:    "ceo",
-		Channel: "migration-exampleworkflow",
+		Channel: "migracao-convenios",
 		Content: "@backend assuma a task-2775 e investigue o erro da task-1629.",
 		Tagged:  []string{"backend"},
 	})

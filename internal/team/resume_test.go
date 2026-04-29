@@ -114,8 +114,8 @@ func TestFindUnansweredMessagesNexReplyDoesNotCountAsAgentAnswer(t *testing.T) {
 
 func TestCollapseUnansweredMessagesByThreadKeepsLatestHumanFollowUp(t *testing.T) {
 	allMessages := []channelMessage{
-		{ID: "h1", From: "you", Channel: "exampleworkflow-web-azure", Content: "@ceo onde está o arquivo gerado?", Timestamp: "2026-04-22T16:28:26Z"},
-		{ID: "h2", From: "you", Channel: "exampleworkflow-web-azure", Content: "@ceo responda", ReplyTo: "h1", Timestamp: "2026-04-22T17:55:27Z"},
+		{ID: "h1", From: "you", Channel: "convenios-web-azure", Content: "@ceo onde está o arquivo gerado?", Timestamp: "2026-04-22T16:28:26Z"},
+		{ID: "h2", From: "you", Channel: "convenios-web-azure", Content: "@ceo responda", ReplyTo: "h1", Timestamp: "2026-04-22T17:55:27Z"},
 	}
 
 	got := collapseUnansweredMessagesByThread(allMessages, allMessages)
@@ -129,8 +129,8 @@ func TestCollapseUnansweredMessagesByThreadKeepsLatestHumanFollowUp(t *testing.T
 
 func TestRouteResumeMessagesToThreadRootKeepsLatestContentButUsesThreadRootReplyTo(t *testing.T) {
 	allMessages := []channelMessage{
-		{ID: "h1", From: "you", Channel: "exampleworkflow-web-azure", Content: "@ceo onde está o arquivo gerado?", Timestamp: "2026-04-22T16:28:26Z"},
-		{ID: "h2", From: "you", Channel: "exampleworkflow-web-azure", Content: "@ceo responda", ReplyTo: "h1", Timestamp: "2026-04-22T17:55:27Z"},
+		{ID: "h1", From: "you", Channel: "convenios-web-azure", Content: "@ceo onde está o arquivo gerado?", Timestamp: "2026-04-22T16:28:26Z"},
+		{ID: "h2", From: "you", Channel: "convenios-web-azure", Content: "@ceo responda", ReplyTo: "h1", Timestamp: "2026-04-22T17:55:27Z"},
 	}
 
 	got := routeResumeMessagesToThreadRoot([]channelMessage{allMessages[1]}, allMessages)
@@ -788,15 +788,15 @@ func TestResumeInFlightWorkHeadlessPreservesChannelScopedLanes(t *testing.T) {
 	b := NewBroker()
 	b.mu.Lock()
 	b.tasks = []teamTask{
-		{ID: "t1", Title: "Build onboarding fix", Channel: "exampleworkflow-web-azure", Owner: "fe", Status: "in_progress"},
+		{ID: "t1", Title: "Build onboarding fix", Channel: "convenios-web-azure", Owner: "fe", Status: "in_progress"},
 	}
 	b.messages = []channelMessage{
-		{ID: "h1", From: "you", Channel: "exampleworkflow-web-azure", Content: "onde está o arquivo?", Timestamp: "2026-04-14T10:00:00Z"},
+		{ID: "h1", From: "you", Channel: "convenios-web-azure", Content: "onde está o arquivo?", Timestamp: "2026-04-14T10:00:00Z"},
 	}
 	b.mu.Unlock()
 
-	leadLaneKey := agentLaneKey("exampleworkflow-web-azure", "ceo")
-	feLaneKey := agentLaneKey("exampleworkflow-web-azure", "fe")
+	leadLaneKey := agentLaneKey("convenios-web-azure", "ceo")
+	feLaneKey := agentLaneKey("convenios-web-azure", "fe")
 	l := &Launcher{
 		provider: "codex",
 		broker:   b,
@@ -830,10 +830,10 @@ func TestResumeInFlightWorkHeadlessPreservesChannelScopedLanes(t *testing.T) {
 	if got := len(l.headlessQueues["fe"]); got != 0 {
 		t.Fatalf("expected no fallback general specialist resume packet, got %d", got)
 	}
-	if got := normalizeChannelSlug(l.headlessQueues[leadLaneKey][0].Channel); got != "exampleworkflow-web-azure" {
+	if got := normalizeChannelSlug(l.headlessQueues[leadLaneKey][0].Channel); got != "convenios-web-azure" {
 		t.Fatalf("expected CEO resume packet channel to stay scoped, got %q", got)
 	}
-	if got := normalizeChannelSlug(l.headlessQueues[feLaneKey][0].Channel); got != "exampleworkflow-web-azure" {
+	if got := normalizeChannelSlug(l.headlessQueues[feLaneKey][0].Channel); got != "convenios-web-azure" {
 		t.Fatalf("expected specialist resume packet channel to stay scoped, got %q", got)
 	}
 }

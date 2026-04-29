@@ -20,6 +20,27 @@ function formatRelativeTime(raw?: string): string {
   return `${Math.round(deltaHours / 24)}d ago`
 }
 
+function formatLivenessLabel(raw?: string): string {
+  return (raw || 'liveness').replace(/_/g, ' ')
+}
+
+function livenessTone(raw?: string): { bg: string; fg: string; dot: string } {
+  switch ((raw || '').trim().toLowerCase()) {
+    case 'advanced':
+    case 'completed':
+      return { bg: 'rgba(73, 127, 77, 0.12)', fg: '#3b7b54', dot: '#3b7b54' }
+    case 'needs_followup':
+    case 'blocked':
+      return { bg: 'rgba(183, 112, 34, 0.12)', fg: '#9f651f', dot: '#b97022' }
+    case 'failed':
+    case 'empty_response':
+    case 'plan_only':
+      return { bg: 'rgba(198, 68, 68, 0.12)', fg: '#b24a4a', dot: '#b24a4a' }
+    default:
+      return { bg: 'rgba(111, 118, 132, 0.12)', fg: 'var(--text-secondary)', dot: 'var(--text-tertiary)' }
+  }
+}
+
 export function StudioActiveContext({
   context,
   onOpenChannel,
@@ -180,6 +201,13 @@ export function StudioActiveContext({
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'right' }}>
                   <div>{task.status || 'n/a'}</div>
+                  {task.liveness_state ? (
+                    <LivenessBadge
+                      state={task.liveness_state}
+                      reason={task.liveness_reason}
+                      at={task.liveness_at}
+                    />
+                  ) : null}
                   <div>{formatRelativeTime(task.updated_at)}</div>
                 </div>
               </div>
@@ -223,6 +251,48 @@ export function StudioActiveContext({
         </div>
       )}
     </section>
+  )
+}
+
+function LivenessBadge({ state, reason, at }: { state: string; reason?: string; at?: string }) {
+  const tone = livenessTone(state)
+  const title = [reason || state, at ? `Recorded ${formatRelativeTime(at)}` : ''].filter(Boolean).join(' · ')
+
+  return (
+    <span
+      title={title}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 5,
+        maxWidth: 150,
+        padding: '3px 8px',
+        borderRadius: 999,
+        background: tone.bg,
+        color: tone.fg,
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0,
+        lineHeight: 1.2,
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 999,
+          background: tone.dot,
+          flex: '0 0 auto',
+        }}
+      />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {formatLivenessLabel(state)}
+      </span>
+    </span>
   )
 }
 

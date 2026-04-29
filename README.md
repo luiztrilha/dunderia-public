@@ -190,11 +190,13 @@ Voce configura isso dentro do escritorio:
 
 - [PUBLIC_RELEASE.md](PUBLIC_RELEASE.md): checklist para publicar uma versao publica sem vazar estado local ou privado
 - [ARCHITECTURE.md](ARCHITECTURE.md): arquitetura do runtime e mapa de arquivos
+- [RUNTIME_CONTRACT.md](RUNTIME_CONTRACT.md): contrato operacional para wake paths, tarefas, recovery, skills e uso/custo
 - [DEVELOPMENT.md](DEVELOPMENT.md): fluxo de desenvolvimento local
+- [docs/paperclip-absorption-plan.md](docs/paperclip-absorption-plan.md): plano de melhorias absorvidas do Paperclip e proximas fases
+- [docs/evals/agent-runtime-behavior.md](docs/evals/agent-runtime-behavior.md): contratos de comportamento para futuros evals de agentes
 - [CHANGELOG.md](CHANGELOG.md): historico de releases
 - [FORKING.md](FORKING.md): notas de branding e customizacao se voce for adaptar o projeto
-- [templates/starter-kit](templates/starter-kit): perfil validado com skills, politicas, prompts, regras e config sanitizada para onboarding inicial
-- [docs/local-runtime-profile.md](docs/local-runtime-profile.md): modelo publico para separar `skills`, orientacao Markdown e config sanitizada sem publicar estado privado
+- [templates/starter-kit](templates/starter-kit): perfil validado com skills, prompts, regras e config sanitizada para onboarding inicial
 - [SECURITY.md](SECURITY.md): como reportar vulnerabilidades
 - [CONTRIBUTING.md](CONTRIBUTING.md): como contribuir com codigo e docs
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md): expectativas de convivencia no projeto

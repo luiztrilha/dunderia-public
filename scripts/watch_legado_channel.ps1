@@ -44,10 +44,10 @@ if ([string]::IsNullOrWhiteSpace($LogPath)) {
 }
 if (-not $AllowedPaths -or $AllowedPaths.Count -eq 0) {
   $AllowedPaths = @(
-    '<REPOS_ROOT>\LegacySystemOld\LegacyWeb',
-    '<REPOS_ROOT>\LegacySystemOld\WSExampleAgreement',
-    '<REPOS_ROOT>\LegacySystemNew',
-    '<REPOS_ROOT>\LegacySystemExternal'
+    'D:\Repos\ConveniosWebBNB_Antigo\BNB',
+    'D:\Repos\ConveniosWebBNB_Antigo\WSConvenio',
+    'D:\Repos\ConveniosWebBNB_Novo',
+    'D:\Repos\ConveniosWebExterno'
   )
 }
 

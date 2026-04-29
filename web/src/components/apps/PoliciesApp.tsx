@@ -20,7 +20,6 @@ function makeRequestId(): string {
 }
 
 const SECTIONS = [
-  { key: 'validated_profile', i18nKey: 'apps.policies.sections.validatedProfile', icon: '\uD83D\uDEE1' },
   { key: 'human_directed', i18nKey: 'apps.policies.sections.humanDirected', icon: '\uD83D\uDC64' },
   { key: 'auto_detected', i18nKey: 'apps.policies.sections.autoDetected', icon: '\uD83E\uDD16' },
 ] as const

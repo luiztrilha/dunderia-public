@@ -20,6 +20,10 @@ type SessionAgentObservability struct {
 	ActiveTaskID         string `json:"active_task_id,omitempty"`
 	ActiveSince          string `json:"active_since,omitempty"`
 	WorkingDirectory     string `json:"working_directory,omitempty"`
+	LivenessState        string `json:"liveness_state,omitempty"`
+	LivenessReason       string `json:"liveness_reason,omitempty"`
+	LivenessTaskID       string `json:"liveness_task_id,omitempty"`
+	LivenessAt           string `json:"liveness_at,omitempty"`
 }
 
 type SessionObservabilitySnapshot struct {
@@ -143,8 +147,17 @@ func (s SessionObservabilitySnapshot) FormatLines() []string {
 		if strings.TrimSpace(agent.WorkingDirectory) != "" {
 			parts = append(parts, "wd="+agent.WorkingDirectory)
 		}
+		if strings.TrimSpace(agent.LivenessState) != "" {
+			parts = append(parts, "liveness="+agent.LivenessState)
+		}
+		if strings.TrimSpace(agent.LivenessTaskID) != "" && strings.TrimSpace(agent.LivenessTaskID) != strings.TrimSpace(agent.ActiveTaskID) {
+			parts = append(parts, "liveness_task="+agent.LivenessTaskID)
+		}
 		if strings.TrimSpace(agent.Detail) != "" {
 			parts = append(parts, "detail="+truncate(agent.Detail, 120))
+		}
+		if strings.TrimSpace(agent.LivenessReason) != "" {
+			parts = append(parts, "liveness_reason="+truncate(agent.LivenessReason, 120))
 		}
 		lines = append(lines, strings.Join(parts, " · "))
 	}
@@ -277,6 +290,10 @@ func (l *Launcher) SessionObservabilitySnapshot() SessionObservabilitySnapshot {
 		entry.Status = strings.TrimSpace(state.Status)
 		entry.Activity = strings.TrimSpace(state.Activity)
 		entry.Detail = strings.TrimSpace(state.Detail)
+		entry.LivenessState = strings.TrimSpace(state.LivenessState)
+		entry.LivenessReason = strings.TrimSpace(state.LivenessReason)
+		entry.LivenessTaskID = strings.TrimSpace(state.LivenessTaskID)
+		entry.LivenessAt = strings.TrimSpace(state.LivenessAt)
 		entryMap[laneKey] = entry
 	}
 	for laneKey, queue := range queues {

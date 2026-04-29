@@ -141,8 +141,8 @@ func TestPublishHeadlessFallbackReplyPostsTaskFollowUpReplyFromExecutionPacket(t
 	defer func() { brokerStatePath = oldPathFn }()
 
 	b := NewBroker()
-	ensureTestMemberAccess(b, "exampleworkflow-web-azure", "ceo", "CEO")
-	root, err := b.PostMessage("you", "exampleworkflow-web-azure", "@ceo onde está o arquivo gerado?", []string{"ceo"}, "")
+	ensureTestMemberAccess(b, "convenios-web-azure", "ceo", "CEO")
+	root, err := b.PostMessage("you", "convenios-web-azure", "@ceo onde está o arquivo gerado?", []string{"ceo"}, "")
 	if err != nil {
 		t.Fatalf("seed message: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestPublishHeadlessFallbackReplyPostsTaskFollowUpReplyFromExecutionPacket(t
 		Actor: "watchdog",
 	}, teamTask{
 		ID:         "task-855",
-		Channel:    "exampleworkflow-web-azure",
+		Channel:    "convenios-web-azure",
 		Title:      "Reply to pending message from @you",
 		Owner:      "ceo",
 		Status:     "in_progress",
@@ -169,7 +169,7 @@ func TestPublishHeadlessFallbackReplyPostsTaskFollowUpReplyFromExecutionPacket(t
 		t.Fatalf("expected follow-up reply to be published, got %d messages want %d", got, before+1)
 	}
 	last := b.AllMessages()[len(b.AllMessages())-1]
-	if last.From != "ceo" || last.Channel != "exampleworkflow-web-azure" || last.ReplyTo != root.ID {
+	if last.From != "ceo" || last.Channel != "convenios-web-azure" || last.ReplyTo != root.ID {
 		t.Fatalf("unexpected follow-up reply %+v", last)
 	}
 }
@@ -181,8 +181,8 @@ func TestPublishHeadlessFallbackReplyPostsSingleResumePacketReply(t *testing.T) 
 	defer func() { brokerStatePath = oldPathFn }()
 
 	b := NewBroker()
-	ensureTestMemberAccess(b, "exampleworkflow-web-azure", "ceo", "CEO")
-	root, err := b.PostMessage("you", "exampleworkflow-web-azure", "@ceo onde está o arquivo gerado?", []string{"ceo"}, "")
+	ensureTestMemberAccess(b, "convenios-web-azure", "ceo", "CEO")
+	root, err := b.PostMessage("you", "convenios-web-azure", "@ceo onde está o arquivo gerado?", []string{"ceo"}, "")
 	if err != nil {
 		t.Fatalf("seed message: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestPublishHeadlessFallbackReplyPostsSingleResumePacketReply(t *testing.T) 
 		t.Fatalf("expected single-message resume reply to be published, got %d messages want %d", got, before+1)
 	}
 	last := b.AllMessages()[len(b.AllMessages())-1]
-	if last.From != "ceo" || last.Channel != "exampleworkflow-web-azure" || last.ReplyTo != root.ID {
+	if last.From != "ceo" || last.Channel != "convenios-web-azure" || last.ReplyTo != root.ID {
 		t.Fatalf("unexpected resume fallback reply %+v", last)
 	}
 }
@@ -209,18 +209,18 @@ func TestPublishHeadlessFallbackReplyRetriesAtThreadRootOnReplyToMismatch(t *tes
 	defer func() { brokerStatePath = oldPathFn }()
 
 	b := NewBroker()
-	ensureTestMemberAccess(b, "exampleworkflow-web-azure", "ceo", "CEO")
-	root, err := b.PostMessage("you", "exampleworkflow-web-azure", "@ceo onde está o arquivo gerado?", []string{"ceo"}, "")
+	ensureTestMemberAccess(b, "convenios-web-azure", "ceo", "CEO")
+	root, err := b.PostMessage("you", "convenios-web-azure", "@ceo onde está o arquivo gerado?", []string{"ceo"}, "")
 	if err != nil {
 		t.Fatalf("seed root message: %v", err)
 	}
-	followUp, err := b.PostMessage("you", "exampleworkflow-web-azure", "@ceo responda", []string{"ceo"}, root.ID)
+	followUp, err := b.PostMessage("you", "convenios-web-azure", "@ceo responda", []string{"ceo"}, root.ID)
 	if err != nil {
 		t.Fatalf("seed follow-up message: %v", err)
 	}
 
 	l := &Launcher{broker: b}
-	notification := fmt.Sprintf(`Reply using team_broadcast with my_slug "ceo" and channel "exampleworkflow-web-azure" reply_to_id "%s". [WUPHF_REPLY_ROUTE channel="exampleworkflow-web-azure" reply_to_id="%s"]`, followUp.ID, followUp.ID)
+	notification := fmt.Sprintf(`Reply using team_broadcast with my_slug "ceo" and channel "convenios-web-azure" reply_to_id "%s". [WUPHF_REPLY_ROUTE channel="convenios-web-azure" reply_to_id="%s"]`, followUp.ID, followUp.ID)
 	before := len(b.AllMessages())
 
 	l.publishHeadlessFallbackReply("ceo", notification, "O relatório da task-782 foi entregue e aprovado internamente.", time.Now().UTC())
@@ -229,7 +229,7 @@ func TestPublishHeadlessFallbackReplyRetriesAtThreadRootOnReplyToMismatch(t *tes
 		t.Fatalf("expected mismatch retry reply to be published, got %d messages want %d", got, before+1)
 	}
 	last := b.AllMessages()[len(b.AllMessages())-1]
-	if last.From != "ceo" || last.Channel != "exampleworkflow-web-azure" || last.ReplyTo != root.ID {
+	if last.From != "ceo" || last.Channel != "convenios-web-azure" || last.ReplyTo != root.ID {
 		t.Fatalf("expected retry to publish at thread root %+v", last)
 	}
 }
@@ -241,14 +241,14 @@ func TestPublishHeadlessFallbackReplyPostsNeutralFallbackOnTaskStateClaimRejecti
 	defer func() { brokerStatePath = oldPathFn }()
 
 	b := NewBroker()
-	ensureTestMemberAccess(b, "migracao-exampleworkflow", "ceo", "CEO")
-	root, err := b.PostMessage("you", "migracao-exampleworkflow", "o que esta sendo feito agora?", nil, "")
+	ensureTestMemberAccess(b, "migracao-convenios", "ceo", "CEO")
+	root, err := b.PostMessage("you", "migracao-convenios", "o que esta sendo feito agora?", nil, "")
 	if err != nil {
 		t.Fatalf("seed human message: %v", err)
 	}
 	task := teamTask{
 		ID:      "task-2775",
-		Channel: "migracao-exampleworkflow",
+		Channel: "migracao-convenios",
 		Title:   "Diagnosticar 500 failed to manage task worktree da task-1629",
 		Owner:   "ceo",
 		Status:  "open",
@@ -259,7 +259,7 @@ func TestPublishHeadlessFallbackReplyPostsNeutralFallbackOnTaskStateClaimRejecti
 	b.mu.Unlock()
 
 	l := &Launcher{broker: b}
-	notification := fmt.Sprintf(`Reply using team_broadcast with my_slug "ceo" and channel "migracao-exampleworkflow" reply_to_id "%s". [WUPHF_REPLY_ROUTE channel="migracao-exampleworkflow" reply_to_id="%s"]`, root.ID, root.ID)
+	notification := fmt.Sprintf(`Reply using team_broadcast with my_slug "ceo" and channel "migracao-convenios" reply_to_id "%s". [WUPHF_REPLY_ROUTE channel="migracao-convenios" reply_to_id="%s"]`, root.ID, root.ID)
 	before := len(b.AllMessages())
 
 	l.publishHeadlessFallbackReply("ceo", notification, "A task-2775 esta concluida; agora vou seguir com a proxima etapa.", time.Now().UTC())
@@ -268,7 +268,7 @@ func TestPublishHeadlessFallbackReplyPostsNeutralFallbackOnTaskStateClaimRejecti
 		t.Fatalf("expected neutral fallback reply to be published, got %d messages want %d", got, before+1)
 	}
 	last := b.AllMessages()[len(b.AllMessages())-1]
-	if last.From != "ceo" || last.Channel != "migracao-exampleworkflow" || last.ReplyTo != root.ID {
+	if last.From != "ceo" || last.Channel != "migracao-convenios" || last.ReplyTo != root.ID {
 		t.Fatalf("unexpected neutral fallback reply %+v", last)
 	}
 	if !strings.Contains(last.Content, "A resposta automatica anterior foi bloqueada") {

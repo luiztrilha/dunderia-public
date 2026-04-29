@@ -172,6 +172,9 @@ type studioTaskSnapshot struct {
 	PRURL                  string   `json:"pr_url,omitempty"`
 	DependsOn              []string `json:"depends_on,omitempty"`
 	UpdatedAt              string   `json:"updated_at,omitempty"`
+	LivenessState          string   `json:"liveness_state,omitempty"`
+	LivenessReason         string   `json:"liveness_reason,omitempty"`
+	LivenessAt             string   `json:"liveness_at,omitempty"`
 }
 
 type studioRequestSnapshot struct {
@@ -274,6 +277,7 @@ type studioDevConsoleState struct {
 	Watchdogs      []watchdogAlert
 	ExecutionNodes []executionNode
 	Messages       []channelMessage
+	Activity       []agentActivitySnapshot
 	WebUIOrigins   []string
 	BrokerReady    bool
 }
@@ -404,9 +408,18 @@ func copyStudioDevConsoleState(b *Broker) studioDevConsoleState {
 		Watchdogs:      append([]watchdogAlert(nil), b.watchdogs...),
 		ExecutionNodes: append([]executionNode(nil), b.executionNodes...),
 		Messages:       append([]channelMessage(nil), b.messages...),
+		Activity:       studioActivitySnapshotsFromMap(b.activity),
 		WebUIOrigins:   append([]string(nil), b.webUIOrigins...),
 		BrokerReady:    true,
 	}
+}
+
+func studioActivitySnapshotsFromMap(activity map[string]agentActivitySnapshot) []agentActivitySnapshot {
+	out := make([]agentActivitySnapshot, 0, len(activity))
+	for _, snapshot := range activity {
+		out = append(out, snapshot)
+	}
+	return out
 }
 
 func buildStudioOfficeHealthAndBootstrap(state studioDevConsoleState, blockers []studioBlocker, counts studioTaskCounts) (studioBrokerHealthSnapshot, studioBootstrapSnapshot) {
@@ -463,7 +476,7 @@ func buildStudioEnvironmentSnapshot(state studioDevConsoleState, blockers []stud
 }
 
 func buildStudioActiveContextSnapshot(state studioDevConsoleState, blockers []studioBlocker) studioActiveContextSnapshot {
-	tasks := studioTaskSnapshotsFromTasks(state.Tasks)
+	tasks := studioTaskSnapshotsFromTasks(state.Tasks, state.Activity...)
 	requests := studioRequestSnapshotsFromRequests(state.Requests)
 	messages := studioRecentMessagesFromState(state.Messages, 5)
 	channels := studioChannelSnapshotsFromState(state, tasks, requests, blockers)
@@ -565,6 +578,9 @@ func buildStudioBlockersFromState(state studioDevConsoleState) []studioBlocker {
 
 	blockers := make([]studioBlocker, 0, 8)
 	for _, task := range state.Tasks {
+		if taskIsTerminal(&task) {
+			continue
+		}
 		if blocker := studioTimeoutBlocker(task); blocker != nil {
 			blockers = append(blockers, *blocker)
 		}
@@ -591,6 +607,9 @@ func buildStudioBlockersFromState(state studioDevConsoleState) []studioBlocker {
 		}
 	}
 	for _, req := range state.Requests {
+		if !requestIsActive(req) {
+			continue
+		}
 		if blocker := studioDirectionWithoutTaskBlocker(req, state.Tasks); blocker != nil {
 			blockers = append(blockers, *blocker)
 		}
@@ -1251,9 +1270,11 @@ func studioTaskCountsFromTasks(tasks []teamTask) studioTaskCounts {
 	return counts
 }
 
-func studioTaskSnapshotsFromTasks(tasks []teamTask) []studioTaskSnapshot {
+func studioTaskSnapshotsFromTasks(tasks []teamTask, activity ...agentActivitySnapshot) []studioTaskSnapshot {
+	livenessByTaskID := studioLatestLivenessByTaskID(activity)
 	out := make([]studioTaskSnapshot, 0, len(tasks))
 	for _, task := range tasks {
+		liveness := livenessByTaskID[strings.TrimSpace(task.ID)]
 		out = append(out, studioTaskSnapshot{
 			ID:                     strings.TrimSpace(task.ID),
 			Channel:                normalizeChannelSlug(task.Channel),
@@ -1278,7 +1299,25 @@ func studioTaskSnapshotsFromTasks(tasks []teamTask) []studioTaskSnapshot {
 			PRURL:                  publicationURL(task.PRPublication),
 			DependsOn:              append([]string(nil), task.DependsOn...),
 			UpdatedAt:              strings.TrimSpace(task.UpdatedAt),
+			LivenessState:          strings.TrimSpace(liveness.LivenessState),
+			LivenessReason:         strings.TrimSpace(liveness.LivenessReason),
+			LivenessAt:             strings.TrimSpace(liveness.LivenessAt),
 		})
+	}
+	return out
+}
+
+func studioLatestLivenessByTaskID(activity []agentActivitySnapshot) map[string]agentActivitySnapshot {
+	out := make(map[string]agentActivitySnapshot)
+	for _, snapshot := range activity {
+		taskID := strings.TrimSpace(snapshot.LivenessTaskID)
+		if taskID == "" || strings.TrimSpace(snapshot.LivenessState) == "" {
+			continue
+		}
+		if prior, ok := out[taskID]; ok && strings.TrimSpace(prior.LivenessAt) >= strings.TrimSpace(snapshot.LivenessAt) {
+			continue
+		}
+		out[taskID] = snapshot
 	}
 	return out
 }
@@ -1286,6 +1325,9 @@ func studioTaskSnapshotsFromTasks(tasks []teamTask) []studioTaskSnapshot {
 func studioRequestSnapshotsFromRequests(requests []humanInterview) []studioRequestSnapshot {
 	out := make([]studioRequestSnapshot, 0, len(requests))
 	for _, req := range requests {
+		if !requestIsActive(req) {
+			continue
+		}
 		out = append(out, studioRequestSnapshot{
 			ID:       strings.TrimSpace(req.ID),
 			Kind:     strings.TrimSpace(req.Kind),
@@ -2187,6 +2229,9 @@ func studioTaskDependencyReason(task teamTask) string {
 func studioTaskOwnerMissingFromChannel(task teamTask, channelBySlug map[string]teamChannel) bool {
 	owner := strings.TrimSpace(task.Owner)
 	if owner == "" {
+		return false
+	}
+	if strings.EqualFold(owner, "watchdog") {
 		return false
 	}
 	ch, ok := channelBySlug[normalizeChannelSlug(task.Channel)]

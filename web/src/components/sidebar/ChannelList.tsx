@@ -48,26 +48,20 @@ export function ChannelList() {
           return (
             <button
               key={ch.slug}
+              type="button"
               className={itemClassName}
               onClick={() => setCurrentChannel(ch.slug)}
               onMouseEnter={() => void prefetchChannelMessages(ch.slug)}
               onFocus={() => void prefetchChannelMessages(ch.slug)}
             >
-              <span style={{ fontSize: 13, color: 'var(--text-tertiary)', width: 18, textAlign: 'center', flexShrink: 0 }}>
+              <span className="sidebar-channel-prefix">
                 #
               </span>
-              <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, alignItems: 'flex-start', gap: 2 }}>
-                <span>{ch.name || ch.slug}</span>
+              <span className="sidebar-channel-copy">
+                <span className="sidebar-channel-name">{ch.name || ch.slug}</span>
                 {snapshot?.last_substantive_update_by ? (
                   <span
-                    style={{
-                      fontSize: 10,
-                      color: 'var(--text-tertiary)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      maxWidth: '100%',
-                    }}
+                    className="sidebar-channel-meta"
                     title={snapshot.last_substantive_preview || undefined}
                   >
                     {t('sidebar.channels.updatedBy', { agent: snapshot.last_substantive_update_by })}
@@ -97,6 +91,7 @@ export function ChannelList() {
           )
         })}
         <button
+          type="button"
           className="sidebar-item sidebar-add-btn"
           onClick={wizard.show}
           title={t('sidebar.channels.newChannelTitle')}

@@ -118,6 +118,7 @@ export function StudioBlockerCard({
         membersByChannel={membersByChannel}
         pendingKey={pendingKey}
         onAction={onAction}
+        t={t}
       />
     </article>
   )

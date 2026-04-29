@@ -21,6 +21,14 @@ function normalizeStatus(value: string | undefined): string {
   return (value || '').trim().toLowerCase()
 }
 
+function normalizeLiveness(value: string | undefined): string {
+  return (value || '').trim().toLowerCase()
+}
+
+function livenessDetail(member: OfficeMember): string {
+  return member.liveness_reason || member.detail || member.liveActivity || 'Runtime needs follow-up'
+}
+
 function buildBlockedTaskMap(tasks: Task[]): Map<string, Task> {
   const latestTaskByOwner = new Map<string, Task>()
   const latestTaskUpdatedAtByOwner = new Map<string, number>()
@@ -141,6 +149,7 @@ export function buildAgentRuntimeSummary(input: {
     const blockedTask = blockedByOwner.get(slug)
     const waitingNode = waitingByOwner.get(slug)
     const timedOutNode = timedOutByOwner.get(slug)
+    const liveness = normalizeLiveness(member.liveness_state)
 
     if (blockedTask) {
       return {
@@ -161,6 +170,20 @@ export function buildAgentRuntimeSummary(input: {
         ...member,
         runtimeState: 'waiting',
         runtimeDetail: waitingNode.awaiting_human_reason || 'Waiting for your reply',
+      }
+    }
+    if (liveness === 'plan_only' || liveness === 'empty_response' || liveness === 'failed') {
+      return {
+        ...member,
+        runtimeState: 'blocked',
+        runtimeDetail: livenessDetail(member),
+      }
+    }
+    if (liveness === 'blocked') {
+      return {
+        ...member,
+        runtimeState: 'waiting',
+        runtimeDetail: livenessDetail(member),
       }
     }
     if (normalizeStatus(member.status) === 'active') {

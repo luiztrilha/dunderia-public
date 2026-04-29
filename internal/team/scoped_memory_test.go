@@ -306,7 +306,7 @@ func TestNormalizeLoadedStateSuppressesFollowUpsWhenAuditCanceled(t *testing.T) 
 		},
 		{
 			ID:         "task-2",
-			Channel:    "migracao-ExampleWorkflow",
+			Channel:    "migracao-convenios",
 			Title:      "Validate unanswered CEO follow-up",
 			Status:     "open",
 			TaskType:   "bugfix",
@@ -345,24 +345,24 @@ func TestNormalizeLoadedStateClearsTerminalLocalWorktreeWithoutClearingWorkspace
 	b.tasks = []teamTask{
 		{
 			ID:             "task-1",
-			Channel:        "ExampleWorkflow-web-azure",
+			Channel:        "convenios-web-azure",
 			Title:          "Deploy Azure publish artifact",
 			Owner:          "builder",
 			Status:         "canceled",
 			ExecutionMode:  "local_worktree",
-			WorkspacePath:  "<REPOS_ROOT>\\ExampleAzureRepo",
-			WorktreePath:   "<USER_HOME>\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-3059",
+			WorkspacePath:  "D:\\Repos\\ConveniosWebVSAzure_Default",
+			WorktreePath:   "C:\\Users\\l.sousa\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-3059",
 			WorktreeBranch: "wuphf-221fdf9b-task-3059",
 		},
 		{
 			ID:             "task-2",
-			Channel:        "ExampleWorkflow-web-azure",
+			Channel:        "convenios-web-azure",
 			Title:          "Finished local worktree task",
 			Owner:          "builder",
 			Status:         "done",
 			ExecutionMode:  "local_worktree",
-			WorkspacePath:  "<REPOS_ROOT>\\ExampleAzureRepo",
-			WorktreePath:   "<USER_HOME>\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-2478",
+			WorkspacePath:  "D:\\Repos\\ConveniosWebVSAzure_Default",
+			WorktreePath:   "C:\\Users\\l.sousa\\.wuphf\\task-worktrees\\dunderia\\wuphf-task-task-2478",
 			WorktreeBranch: "wuphf-221fdf9b-task-2478",
 		},
 	}
@@ -370,7 +370,7 @@ func TestNormalizeLoadedStateClearsTerminalLocalWorktreeWithoutClearingWorkspace
 	b.normalizeLoadedStateLocked()
 
 	for i := range b.tasks {
-		if got := b.tasks[i].WorkspacePath; got != "<REPOS_ROOT>\\ExampleAzureRepo" {
+		if got := b.tasks[i].WorkspacePath; got != "D:\\Repos\\ConveniosWebVSAzure_Default" {
 			t.Fatalf("expected workspace path preserved, got %q", got)
 		}
 		if b.tasks[i].WorktreePath != "" || b.tasks[i].WorktreeBranch != "" {

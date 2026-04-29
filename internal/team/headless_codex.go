@@ -626,6 +626,18 @@ func (l *Launcher) headlessTurnCompletedDurably(slug string, active *headlessCod
 		requiresDurableGuard = true
 	}
 	if !requiresDurableGuard {
+		if task != nil {
+			liveness := l.classifyHeadlessOfficeTurnLiveness(slug, active, task)
+			l.recordHeadlessLiveness(slug, active, liveness)
+			appendHeadlessCodexLog(slug, fmt.Sprintf("liveness: state=%s reason=%s", liveness.State, liveness.Reason))
+			switch liveness.State {
+			case runLivenessEmptyResponse, runLivenessPlanOnly, runLivenessBlocked:
+				if liveness.State == runLivenessBlocked && taskHasDurableCompletionState(task) {
+					return true, ""
+				}
+				return false, liveness.Reason
+			}
+		}
 		return true, ""
 	}
 	if task != nil && requiresExternalExecution {

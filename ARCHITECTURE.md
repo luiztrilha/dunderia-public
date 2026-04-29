@@ -41,6 +41,10 @@ How DunderIA works under the hood, anchored to files you can open. `WUPHF` remai
 | `web/index.html` | The office UI — channels, composer, live streams |
 | `mcp/` | MCP servers DunderIA ships for optional context, human-in-the-loop approvals, and related runtime helpers |
 
+## Runtime contract
+
+The operational invariants for task liveness, wake paths, recovery, usage visibility, runtime skills, and provider/integration boundaries live in [`RUNTIME_CONTRACT.md`](RUNTIME_CONTRACT.md). Treat that file as the product-level contract for how the broker, runners, tasks, and UI should behave. This architecture file stays focused on where the pieces live.
+
 ## Three load-bearing choices
 
 With the file that implements each:

@@ -12,7 +12,7 @@ async function waitForReactMount(page: Page): Promise<void> {
   );
 }
 
-const PROTECTED_CHANNEL_SLUGS = new Set(['migracao-exampleworkflow', 'geral', 'general']);
+const PROTECTED_CHANNEL_SLUGS = new Set(['migracao-convenios', 'geral', 'general']);
 const SAFE_HASH_SLUG = 'e2e-hash-router-smoke';
 
 function assertSafeHash(hash: string): void {

@@ -512,7 +512,7 @@ func TestEnsureMCPConfigMergesCustomMCPServers(t *testing.T) {
 func TestEnsureAgentMCPConfigIncludesCustomMCPServers(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	customPath := filepath.Join(t.TempDir(), "custom-mcp.json")
-	if err := os.WriteFile(customPath, []byte(`{"mcpServers":{"filesystem":{"command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","<REPOS_ROOT>"]}}}`), 0o600); err != nil {
+	if err := os.WriteFile(customPath, []byte(`{"mcpServers":{"filesystem":{"command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","D:/Repos"]}}}`), 0o600); err != nil {
 		t.Fatalf("write custom MCP config: %v", err)
 	}
 	t.Setenv("WUPHF_CUSTOM_MCP_CONFIG_PATH", customPath)
@@ -545,9 +545,9 @@ func TestEnsureAgentMCPConfigIncludesCustomMCPServers(t *testing.T) {
 func TestBuildScopedMCPServerMapIncludesOnlyLinkedMegamemoryServers(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	tmpDir := t.TempDir()
-	repoOne := filepath.Join(tmpDir, "LegacySystemNew")
-	repoTwo := filepath.Join(tmpDir, "LegacySystemExternal")
-	repoOther := filepath.Join(tmpDir, "ExampleTransparencyWeb")
+	repoOne := filepath.Join(tmpDir, "ConveniosWebBNB_Novo")
+	repoTwo := filepath.Join(tmpDir, "ConveniosWebExterno")
+	repoOther := filepath.Join(tmpDir, "TransparenciaWeb")
 	initUsableGitWorktree(t, repoOne)
 	initUsableGitWorktree(t, repoTwo)
 	initUsableGitWorktree(t, repoOther)
@@ -555,7 +555,7 @@ func TestBuildScopedMCPServerMapIncludesOnlyLinkedMegamemoryServers(t *testing.T
 	customPath := filepath.Join(tmpDir, "custom-mcp.json")
 	customConfig := fmt.Sprintf(`{"mcpServers":{
 		"serena":{"command":"uvx","args":["serena"]},
-		"filesystem":{"command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","<REPOS_ROOT>"]},
+		"filesystem":{"command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","D:/Repos"]},
 		"megamemory-one":{"command":"npx","args":["-y","megamemory"],"env":{"MEGAMEMORY_DB_PATH":%q}},
 		"megamemory-two":{"command":"npx","args":["-y","megamemory"],"env":{"MEGAMEMORY_DB_PATH":%q}},
 		"megamemory-other":{"command":"npx","args":["-y","megamemory"],"env":{"MEGAMEMORY_DB_PATH":%q}}
@@ -755,12 +755,12 @@ func TestDunderIAMCPConfigUsesRepoLocalFilesystemLauncher(t *testing.T) {
 	}
 
 	for _, unwanted := range []string{
-		"<REPOS_ROOT>",
-		"<REPOS_ROOT>itórios",
-		"<REPOS_ROOT>/LegacySystemOld/LegacyWeb",
-		"<REPOS_ROOT>/LegacySystemOld/WSExampleAgreement",
-		"<REPOS_ROOT>/LegacySystemNew",
-		"<REPOS_ROOT>/LegacySystemExternal",
+		"D:/Repos",
+		"D:/Repositórios",
+		"D:/Repos/ConveniosWebBNB_Antigo/BNB",
+		"D:/Repos/ConveniosWebBNB_Antigo/WSConvenio",
+		"D:/Repos/ConveniosWebBNB_Novo",
+		"D:/Repos/ConveniosWebExterno",
 	} {
 		for _, arg := range filesystem.Args {
 			if arg == unwanted {
@@ -1517,7 +1517,7 @@ func TestNotificationTargetsForRepeatedBlockedSpecialistUpdateSkipsLead(t *testi
 		From:      "builder",
 		Channel:   "general",
 		ReplyTo:   "msg-root",
-		Content:   "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que entrar um worktree gravável apontando para `<REPOS_ROOT>\\LegacySystemNew`, eu implemento o slice.",
+		Content:   "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que entrar um worktree gravável apontando para `D:\\Repositórios\\ConveniosWebBNB_Novo`, eu implemento o slice.",
 		Timestamp: time.Now().UTC().Add(-30 * time.Second).Format(time.RFC3339),
 	})
 	b.mu.Unlock()
@@ -1538,7 +1538,7 @@ func TestNotificationTargetsForRepeatedBlockedSpecialistUpdateSkipsLead(t *testi
 		From:      "builder",
 		Channel:   "general",
 		ReplyTo:   "msg-root",
-		Content:   "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que entrar um worktree gravável apontando para `<REPOS_ROOT>\\LegacySystemNew`, eu implemento o slice.",
+		Content:   "@ceo sem delta novo nesta lane: continuo bloqueado por infraestrutura. Assim que entrar um worktree gravável apontando para `D:\\Repositórios\\ConveniosWebBNB_Novo`, eu implemento o slice.",
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 	if len(delayed) != 0 {
@@ -1571,7 +1571,7 @@ func TestNotificationTargetsForRepeatedCoordinationGuidanceSkipsLead(t *testing.
 		From:      "reviewer",
 		Channel:   "general",
 		ReplyTo:   "msg-root",
-		Content:   "Gate de revisao do segundo arquivo: troque DATALENGTH(Anexo) por TArquivoStorageCompat, mantenha a assinatura publica, degrade qualquer falha para false e preserve InternalAdapter.",
+		Content:   "Gate de revisao do segundo arquivo: troque DATALENGTH(Anexo) por TArquivoStorageCompat, mantenha a assinatura publica, degrade qualquer falha para false e preserve BNBInterno.",
 		Timestamp: time.Now().UTC().Add(-30 * time.Second).Format(time.RFC3339),
 	})
 	b.mu.Unlock()
@@ -1592,7 +1592,7 @@ func TestNotificationTargetsForRepeatedCoordinationGuidanceSkipsLead(t *testing.
 		From:      "reviewer",
 		Channel:   "general",
 		ReplyTo:   "msg-next",
-		Content:   "Gate de revisao do segundo arquivo permanece: troque DATALENGTH(Anexo) por TArquivoStorageCompat, mantenha assinatura publica, degrade qualquer falha para false e preserve InternalAdapter.",
+		Content:   "Gate de revisao do segundo arquivo permanece: troque DATALENGTH(Anexo) por TArquivoStorageCompat, mantenha assinatura publica, degrade qualquer falha para false e preserve BNBInterno.",
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 	if len(delayed) != 0 {
@@ -3401,19 +3401,19 @@ func TestRelevantTaskForTargetPrefersExplicitWorkspaceMatch(t *testing.T) {
 	defer func() { brokerStatePath = oldPathFn }()
 
 	workspaceRoot := t.TempDir()
-	targetRepo := filepath.Join(workspaceRoot, "ExampleAzureRepo")
+	targetRepo := filepath.Join(workspaceRoot, "ConveniosWebVSAzure_Default")
 	initUsableGitWorktree(t, targetRepo)
 
 	b := NewBroker()
-	ensureTestMemberAccess(b, "ExampleWorkflow-web-azure", "ceo", "CEO")
-	ensureTestMemberAccess(b, "ExampleWorkflow-web-azure", "reviewer", "Reviewer")
-	wrong, reused, err := b.EnsureTask("ExampleWorkflow-web-azure", "Revisao tecnica abrangente da base DunderIA", "Produzir relatorio .md priorizado.", "reviewer", "ceo", "")
+	ensureTestMemberAccess(b, "convenios-web-azure", "ceo", "CEO")
+	ensureTestMemberAccess(b, "convenios-web-azure", "reviewer", "Reviewer")
+	wrong, reused, err := b.EnsureTask("convenios-web-azure", "Revisao tecnica abrangente da base DunderIA", "Produzir relatorio .md priorizado.", "reviewer", "ceo", "")
 	if err != nil || reused {
 		t.Fatalf("ensure wrong task: %v reused=%v", err, reused)
 	}
 	right, reused, err := b.EnsurePlannedTask(plannedTaskInput{
-		Channel:       "ExampleWorkflow-web-azure",
-		Title:         "Revisao tecnica abrangente da base ExampleAzureRepo",
+		Channel:       "convenios-web-azure",
+		Title:         "Revisao tecnica abrangente da base ConveniosWebVSAzure_Default",
 		Details:       "Produzir relatorio .md priorizado no repo Azure.",
 		Owner:         "reviewer",
 		CreatedBy:     "ceo",
@@ -3439,7 +3439,7 @@ func TestRelevantTaskForTargetPrefersExplicitWorkspaceMatch(t *testing.T) {
 	msg := channelMessage{
 		ID:      "msg-1",
 		From:    "ceo",
-		Channel: "ExampleWorkflow-web-azure",
+		Channel: "convenios-web-azure",
 		Content: "@reviewer Realize uma revisão abrangente da base. Faça isso limitado ao repositório " + targetRepo,
 		Tagged:  []string{"reviewer"},
 	}

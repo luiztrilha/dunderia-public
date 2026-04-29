@@ -181,9 +181,6 @@ export function Sidebar() {
               >
                 {t('layout.rail.home')}
               </SidebarShortcut>
-              <SidebarShortcut icon="⚡" onClick={() => setCurrentApp(ACTIVITY_APP_ID)}>
-                {t('layout.rail.activity')}
-              </SidebarShortcut>
               <SidebarShortcut icon="#" onClick={() => setPrimaryRail('channels')}>
                 {t('layout.rail.channels')}
               </SidebarShortcut>
@@ -199,8 +196,12 @@ export function Sidebar() {
                 {t('sidebar.agents.toggle')}
               </SidebarShortcut>
             </div>
-            <AgentStatusSummary />
-            {sidebarAgentsOpen ? <AgentList /> : null}
+            {sidebarAgentsOpen ? (
+              <>
+                <AgentStatusSummary />
+                <AgentList />
+              </>
+            ) : null}
 
             <div className="sidebar-section sidebar-section-divider">
               <p className="sidebar-section-title">{t('sidebar.sections.apps')}</p>
@@ -254,11 +255,6 @@ export function Sidebar() {
               <p className="sidebar-section-title">{t('layout.rail.channels')}</p>
             </div>
             <ChannelList />
-            <div className="sidebar-section sidebar-section-divider">
-              <p className="sidebar-section-title">{t('layout.rail.dms')}</p>
-            </div>
-            <AgentStatusSummary />
-            <AgentList />
           </>
         ) : null}
 

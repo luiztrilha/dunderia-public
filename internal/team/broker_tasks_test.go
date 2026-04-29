@@ -14,7 +14,7 @@ func TestHandleTaskReassignClearsBlockedFlag(t *testing.T) {
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
 	defer func() { brokerStatePath = oldPathFn }()
 
-	workspaceRoot := filepath.Join(tmpDir, "LegacySystemOld")
+	workspaceRoot := filepath.Join(tmpDir, "ConveniosWebBNB_Antigo")
 	initUsableGitWorktree(t, workspaceRoot)
 
 	b := NewBroker()

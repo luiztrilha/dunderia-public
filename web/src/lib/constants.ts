@@ -13,6 +13,22 @@ export const ALL_APPS = [
 ] as const
 
 export const SECONDARY_APPS = ALL_APPS.filter((app) => app.id !== 'studio' && app.id !== 'activity')
+export type AppDefinition = (typeof ALL_APPS)[number]
+
+export const CORE_APP_IDS = ['tasks', 'deliveries'] as const
+export const CONDITIONAL_APP_IDS = ['requests'] as const
+export const HIDDEN_APP_IDS = ['receipts', 'health-check'] as const
+export const CORE_APPS = SECONDARY_APPS.filter((app) =>
+  (CORE_APP_IDS as readonly string[]).includes(app.id)
+)
+export const CONDITIONAL_APPS = SECONDARY_APPS.filter((app) =>
+  (CONDITIONAL_APP_IDS as readonly string[]).includes(app.id)
+)
+export const TOOL_APPS = SECONDARY_APPS.filter((app) =>
+  !(CORE_APP_IDS as readonly string[]).includes(app.id)
+  && !(CONDITIONAL_APP_IDS as readonly string[]).includes(app.id)
+  && !(HIDDEN_APP_IDS as readonly string[]).includes(app.id)
+)
 
 export const HOME_APP_ID = 'studio'
 export const ACTIVITY_APP_ID = 'activity'

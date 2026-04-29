@@ -159,7 +159,7 @@ func TestBuildStudioBlockersIncludesTaskReconciliationPending(t *testing.T) {
 			Reconciliation: &taskReconciliationState{
 				Status:        "pending",
 				Reason:        "Workspace changed before a valid handoff landed.",
-				WorkspacePath: "<DUNDERIA_REPO>",
+				WorkspacePath: "D:\\Repos\\dunderia",
 				Blocking:      true,
 			},
 		}},

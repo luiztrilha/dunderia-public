@@ -6,13 +6,17 @@
 
 # Local artifacts
 /docs/*
-!/docs/local-runtime-profile.md
 !/docs/specs/
 !/docs/specs/**
 !/docs/evals/
 !/docs/evals/**
+!/docs/frontend-agent/
+!/docs/frontend-agent/**
+!/docs/local-runtime-profile.md
+!/docs/paperclip-absorption-plan.md
 !/docs/REVOPS_TEST_PLAN.md
 /termwright-artifacts/
+/test-results/
 .worktrees/
 .vexp/
 .DS_Store
@@ -43,6 +47,13 @@
 
 # QA/browse scratch artifacts
 task*-buttons.json
+/thread-focus-view.png
+/6805
+
+# Linked legacy app build/publish artifacts
+/.links/**/obj/
+/.links/**/bin/app.publish/
+*.pubxml.user
 
 # Local Windows binaries/logs from manual runs
 /.serena/

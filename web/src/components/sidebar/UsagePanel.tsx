@@ -125,17 +125,18 @@ export function UsagePanel({ compact = false }: UsagePanelProps) {
     return (
       <div ref={rootRef} className="sidebar-utility-group">
         <button
+          type="button"
           className={`sidebar-utility-button sidebar-usage-button${open ? ' open' : ''}`}
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
+          aria-label={`${t('sidebar.usage.title')} ${formatUSD(totalCost)}`}
+          title={`${t('sidebar.usage.title')} ${formatUSD(totalCost)}`}
         >
+          <span className="sidebar-usage-glyph" aria-hidden="true">$</span>
           <span className="sidebar-utility-button-text">
             <span className="sidebar-utility-label">{t('sidebar.usage.title')}</span>
             <span className="sidebar-utility-value">{formatUSD(totalCost)}</span>
           </span>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m9 18 6-6-6-6" />
-          </svg>
         </button>
         {open && (
           <div ref={panelRef} className="usage-panel usage-panel-popover open" style={popoverStyle}>
