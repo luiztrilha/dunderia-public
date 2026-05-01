@@ -787,7 +787,14 @@
       "openedTasks": "Task board opened",
       "openedChannel": "Opened #{{channel}}",
       "createTaskHint": "Open the composer in #{{channel}} to materialize the task.",
-      "workflowEmptyState": "The package has no runnable workflows right now."
+      "workflowEmptyState": "The package has no runnable workflows right now.",
+      "desktopMode": {
+        "open": "Open desktop",
+        "opening": "Opening...",
+        "buttonTitle": "Open the current session in the desktop app",
+        "launched": "Desktop mode opened",
+        "launchFailed": "Failed to open desktop mode: {{error}}"
+      }
     },
     "health": {
       "title": "Health Check",

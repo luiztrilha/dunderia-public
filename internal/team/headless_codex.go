@@ -1362,6 +1362,8 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 	if workspaceDir == "" {
 		workspaceDir = "."
 	}
+	route := l.resolveHeadlessModelRoute(provider.KindCodex, slug, notification, turnChannel)
+	appendHeadlessCodexLog(slug, "model-routing: "+route.summary())
 
 	overrides, err := l.buildCodexOfficeConfigOverrides(slug)
 	if err != nil {
@@ -1397,7 +1399,7 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 		"--color", "never",
 		"--json",
 	)
-	if model := strings.TrimSpace(l.headlessCodexModel(slug, turnChannel)); model != "" {
+	if model := strings.TrimSpace(route.Model); model != "" {
 		args = append(args, "--model", model)
 	}
 	if effort := strings.TrimSpace(l.headlessCodexReasoningEffort(slug, turnChannel)); effort != "" {
@@ -1481,7 +1483,7 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 		FirstTextMs:  -1,
 		FirstToolMs:  -1,
 	}
-	l.updateHeadlessProgress(slug, "active", "thinking", "reviewing work packet", metrics, turnChannel)
+	l.updateHeadlessProgress(slug, "active", "thinking", "reviewing work packet · "+route.progressDetail(), metrics, turnChannel)
 	var firstEventAt time.Time
 	var firstTextAt time.Time
 	var firstToolAt time.Time
@@ -1530,7 +1532,9 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 		}
 		metrics.TotalMs = time.Since(startedAt).Milliseconds()
 		if detail != "" {
-			appendHeadlessCodexLatency(slug, fmt.Sprintf("status=error total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+			appendHeadlessCodexLatency(slug, fmt.Sprintf("status=error profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+				route.Profile,
+				route.Model,
 				metrics.TotalMs,
 				durationMillis(startedAt, firstEventAt),
 				durationMillis(startedAt, firstTextAt),
@@ -1541,7 +1545,9 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 			l.updateHeadlessProgress(slug, "error", "error", truncate(detail, 180), metrics, turnChannel)
 			return fmt.Errorf("%w: %s", err, detail)
 		}
-		appendHeadlessCodexLatency(slug, fmt.Sprintf("status=error total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+		appendHeadlessCodexLatency(slug, fmt.Sprintf("status=error profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+			route.Profile,
+			route.Model,
 			metrics.TotalMs,
 			durationMillis(startedAt, firstEventAt),
 			durationMillis(startedAt, firstTextAt),
@@ -1556,7 +1562,9 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 		return parseErr
 	}
 	metrics.TotalMs = time.Since(startedAt).Milliseconds()
-	appendHeadlessCodexLatency(slug, fmt.Sprintf("status=ok total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d final_chars=%d",
+	appendHeadlessCodexLatency(slug, fmt.Sprintf("status=ok profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d final_chars=%d",
+		route.Profile,
+		route.Model,
 		metrics.TotalMs,
 		durationMillis(startedAt, firstEventAt),
 		durationMillis(startedAt, firstTextAt),
@@ -1571,7 +1579,7 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 	}
 	l.updateHeadlessProgress(slug, "idle", "idle", summary, metrics, turnChannel)
 	if l.broker != nil && (result.Usage.InputTokens != 0 || result.Usage.OutputTokens != 0 || result.Usage.CacheReadTokens != 0 || result.Usage.CacheCreationTokens != 0 || result.Usage.CostUSD != 0) {
-		l.broker.RecordAgentUsage(slug, l.headlessCodexModel(slug, turnChannel), result.Usage)
+		l.broker.RecordAgentUsage(slug, route.Model, result.Usage)
 	}
 	if text := strings.TrimSpace(firstNonEmpty(result.FinalMessage, result.LastPlainLine)); text != "" {
 		appendHeadlessCodexLog(slug, "result: "+text)
@@ -2089,35 +2097,7 @@ func (l *Launcher) headlessTurnChannel(slug string, channel ...string) string {
 }
 
 func (l *Launcher) headlessCodexModel(slug string, channel ...string) string {
-	if l != nil {
-		if task := l.headlessTaskForExecution(slug, channel...); task != nil {
-			if model := strings.TrimSpace(task.RuntimeModel); model != "" {
-				explicitProvider := ""
-				if strings.TrimSpace(task.RuntimeProvider) != "" {
-					explicitProvider = normalizeProviderKind(task.RuntimeProvider)
-				}
-				inferredProvider := inferRuntimeProviderFromModel(model)
-				if explicitProvider == provider.KindCodex || (explicitProvider == "" && (inferredProvider == "" || inferredProvider == provider.KindCodex)) {
-					return model
-				}
-			}
-		}
-		if l.broker != nil {
-			binding := l.broker.MemberProviderBinding(slug)
-			if model := strings.TrimSpace(binding.Model); model != "" {
-				explicitProvider := ""
-				if strings.TrimSpace(binding.Kind) != "" {
-					explicitProvider = normalizeProviderKind(binding.Kind)
-				}
-				inferredProvider := inferRuntimeProviderFromModel(model)
-				if explicitProvider == provider.KindCodex || (explicitProvider == "" && inferredProvider == provider.KindCodex) {
-					return model
-				}
-			}
-		}
-		return config.ResolveCodexModel(l.cwd)
-	}
-	return config.ResolveCodexModel("")
+	return l.resolveHeadlessModelRoute(provider.KindCodex, slug, "", channel...).Model
 }
 
 func (l *Launcher) headlessCodexReasoningEffort(slug string, channel ...string) string {

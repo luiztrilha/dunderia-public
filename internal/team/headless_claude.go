@@ -71,6 +71,8 @@ func (l *Launcher) runHeadlessClaudeCompatibleTurn(ctx context.Context, slug str
 	if workspaceDir == "" {
 		workspaceDir = normalizeHeadlessWorkspaceDir(strings.TrimSpace(l.cwd))
 	}
+	route := l.resolveHeadlessModelRoute(runtime.HeadlessProvider, slug, notification, turnChannel)
+	appendHeadlessClaudeLog(slug, "model-routing: "+route.summary())
 
 	agentMCP := l.mcpConfig
 	if path, err := l.ensureAgentMCPConfigForContext(slug, turnChannel, workspaceDir); err == nil {
@@ -82,7 +84,7 @@ func (l *Launcher) runHeadlessClaudeCompatibleTurn(ctx context.Context, slug str
 		args = append(args, "--provider", runtime.ProviderFlag)
 	}
 	if runtime.IncludeModel {
-		args = append(args, "--model", l.headlessClaudeModel(slug))
+		args = append(args, "--model", route.Model)
 	}
 	args = append(args,
 		"--print", "-",
@@ -184,7 +186,7 @@ func (l *Launcher) runHeadlessClaudeCompatibleTurn(ctx context.Context, slug str
 		FirstTextMs:  -1,
 		FirstToolMs:  -1,
 	}
-	l.updateHeadlessProgress(slug, "active", "thinking", "reviewing work packet", metrics, turnChannel)
+	l.updateHeadlessProgress(slug, "active", "thinking", "reviewing work packet · "+route.progressDetail(), metrics, turnChannel)
 
 	var firstEventAt time.Time
 	var firstTextAt time.Time
@@ -234,8 +236,10 @@ func (l *Launcher) runHeadlessClaudeCompatibleTurn(ctx context.Context, slug str
 			}
 		}
 		metrics.TotalMs = time.Since(startedAt).Milliseconds()
-		appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+		appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
 			runtime.HeadlessProvider,
+			route.Profile,
+			route.Model,
 			metrics.TotalMs,
 			durationMillis(startedAt, firstEventAt),
 			durationMillis(startedAt, firstTextAt),
@@ -247,8 +251,10 @@ func (l *Launcher) runHeadlessClaudeCompatibleTurn(ctx context.Context, slug str
 	}
 	if parseErr != nil {
 		metrics.TotalMs = time.Since(startedAt).Milliseconds()
-		appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+		appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
 			runtime.HeadlessProvider,
+			route.Profile,
+			route.Model,
 			metrics.TotalMs,
 			durationMillis(startedAt, firstEventAt),
 			durationMillis(startedAt, firstTextAt),
@@ -260,8 +266,10 @@ func (l *Launcher) runHeadlessClaudeCompatibleTurn(ctx context.Context, slug str
 	}
 
 	metrics.TotalMs = time.Since(startedAt).Milliseconds()
-	appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=ok provider=%s total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d final_chars=%d",
+	appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=ok provider=%s profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d final_chars=%d",
 		runtime.HeadlessProvider,
+		route.Profile,
+		route.Model,
 		metrics.TotalMs,
 		durationMillis(startedAt, firstEventAt),
 		durationMillis(startedAt, firstTextAt),
@@ -276,7 +284,7 @@ func (l *Launcher) runHeadlessClaudeCompatibleTurn(ctx context.Context, slug str
 	}
 	l.updateHeadlessProgress(slug, "idle", "idle", summary, metrics, turnChannel)
 	if l.broker != nil {
-		l.broker.RecordAgentUsage(slug, runtime.usageModel(l, slug), result.Usage)
+		l.broker.RecordAgentUsage(slug, firstNonEmpty(route.Model, runtime.usageModel(l, slug)), result.Usage)
 	}
 	if text := strings.TrimSpace(result.FinalMessage); text != "" {
 		appendHeadlessClaudeLog(slug, "result: "+text)
@@ -314,34 +322,8 @@ func (r headlessClaudeRuntime) usageModel(l *Launcher, slug string) string {
 	return ""
 }
 
-func (l *Launcher) headlessClaudeModel(slug string) string {
-	if l != nil {
-		if task := l.headlessTaskForExecution(slug); task != nil {
-			if model := strings.TrimSpace(task.RuntimeModel); model != "" {
-				explicitProvider := ""
-				if strings.TrimSpace(task.RuntimeProvider) != "" {
-					explicitProvider = normalizeProviderKind(task.RuntimeProvider)
-				}
-				inferredProvider := inferRuntimeProviderFromModel(model)
-				if explicitProvider == provider.KindClaudeCode || (explicitProvider == "" && inferredProvider == provider.KindClaudeCode) {
-					return model
-				}
-			}
-		}
-	}
-	if l != nil && l.broker != nil {
-		binding := l.broker.MemberProviderBinding(slug)
-		if model := strings.TrimSpace(binding.Model); model != "" {
-			kind := normalizeProviderKind(binding.Kind)
-			if kind == "" || kind == provider.KindClaudeCode {
-				return model
-			}
-		}
-	}
-	if l.opusCEO && slug == l.officeLeadSlug() {
-		return "claude-opus-4-6"
-	}
-	return "claude-sonnet-4-6"
+func (l *Launcher) headlessClaudeModel(slug string, channel ...string) string {
+	return l.resolveHeadlessModelRoute(provider.KindClaudeCode, slug, "", channel...).Model
 }
 
 // headlessClaudeMaxTurns returns the turn budget for an agent. The CEO routes

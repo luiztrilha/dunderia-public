@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	headlessGeminiOneShot       = provider.RunGeminiOneShotContext
+	headlessGeminiOneShot       = provider.RunGeminiOneShotWithModelContext
 	headlessGeminiVertexOneShot = provider.RunGeminiVertexOneShotWithModelContext
 )
 
@@ -25,33 +25,19 @@ func (l *Launcher) runHeadlessGeminiTurn(ctx context.Context, slug, runtimeKind,
 		return fmt.Errorf("broker is not running")
 	}
 	turnChannel := l.headlessTurnChannel(slug, channel...)
+	route := l.resolveHeadlessModelRoute(runtimeKind, slug, notification, turnChannel)
+	appendHeadlessClaudeLog(slug, "model-routing: "+route.summary())
 
 	runtimeKind = normalizeProviderKind(runtimeKind)
 	var runOneShot func(context.Context, string, string) (string, error)
 	switch runtimeKind {
 	case provider.KindGemini:
-		runOneShot = headlessGeminiOneShot
-	case provider.KindGeminiVertex:
-		model := provider.GeminiVertexDefaultModel
-		if l != nil && l.broker != nil {
-			if bindingModel := strings.TrimSpace(l.broker.MemberProviderBinding(slug).Model); bindingModel != "" {
-				model = bindingModel
-			}
-		}
-		if task := l.headlessTaskForExecution(slug, turnChannel); task != nil {
-			if taskModel := strings.TrimSpace(task.RuntimeModel); taskModel != "" {
-				explicitProvider := ""
-				if strings.TrimSpace(task.RuntimeProvider) != "" {
-					explicitProvider = normalizeProviderKind(task.RuntimeProvider)
-				}
-				inferredProvider := inferRuntimeProviderFromModel(taskModel)
-				if explicitProvider == provider.KindGeminiVertex || (explicitProvider == "" && inferredProvider == provider.KindGemini) {
-					model = taskModel
-				}
-			}
-		}
 		runOneShot = func(ctx context.Context, systemPrompt, prompt string) (string, error) {
-			return headlessGeminiVertexOneShot(ctx, model, systemPrompt, prompt)
+			return headlessGeminiOneShot(ctx, route.Model, systemPrompt, prompt)
+		}
+	case provider.KindGeminiVertex:
+		runOneShot = func(ctx context.Context, systemPrompt, prompt string) (string, error) {
+			return headlessGeminiVertexOneShot(ctx, route.Model, systemPrompt, prompt)
 		}
 	default:
 		return fmt.Errorf("unsupported gemini runtime %q", runtimeKind)
@@ -64,7 +50,7 @@ func (l *Launcher) runHeadlessGeminiTurn(ctx context.Context, slug, runtimeKind,
 		FirstTextMs:  -1,
 		FirstToolMs:  -1,
 	}
-	l.updateHeadlessProgress(slug, "active", "thinking", "reviewing work packet", metrics, turnChannel)
+	l.updateHeadlessProgress(slug, "active", "thinking", "reviewing work packet · "+route.progressDetail(), metrics, turnChannel)
 
 	prompt := notification
 	memoryCtx, memoryCancel := context.WithTimeout(ctx, 2*time.Second)
@@ -85,8 +71,10 @@ func (l *Launcher) runHeadlessGeminiTurn(ctx context.Context, slug, runtimeKind,
 		metrics.TotalMs = metrics.FirstTextMs
 		if err != nil {
 			detail := truncate(strings.TrimSpace(err.Error()), 180)
-			appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+			appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
 				runtimeKind,
+				route.Profile,
+				route.Model,
 				metrics.TotalMs,
 				metrics.FirstEventMs,
 				metrics.FirstTextMs,
@@ -114,8 +102,10 @@ func (l *Launcher) runHeadlessGeminiTurn(ctx context.Context, slug, runtimeKind,
 			continue
 		}
 		detail := "model returned no plain-text reply"
-		appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+		appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
 			runtimeKind,
+			route.Profile,
+			route.Model,
 			metrics.TotalMs,
 			metrics.FirstEventMs,
 			metrics.FirstTextMs,
@@ -125,8 +115,10 @@ func (l *Launcher) runHeadlessGeminiTurn(ctx context.Context, slug, runtimeKind,
 		l.updateHeadlessProgress(slug, "error", "error", detail, metrics, turnChannel)
 		return fmt.Errorf("%s", detail)
 	}
-	appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=ok provider=%s total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d final_chars=%d",
+	appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=ok provider=%s profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d final_chars=%d",
 		runtimeKind,
+		route.Profile,
+		route.Model,
 		metrics.TotalMs,
 		metrics.FirstEventMs,
 		metrics.FirstTextMs,

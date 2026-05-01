@@ -31,11 +31,19 @@ func RunGeminiOneShot(systemPrompt, prompt string) (string, error) {
 }
 
 func RunGeminiOneShotContext(ctx context.Context, systemPrompt, prompt string) (string, error) {
+	return RunGeminiOneShotWithModelContext(ctx, "", systemPrompt, prompt)
+}
+
+func RunGeminiOneShotWithModel(model, systemPrompt, prompt string) (string, error) {
+	return RunGeminiOneShotWithModelContext(context.Background(), model, systemPrompt, prompt)
+}
+
+func RunGeminiOneShotWithModelContext(ctx context.Context, model, systemPrompt, prompt string) (string, error) {
 	apiKey := config.ResolveGeminiAPIKey()
 	if strings.TrimSpace(apiKey) == "" {
 		return "", fmt.Errorf("gemini api key not configured")
 	}
-	fn := CreateGeminiStreamFnContext(ctx, apiKey)
+	fn := CreateGeminiStreamFnForModelContext(ctx, apiKey, model)
 	msgs := make([]agent.Message, 0, 2)
 	if strings.TrimSpace(systemPrompt) != "" {
 		msgs = append(msgs, agent.Message{Role: "system", Content: systemPrompt})

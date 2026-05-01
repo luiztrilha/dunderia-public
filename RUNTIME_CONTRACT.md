@@ -113,6 +113,19 @@ DunderIA should continue surfacing:
 
 Future budget controls should be explicit and scoped. A hard stop should pause new execution and surface a human decision path rather than silently dropping work.
 
+## Family-Native Model Routing
+
+Model routing is allowed only inside the runtime provider family already selected for the agent or task. A Claude runner may choose between Claude models, a Codex runner between Codex/OpenAI models, a Gemini runner between Gemini models, and Ollama keeps its local model selection. The broker must not use model routing as a hidden cross-provider proxy.
+
+The default policy is conservative:
+
+- explicit task `runtime_model` and per-agent provider model bindings win;
+- otherwise the runtime chooses a small profile (`fast`, `balanced`, `deep`, or `premium`) from the current prompt, task metadata, and role bias;
+- higher-cost profiles require concrete complexity signals such as workspace execution, high reasoning effort, large context, strategy ambiguity, debugging, refactoring, migration, security, or an explicit human request;
+- model choice is visibility and audit metadata, not a budget hard-stop.
+
+Every headless turn that routes a model should leave an audit trail with provider, profile, model, and reasons in runtime logs and progress surfaces where practical.
+
 ## Runtime Skills And Context
 
 Runtime context should be scoped and intentional.

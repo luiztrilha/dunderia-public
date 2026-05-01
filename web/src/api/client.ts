@@ -1093,6 +1093,18 @@ export function runStudioWorkflow(payload?: unknown) {
   return post('/studio/run-workflow', payload ?? {})
 }
 
+export interface DesktopLaunchResponse {
+  ok: boolean
+  launched: boolean
+  web_url: string
+  desktop_dir?: string
+  message: string
+}
+
+export function launchDesktopMode(payload?: { web_url?: string }) {
+  return post<DesktopLaunchResponse>('/integrations/desktop/launch', payload ?? {})
+}
+
 // ── Config (Settings) ──
 
 export type LLMProvider = GlobalLLMProvider

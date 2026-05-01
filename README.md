@@ -80,6 +80,7 @@ Quando o cloud backup ja estiver configurado e acessivel, esse mesmo comando tam
 - Sessoes novas por turno em vez de um chat compartilhado que so cresce
 - Broker acordando agentes por push em vez de polling ocioso
 - Ferramentas MCP com escopo por agente
+- Roteamento conservador de modelos dentro da familia do provider ativo, com auditoria nos logs de progresso
 - Worktrees Git isoladas para execucao local em paralelo
 - Recibos de tarefa e comandos de recuperacao via historico do broker
 - Integracoes opcionais com Telegram e action providers externos
@@ -185,6 +186,28 @@ Voce configura isso dentro do escritorio:
 /config set action_provider composio
 /config set composio_api_key <key>
 ```
+
+### Roteamento de Modelos
+
+O runtime escolhe automaticamente um perfil conservador por turno (`fast`, `balanced`, `deep` ou `premium`) sem trocar a familia do agente. Se o agente roda em Claude Code, usa modelos Claude; se roda em Codex, usa modelos Codex/OpenAI; se roda em Gemini ou Ollama, permanece nessa familia. Overrides explicitos por task ou agente continuam tendo prioridade.
+
+Cada decisao registra auditoria no log headless com provider, perfil, modelo e motivo. Para ambientes que precisam fixar nomes locais de modelo, use variaveis como `WUPHF_MODEL_ROUTE_CODEX_BALANCED`, `WUPHF_MODEL_ROUTE_CLAUDE_CODE_DEEP` e `WUPHF_MODEL_ROUTE_GEMINI_FAST`.
+
+### Desktop Mode
+
+Quando voce estiver na web, use **Estudio > Abrir desktop** para reabrir a mesma sessao no shell Electron local. O broker reaproveita a URL local atual, nao inicia outro escritorio e registra auditoria `external_tool_launched`.
+
+### Open CoDesign
+
+Open CoDesign pode ser usado como companion opcional de prototipagem visual para o agente `designer` e para fluxos frontend. Ele nao e dependencia do runtime do DunderIA, nao instala nada automaticamente e nao deve receber acesso amplo ao workspace por padrao.
+
+No Windows PowerShell:
+
+```powershell
+.\scripts\launch_open_codesign.ps1
+```
+
+O script detecta uma instalacao existente, prepara `temp\open-codesign` como pasta de handoff e abre o app. Se o app nao estiver instalado, ele mostra comandos de instalacao manual e sai sem alterar configuracoes ou credenciais.
 
 ## Documentacao
 

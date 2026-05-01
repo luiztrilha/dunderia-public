@@ -1,0 +1,14 @@
+{
+  "name": "dunderia-desktop",
+  "private": true,
+  "version": "0.0.1",
+  "description": "DunderIA desktop shell with embedded Chromium tools.",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^41.0.0"
+  }
+}

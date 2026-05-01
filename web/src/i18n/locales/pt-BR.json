@@ -787,7 +787,14 @@
       "openedTasks": "Painel de tarefas aberto",
       "openedChannel": "Canal #{{channel}} aberto",
       "createTaskHint": "Abra o compositor em #{{channel}} para materializar a task.",
-      "workflowEmptyState": "Pacote sem workflows executáveis no momento."
+      "workflowEmptyState": "Pacote sem workflows executáveis no momento.",
+      "desktopMode": {
+        "open": "Abrir desktop",
+        "opening": "Abrindo...",
+        "buttonTitle": "Abrir a sessão atual no aplicativo desktop",
+        "launched": "Modo desktop aberto",
+        "launchFailed": "Falha ao abrir modo desktop: {{error}}"
+      }
     },
     "health": {
       "title": "Verificação de Saúde",

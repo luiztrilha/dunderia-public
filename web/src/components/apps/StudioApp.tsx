@@ -5,6 +5,7 @@ import {
   getStudioDevConsole,
   getStudioBootstrapPackage,
   generateStudioPackage,
+  launchDesktopMode,
   reassignTask,
   runStudioDevConsoleAction,
   runStudioWorkflow,
@@ -46,9 +47,11 @@ export function StudioApp() {
 
   const [genState, setGenState] = useState<ActionState>('idle')
   const [runState, setRunState] = useState<ActionState>('idle')
+  const [desktopState, setDesktopState] = useState<ActionState>('idle')
   const [pendingActionKey, setPendingActionKey] = useState<string | null>(null)
   const [selectedWorkflowKey, setSelectedWorkflowKey] = useState('')
   const [activeView, setActiveView] = useState<StudioView>('summary')
+  const isDesktopShell = Boolean((window as Window & { dunderiaDesktop?: { isDesktop?: boolean } }).dunderiaDesktop?.isDesktop)
 
   const actionDefinitions = useMemo(() => {
     return Object.fromEntries((studioQuery.data?.actions ?? []).map((action) => [action.action, action]))
@@ -108,6 +111,24 @@ export function StudioApp() {
         showNotice(t('apps.studio.runFailed', { error: e.message }), 'error')
       })
   }, [selectedWorkflowKey, t, refetchAll])
+
+  const handleOpenDesktopMode = useCallback(() => {
+    setDesktopState('working')
+    launchDesktopMode({ web_url: window.location.origin })
+      .then((response) => {
+        setDesktopState(response.launched ? 'done' : 'idle')
+        if (response.launched) {
+          showNotice(t('apps.studio.desktopMode.launched'), 'success')
+          setTimeout(() => setDesktopState('idle'), 2000)
+        } else {
+          showNotice(response.message || t('apps.studio.desktopMode.launchFailed', { error: 'not launched' }), 'info')
+        }
+      })
+      .catch((e: Error) => {
+        setDesktopState('idle')
+        showNotice(t('apps.studio.desktopMode.launchFailed', { error: e.message }), 'error')
+      })
+  }, [t])
 
   const handleAction = useCallback(
     async (action: string, blocker: StudioBlocker, extras?: { owner?: string }) => {
@@ -211,22 +232,35 @@ export function StudioApp() {
               {t('apps.studio.subtitle')}
             </div>
           </div>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 10px',
-              borderRadius: 999,
-              background: blockerCount > 0 ? 'rgba(183, 112, 34, 0.12)' : 'rgba(73, 127, 77, 0.12)',
-              color: blockerCount > 0 ? '#9f651f' : '#3b7b54',
-              fontSize: 11,
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
-            {t('apps.studio.blockersCount', { count: blockerCount })}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {!isDesktopShell ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={desktopState === 'working'}
+                onClick={handleOpenDesktopMode}
+                title={t('apps.studio.desktopMode.buttonTitle')}
+              >
+                {desktopState === 'working' ? t('apps.studio.desktopMode.opening') : t('apps.studio.desktopMode.open')}
+              </button>
+            ) : null}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 10px',
+                borderRadius: 999,
+                background: blockerCount > 0 ? 'rgba(183, 112, 34, 0.12)' : 'rgba(73, 127, 77, 0.12)',
+                color: blockerCount > 0 ? '#9f651f' : '#3b7b54',
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              {t('apps.studio.blockersCount', { count: blockerCount })}
+            </div>
           </div>
         </div>
       </div>

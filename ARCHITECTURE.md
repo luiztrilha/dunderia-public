@@ -31,7 +31,8 @@ How DunderIA works under the hood, anchored to files you can open. `WUPHF` remai
 | `internal/team/broker.go` | Message bus. Every message is a push event — agents are spawned on wake, not polled |
 | `internal/team/launcher.go` | Decides which agents wake for a given message (focus/collab mode, tags) |
 | `internal/team/headless_claude.go` | Spawns `claude` as a one-shot per turn; no `--resume` accumulation |
-| `internal/team/headless_codex.go` | Same model for Codex |
+| `internal/team/headless_codex.go` | Same one-shot runner model for Codex |
+| `internal/team/model_routing.go` | Conservative per-turn model profile resolver that stays inside the active provider family |
 | `internal/provider/gemini.go` | Gemini API-backed stream path for the global `gemini` provider |
 | `internal/provider/gemini_vertex.go` | Vertex AI-backed Gemini runner for `gemini-vertex` |
 | `internal/team/worktree.go` | Per-agent isolated git worktree so agents can't corrupt each other |
@@ -74,7 +75,7 @@ All three are load-time optional. Core DunderIA is just `broker + launcher + hea
 
 ## What's intentionally not here
 
-- No central LLM proxy, no "model router" layer. Each agent shells out directly.
+- No central LLM proxy and no cross-provider router. Each agent shells out directly; the only routing is a conservative per-turn model profile inside the already selected provider family.
 - No conversation-persistent sessions. Persistence is in the channel log, not the model.
 - No SaaS backend. Everything is local, single binary, local sqlite/files.
 

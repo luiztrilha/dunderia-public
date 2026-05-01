@@ -53,6 +53,8 @@ func (l *Launcher) runHeadlessOllamaTurn(ctx context.Context, slug, notification
 		return fmt.Errorf("broker is not running")
 	}
 	turnChannel := l.headlessTurnChannel(slug, channel...)
+	route := l.resolveHeadlessModelRoute(provider.KindOllama, slug, notification, turnChannel)
+	appendHeadlessClaudeLog(slug, "model-routing: "+route.summary())
 
 	startedAt := time.Now()
 	metrics := headlessProgressMetrics{
@@ -61,7 +63,7 @@ func (l *Launcher) runHeadlessOllamaTurn(ctx context.Context, slug, notification
 		FirstTextMs:  -1,
 		FirstToolMs:  -1,
 	}
-	l.updateHeadlessProgress(slug, "active", "thinking", "reviewing work packet", metrics, turnChannel)
+	l.updateHeadlessProgress(slug, "active", "thinking", "reviewing work packet · "+route.progressDetail(), metrics, turnChannel)
 
 	prompt := notification
 	if workspace := strings.TrimSpace(l.headlessTaskWorkspaceDir(slug, turnChannel)); workspace != "" {
@@ -77,7 +79,7 @@ func (l *Launcher) runHeadlessOllamaTurn(ctx context.Context, slug, notification
 		appendHeadlessClaudeLog(slug, "prompt-sanitize: normalized non-UTF8 bytes in ollama prompt payload")
 	}
 
-	fn := headlessOllamaStreamFactory(ctx, config.ResolveOllamaBaseURL(), l.headlessOllamaModel(slug))
+	fn := headlessOllamaStreamFactory(ctx, config.ResolveOllamaBaseURL(), route.Model)
 	messages := []agent.Message{
 		{Role: "system", Content: l.buildHeadlessOllamaPrompt(slug)},
 		{Role: "user", Content: prompt},
@@ -121,8 +123,10 @@ func (l *Launcher) runHeadlessOllamaTurn(ctx context.Context, slug, notification
 				outcome, err := l.executeHeadlessOllamaTool(ctx, slug, turnChannel, chunk.ToolName, chunk.ToolParams, defaultChannel, defaultReplyTo)
 				if err != nil {
 					metrics.TotalMs = time.Since(startedAt).Milliseconds()
-					appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+					appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
 						provider.KindOllama,
+						route.Profile,
+						route.Model,
 						metrics.TotalMs,
 						durationMillis(startedAt, firstEventAt),
 						durationMillis(startedAt, firstTextAt),
@@ -145,8 +149,10 @@ func (l *Launcher) runHeadlessOllamaTurn(ctx context.Context, slug, notification
 				}
 			case "error":
 				metrics.TotalMs = time.Since(startedAt).Milliseconds()
-				appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+				appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
 					provider.KindOllama,
+					route.Profile,
+					route.Model,
 					metrics.TotalMs,
 					durationMillis(startedAt, firstEventAt),
 					durationMillis(startedAt, firstTextAt),
@@ -177,8 +183,10 @@ func (l *Launcher) runHeadlessOllamaTurn(ctx context.Context, slug, notification
 	if !finalized && !broadcasted && exhaustedToolRounds {
 		detail := "ollama exceeded tool round limit without a final reply"
 		metrics.TotalMs = time.Since(startedAt).Milliseconds()
-		appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+		appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
 			provider.KindOllama,
+			route.Profile,
+			route.Model,
 			metrics.TotalMs,
 			durationMillis(startedAt, firstEventAt),
 			durationMillis(startedAt, firstTextAt),
@@ -193,8 +201,10 @@ func (l *Launcher) runHeadlessOllamaTurn(ctx context.Context, slug, notification
 	metrics.TotalMs = time.Since(startedAt).Milliseconds()
 	if text == "" && !broadcasted {
 		detail := "model returned no plain-text reply"
-		appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
+		appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=error provider=%s profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d detail=%q",
 			provider.KindOllama,
+			route.Profile,
+			route.Model,
 			metrics.TotalMs,
 			durationMillis(startedAt, firstEventAt),
 			durationMillis(startedAt, firstTextAt),
@@ -205,8 +215,10 @@ func (l *Launcher) runHeadlessOllamaTurn(ctx context.Context, slug, notification
 		return fmt.Errorf("%s", detail)
 	}
 
-	appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=ok provider=%s total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d final_chars=%d",
+	appendHeadlessClaudeLatency(slug, fmt.Sprintf("status=ok provider=%s profile=%s model=%q total_ms=%d first_event_ms=%d first_text_ms=%d first_tool_ms=%d final_chars=%d",
 		provider.KindOllama,
+		route.Profile,
+		route.Model,
 		metrics.TotalMs,
 		durationMillis(startedAt, firstEventAt),
 		durationMillis(startedAt, firstTextAt),
@@ -324,25 +336,7 @@ func (l *Launcher) buildHeadlessOllamaPrompt(slug string) string {
 }
 
 func (l *Launcher) headlessOllamaModel(slug string) string {
-	if l != nil {
-		if task := l.headlessTaskForExecution(slug); task != nil {
-			if model := strings.TrimSpace(task.RuntimeModel); model != "" {
-				explicitProvider := ""
-				if strings.TrimSpace(task.RuntimeProvider) != "" {
-					explicitProvider = normalizeProviderKind(task.RuntimeProvider)
-				}
-				if explicitProvider == provider.KindOllama || (explicitProvider == "" && inferRuntimeProviderFromModel(model) == "") {
-					return model
-				}
-			}
-		}
-	}
-	if l != nil && l.broker != nil {
-		if model := strings.TrimSpace(l.broker.MemberProviderBinding(slug).Model); model != "" {
-			return model
-		}
-	}
-	return provider.OllamaDefaultModel
+	return l.resolveHeadlessModelRoute(provider.KindOllama, slug, "").Model
 }
 
 func (l *Launcher) headlessOllamaTools(slug string) []agent.AgentTool {
