@@ -31,9 +31,12 @@ These policies are distilled from the active local global instructions, repo `AG
 - Do not create, delete, rename, reorder, reassign, or reconfigure agents or channels without explicit user authorization in the current conversation.
 - Treat topology changes as protected even when they happen indirectly through config files, onboarding, reset flows, blueprints, broker restores, or web actions.
 - If authorization is absent, stop and ask before changing topology.
+- Keep `game-master` manual-only and owner-invoked; do not route work to it automatically.
 
 ## Engineering
 
+- Treat Nex, GBrain, Telegram, and Composio as optional integrations.
+- Preserve the core runtime promise: local broker, fresh per-turn runners, scoped MCP, and isolated worktrees.
 - Prefer repo-local patterns over new abstractions.
 - Keep edits scoped to the task.
 - Do not revert unrelated dirty worktree changes.

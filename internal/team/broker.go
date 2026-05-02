@@ -1076,6 +1076,7 @@ type teamSkill struct {
 	Name                string   `json:"name"`
 	Title               string   `json:"title"`
 	Description         string   `json:"description,omitempty"`
+	Source              string   `json:"source,omitempty"`
 	Content             string   `json:"content"`
 	CreatedBy           string   `json:"created_by"`
 	Channel             string   `json:"channel,omitempty"`
@@ -15032,7 +15033,7 @@ func (b *Broker) handleInvokeSkill(w http.ResponseWriter, r *http.Request) {
 
 	channel := normalizeChannelSlug(body.Channel)
 	if channel == "" {
-		channel = normalizeChannelSlug(sk.Channel)
+		channel = skillMutationChannel(sk.Channel)
 	}
 	if channel == "" {
 		channel = "general"
@@ -15249,6 +15250,7 @@ func (b *Broker) SeedDefaultSkills(specs []agent.PackSkillSpec) {
 			Description: strings.TrimSpace(spec.Description),
 			Content:     strings.TrimSpace(spec.Content),
 			CreatedBy:   "system",
+			Channel:     globalSkillChannel,
 			Tags:        append([]string(nil), spec.Tags...),
 			Trigger:     strings.TrimSpace(spec.Trigger),
 			Status:      "active",

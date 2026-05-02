@@ -275,6 +275,7 @@ func (l *Launcher) Launch() error {
 	if l.pack != nil && len(l.pack.DefaultSkills) > 0 {
 		l.broker.SeedDefaultSkills(l.pack.DefaultSkills)
 	}
+	l.seedStarterKitBootstrap()
 
 	// Kill any existing session
 	_ = exec.Command("tmux", "-L", tmuxSocketName, "kill-session", "-t", l.sessionName).Run()
@@ -4766,6 +4767,7 @@ func (l *Launcher) LaunchWeb(webPort int) error {
 	if l.pack != nil && len(l.pack.DefaultSkills) > 0 {
 		l.broker.SeedDefaultSkills(l.pack.DefaultSkills)
 	}
+	l.seedStarterKitBootstrap()
 
 	l.broker.SetGenerateMemberFn(l.GenerateMemberTemplateFromPrompt)
 	l.broker.SetGenerateChannelFn(l.GenerateChannelTemplateFromPrompt)

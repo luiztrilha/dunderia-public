@@ -46,6 +46,7 @@ The script installs:
 - Superpowers into `$HOME\.codex\superpowers\skills`
 - Prompts into `$HOME\.codex\prompts`
 - Rules into `$HOME\.codex\rules`
+- Validated policies into `$HOME\.codex\policies.validated.md`
 - Agent skills into `$HOME\.agents\skills`
 - Claude commands into `$HOME\.claude\commands`
 - OpenCode skills into `$HOME\.config\opencode\skills`
@@ -61,10 +62,38 @@ wuphf init
 wuphf
 ```
 
+## Public Base Office
+
+Fresh offices created from this public repo start with the validated technical base topology:
+
+- `ceo`
+- `pm`
+- `research-lead`
+- `estagiario`
+- `backend`
+- `frontend`
+- `builder`
+- `reviewer`
+- `game-master`
+
+All nine agents start in `#general`. The public starter-kit does not seed extra shared channels or DM-only topology.
+
+Fresh broker state also seeds the validated public operating policies and a visible skill catalog sourced from the packaged Codex, Superpowers, and `.agents` skills. The broker records are lightweight discovery entries; the full skill instructions remain in the packaged `SKILL.md` files installed by this starter-kit.
+
+## Validated MCP Base
+
+The public starter-kit keeps the MCP base explicit:
+
+- Runtime-injected team coordination MCP: `wuphf mcp-team`
+- Public Codex profile entries in `codex/config.sanitized.toml`: `serena`, `github`, `playwright`
+- Tracked repo-local optional MCP profile in `mcp/dunderia-mcp-settings.json`: `github`, `playwright`, `brave-search`, `filesystem`, `megamemory-dunderia`
+
+Additional MCP servers remain opt-in per workstation. Nex, GBrain, Telegram, and Composio are not required for the base starter-kit.
+
 ## What Was Sanitized
 
 - Absolute private repo paths were replaced with placeholders where they mattered.
 - Auth, history, sessions, sqlite state, logs, and cloud credentials were not copied.
 - `.codex/skills/.system` was not copied because it belongs to the Codex runtime distribution.
 - `sql-convenios` was not copied because it is tied to private database and repository context.
-- Live office topology was not copied. Use blueprints instead of shipping `company.json` or `broker-state.json`.
+- Live office state was not copied. The public base topology, starter policies, and visible skill catalog are encoded in reusable defaults; private channels and state remain excluded from `company.json` and `broker-state.json`.

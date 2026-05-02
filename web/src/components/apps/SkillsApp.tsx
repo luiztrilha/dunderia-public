@@ -91,7 +91,7 @@ function SkillCard({ skill }: { skill: Skill }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <span style={{ fontSize: 16 }}>{'\u26A1'}</span>
         <span className="app-card-title" style={{ marginBottom: 0 }}>
-          {skill.name || t('apps.skills.untitled')}
+          {skill.title || skill.name || t('apps.skills.untitled')}
         </span>
       </div>
 

@@ -485,7 +485,7 @@ func TestDefaultManifestHasNoSurface(t *testing.T) {
 	if len(manifest.Channels) != 1 || manifest.Channels[0].Slug != "general" {
 		t.Fatalf("expected only the general channel in the default manifest, got %+v", manifest.Channels)
 	}
-	expectedMembers := []string{"ceo", "research-lead", "writer", "operator", "growth-ops", "monetization"}
+	expectedMembers := []string{"ceo", "pm", "research-lead", "estagiario", "backend", "frontend", "builder", "reviewer", "game-master"}
 	if len(manifest.Members) != len(expectedMembers) {
 		t.Fatalf("expected %d default members, got %+v", len(expectedMembers), manifest.Members)
 	}

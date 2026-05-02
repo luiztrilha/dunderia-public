@@ -29,6 +29,8 @@ This profile intentionally does not export everything byte-for-byte. It exports 
 - OpenCode GitNexus skills in `opencode/skills/`.
 - Prompt commands in `prompts/`.
 - Local rules in `rules/default.rules`.
+- Validated policies in `policies.validated.md`.
+- Public base topology in the runtime default manifest: `ceo`, `pm`, `research-lead`, `estagiario`, `backend`, `frontend`, `builder`, `reviewer`, and `game-master` in `#general`.
 
 ## Private Skill Note
 
