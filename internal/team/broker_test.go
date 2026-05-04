@@ -2338,7 +2338,7 @@ func TestNewBrokerSeedsBlueprintBackedOfficeRosterOnFreshState(t *testing.T) {
 	}
 }
 
-func TestNewBrokerReconcilesStateToManifestTopology(t *testing.T) {
+func TestNewBrokerPrunesStateOutsideManifestTopology(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	manifestPath := filepath.Join(home, ".wuphf", "company.json")
@@ -2387,28 +2387,28 @@ func TestNewBrokerReconcilesStateToManifestTopology(t *testing.T) {
 
 	b := NewBroker()
 	members := b.OfficeMembers()
-	if len(members) != 3 {
-		t.Fatalf("expected manifest members plus preserved custom member, got %+v", members)
+	if len(members) != 2 {
+		t.Fatalf("expected only manifest members, got %+v", members)
 	}
-	if b.findMemberLocked("fe") == nil {
-		t.Fatalf("expected custom member fe to persist, got %+v", members)
+	if b.findMemberLocked("fe") != nil {
+		t.Fatalf("expected custom member fe to be pruned, got %+v", members)
 	}
 	frontend := b.findMemberLocked("frontend")
 	if frontend == nil || frontend.Name != "Frontend" || frontend.Role != "Frontend" {
 		t.Fatalf("expected manifest member frontend to remain authoritative, got %+v", frontend)
 	}
-	if ch := b.findChannelLocked("roadmap"); ch == nil {
-		t.Fatal("expected custom roadmap channel to persist")
+	if ch := b.findChannelLocked("roadmap"); ch != nil {
+		t.Fatalf("expected custom roadmap channel to be pruned, got %+v", ch)
 	}
 	general := b.findChannelLocked("general")
 	if general == nil {
 		t.Fatal("expected general channel to remain")
 	}
-	if !containsString(general.Members, "fe") {
-		t.Fatalf("expected preserved custom member fe in general, got %+v", general.Members)
+	if containsString(general.Members, "fe") {
+		t.Fatalf("expected pruned custom member fe to be removed from general, got %+v", general.Members)
 	}
-	if len(b.Messages()) != 2 {
-		t.Fatalf("expected custom records to survive reconciliation, got %+v", b.Messages())
+	if len(b.Messages()) != 0 {
+		t.Fatalf("expected records outside manifest topology to be pruned, got %+v", b.Messages())
 	}
 }
 

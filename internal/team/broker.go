@@ -616,6 +616,31 @@ func (b *Broker) removePublicChannelFromStoreLocked(slug string) {
 	_ = b.channelStore.Delete(stored.ID)
 }
 
+func (b *Broker) reconcileChannelStoreToManifestLocked(validChannels map[string]struct{}) {
+	if b == nil || b.channelStore == nil {
+		return
+	}
+	for _, stored := range b.channelStore.List(channel.ChannelFilter{}) {
+		slug := normalizeChannelSlug(stored.Slug)
+		if slug == "" {
+			continue
+		}
+		if _, ok := validChannels[slug]; ok {
+			continue
+		}
+		_ = b.channelStore.Delete(stored.ID)
+	}
+	for _, ch := range b.channels {
+		if ch.Archived || ch.isDM() {
+			continue
+		}
+		if _, ok := validChannels[normalizeChannelSlug(ch.Slug)]; !ok {
+			continue
+		}
+		b.upsertPublicChannelInStoreLocked(ch)
+	}
+}
+
 func (b *Broker) recoverChannelsFromStoreLocked() int {
 	if b == nil || b.channelStore == nil {
 		return 0
@@ -5095,20 +5120,16 @@ func (b *Broker) normalizeLoadedStateLocked() {
 func (b *Broker) reconcileStateToManifestLocked(manifest company.Manifest) bool {
 	now := time.Now().UTC().Format(time.RFC3339)
 	existingMembers := make(map[string]officeMember, len(b.members))
-	existingMemberOrder := make([]string, 0, len(b.members))
 	for _, member := range b.members {
 		slug := normalizeChannelSlug(member.Slug)
 		if slug == "" {
 			continue
 		}
-		if _, seen := existingMembers[slug]; !seen {
-			existingMemberOrder = append(existingMemberOrder, slug)
-		}
 		existingMembers[slug] = member
 	}
 
-	manifestMembers := make([]officeMember, 0, len(manifest.Members)+len(existingMembers))
-	validMembers := make(map[string]struct{}, len(manifest.Members)+len(existingMembers))
+	manifestMembers := make([]officeMember, 0, len(manifest.Members))
+	validMembers := make(map[string]struct{}, len(manifest.Members))
 	for _, spec := range manifest.Members {
 		slug := normalizeChannelSlug(spec.Slug)
 		if slug == "" {
@@ -5126,37 +5147,20 @@ func (b *Broker) reconcileStateToManifestLocked(manifest company.Manifest) bool 
 		manifestMembers = append(manifestMembers, member)
 		validMembers[slug] = struct{}{}
 	}
-	for _, slug := range existingMemberOrder {
-		if _, ok := validMembers[slug]; ok {
-			continue
-		}
-		member := existingMembers[slug]
-		member.Slug = slug
-		manifestMembers = append(manifestMembers, member)
-		validMembers[slug] = struct{}{}
-	}
 	b.members = manifestMembers
 
 	existingChannels := normalizeDuplicateChannels(b.channels)
 	existingBySlug := make(map[string]teamChannel, len(existingChannels))
-	dmChannels := make([]teamChannel, 0, len(existingChannels))
 	for _, ch := range existingChannels {
 		slug := normalizeChannelSlug(ch.Slug)
-		if slug == "" {
-			continue
-		}
-		if IsDMSlug(slug) {
-			target := normalizeChannelSlug(DMTargetAgent(slug))
-			if _, ok := validMembers[target]; ok {
-				dmChannels = append(dmChannels, ch)
-			}
+		if slug == "" || IsDMSlug(slug) {
 			continue
 		}
 		existingBySlug[slug] = ch
 	}
 
-	manifestChannels := make([]teamChannel, 0, len(manifest.Channels)+len(existingChannels))
-	validChannels := make(map[string]struct{}, len(manifest.Channels)+len(existingChannels))
+	manifestChannels := make([]teamChannel, 0, len(manifest.Channels))
+	validChannels := make(map[string]struct{}, len(manifest.Channels))
 	for _, spec := range manifest.Channels {
 		slug := normalizeChannelSlug(spec.Slug)
 		if slug == "" {
@@ -5194,24 +5198,9 @@ func (b *Broker) reconcileStateToManifestLocked(manifest company.Manifest) bool 
 		manifestChannels = append(manifestChannels, ch)
 		validChannels[slug] = struct{}{}
 	}
-	for _, ch := range existingChannels {
-		slug := normalizeChannelSlug(ch.Slug)
-		if slug == "" || IsDMSlug(slug) {
-			continue
-		}
-		if _, ok := validChannels[slug]; ok {
-			continue
-		}
-		validChannels[slug] = struct{}{}
-		manifestChannels = append(manifestChannels, ch)
-	}
-	for _, ch := range dmChannels {
-		slug := normalizeChannelSlug(ch.Slug)
-		validChannels[slug] = struct{}{}
-		manifestChannels = append(manifestChannels, ch)
-	}
 	startupGuardTriggered := b.persistStartupReconcileGuardLocked(validChannels)
 	b.channels = manifestChannels
+	b.reconcileChannelStoreToManifestLocked(validChannels)
 	b.reconcileRecordsToManifestLocked(validMembers, validChannels)
 	return startupGuardTriggered
 }
