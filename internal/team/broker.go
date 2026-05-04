@@ -1796,6 +1796,9 @@ func NewBroker() *Broker {
 	b.ensureDefaultOfficeMembersLocked()
 	b.ensureDefaultChannelsLocked()
 	b.normalizeLoadedStateLocked()
+	if manifest, ok := runtimeManifestDefaults(); ok {
+		startupGuardTriggered = b.reconcileStateToManifestLocked(manifest) || startupGuardTriggered
+	}
 	b.ensureMessageIndexesLocked()
 	b.rebuildTaskIndexesLocked()
 	if startupGuardTriggered {
@@ -5280,6 +5283,45 @@ func (b *Broker) reconcileRecordsToManifestLocked(validMembers, validChannels ma
 		filteredNodes = append(filteredNodes, node)
 	}
 	b.executionNodes = filteredNodes
+
+	filteredScheduler := make([]schedulerJob, 0, len(b.scheduler))
+	for _, job := range b.scheduler {
+		if !channelAllowed(job.Channel) {
+			continue
+		}
+		filteredScheduler = append(filteredScheduler, job)
+	}
+	b.scheduler = filteredScheduler
+
+	filteredWatchdogs := make([]watchdogAlert, 0, len(b.watchdogs))
+	for _, alert := range b.watchdogs {
+		if !channelAllowed(alert.Channel) || !memberAllowed(alert.Owner) {
+			continue
+		}
+		filteredWatchdogs = append(filteredWatchdogs, alert)
+	}
+	b.watchdogs = filteredWatchdogs
+
+	filteredDecisions := make([]officeDecisionRecord, 0, len(b.decisions))
+	for _, decision := range b.decisions {
+		if !channelAllowed(decision.Channel) || !memberAllowed(decision.Owner) {
+			continue
+		}
+		filteredDecisions = append(filteredDecisions, decision)
+	}
+	b.decisions = filteredDecisions
+
+	if b.sharedMemory != nil {
+		for namespace := range b.sharedMemory {
+			if !strings.HasPrefix(namespace, channelMemoryScope+"/") {
+				continue
+			}
+			channel := strings.TrimPrefix(namespace, channelMemoryScope+"/")
+			if !channelAllowed(channel) {
+				delete(b.sharedMemory, namespace)
+			}
+		}
+	}
 }
 
 func filterSlugsWithPolicy(items []string, allow func(string) bool) []string {
