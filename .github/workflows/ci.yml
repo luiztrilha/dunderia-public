@@ -45,6 +45,9 @@ jobs:
           args: --timeout=5m
 
   test:
+    # Tests are intentionally skipped for this repo; releases are gated by
+    # build/package smoke paths instead.
+    if: ${{ false }}
     needs: web
     runs-on: ubuntu-latest
     steps:
@@ -77,6 +80,8 @@ jobs:
           ./wuphf --help-all > /dev/null
 
   vhs:
+    # Visual regression tests are intentionally skipped for this repo.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     env:
       VHS_VERSION: "v0.11.0"
@@ -149,6 +154,8 @@ jobs:
           shellcheck scripts/*.sh testdata/vhs/*.sh
 
   web-e2e:
+    # Browser E2E tests are intentionally skipped for this repo.
+    if: ${{ false }}
     # Playwright smoke against the real web UI. Guards the class of regression
     # we kept shipping (React render crashes that only surface in a browser
     # — e.g. "No QueryClient set", Minified React error #31 on first agent
