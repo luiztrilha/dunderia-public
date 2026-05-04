@@ -21,7 +21,6 @@ Escolha um provider suportado:
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) e o padrao
 - [Codex CLI](https://github.com/openai/codex) com `--provider codex`
 - [Gemini](https://ai.google.dev/) com `--provider gemini`
-- [Gemini on Vertex AI](https://cloud.google.com/vertex-ai/generative-ai/docs/start/quickstarts/quickstart-multimodal) com `--provider gemini-vertex`
 - [Ollama](https://ollama.com/) com `--provider ollama` e um modelo local ja baixado
 
 `tmux` so e necessario para `--tui`.
@@ -69,7 +68,7 @@ Se o cloud backup ja estiver configurado e acessivel, `wuphf init` tambem reidra
 
 | Flag | O que faz |
 |---|---|
-| `--provider <name>` | Sobrescreve o provider de runtime: `claude-code`, `codex`, `gemini`, `gemini-vertex`, `ollama` |
+| `--provider <name>` | Sobrescreve o provider de runtime: `claude-code`, `codex`, `gemini`, `ollama` |
 | `--blueprint <id>` | Inicia a partir de um blueprint operacional |
 | `--pack <id>` | Alias legado para selecao de blueprint |
 | `--from-scratch` | Ignora a configuracao salva e sintetiza uma nova operacao |

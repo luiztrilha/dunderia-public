@@ -31,13 +31,13 @@ func TestBuildHeadlessGeminiPromptOverridesToolUsage(t *testing.T) {
 func TestRunHeadlessGeminiTurnUsesToollessPromptAndPublishesFallback(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("WUPHF_BROKER_STATE_PATH", filepath.Join(t.TempDir(), "broker-state.json"))
-	oldGeminiRunner := headlessGeminiVertexOneShot
-	defer func() { headlessGeminiVertexOneShot = oldGeminiRunner }()
+	oldGeminiRunner := headlessGeminiOneShot
+	defer func() { headlessGeminiOneShot = oldGeminiRunner }()
 
 	var gotModel string
 	var gotSystemPrompt string
 	var gotPrompt string
-	headlessGeminiVertexOneShot = func(_ context.Context, model, systemPrompt, prompt string) (string, error) {
+	headlessGeminiOneShot = func(_ context.Context, model, systemPrompt, prompt string) (string, error) {
 		gotModel = model
 		gotSystemPrompt = systemPrompt
 		gotPrompt = prompt
@@ -51,15 +51,15 @@ func TestRunHeadlessGeminiTurnUsesToollessPromptAndPublishesFallback(t *testing.
 	replyTo := fmt.Sprintf("msg-%d", time.Now().UnixNano())
 
 	notification := fmt.Sprintf(`Call team_broadcast with my_slug "pm", channel "general", reply_to_id "%s" and reply with the answer.`, replyTo)
-	if err := l.runHeadlessGeminiTurn(context.Background(), "pm", provider.KindGeminiVertex, notification); err != nil {
+	if err := l.runHeadlessGeminiTurn(context.Background(), "pm", provider.KindGemini, notification); err != nil {
 		t.Fatalf("runHeadlessGeminiTurn: %v", err)
 	}
 
 	if !strings.Contains(gotPrompt, notification) {
 		t.Fatalf("prompt should include notification, got %q", gotPrompt)
 	}
-	if gotModel != provider.GeminiVertexDefaultModel {
-		t.Fatalf("expected default vertex model %q, got %q", provider.GeminiVertexDefaultModel, gotModel)
+	if gotModel != provider.GeminiDefaultModel {
+		t.Fatalf("expected default gemini model %q, got %q", provider.GeminiDefaultModel, gotModel)
 	}
 	if strings.Contains(gotPrompt, "== PRIVATE MEMORY ==") {
 		t.Fatalf("prompt should not inherit unrelated private memory in isolated test broker, got %q", gotPrompt)
@@ -85,11 +85,11 @@ func TestRunHeadlessGeminiTurnUsesToollessPromptAndPublishesFallback(t *testing.
 }
 
 func TestRunHeadlessGeminiTurnRejectsEmptyOutput(t *testing.T) {
-	oldGeminiRunner := headlessGeminiVertexOneShot
-	defer func() { headlessGeminiVertexOneShot = oldGeminiRunner }()
+	oldGeminiRunner := headlessGeminiOneShot
+	defer func() { headlessGeminiOneShot = oldGeminiRunner }()
 
 	calls := 0
-	headlessGeminiVertexOneShot = func(_ context.Context, model, systemPrompt, prompt string) (string, error) {
+	headlessGeminiOneShot = func(_ context.Context, model, systemPrompt, prompt string) (string, error) {
 		calls++
 		return "   ", nil
 	}
@@ -100,7 +100,7 @@ func TestRunHeadlessGeminiTurnRejectsEmptyOutput(t *testing.T) {
 	replyTo := fmt.Sprintf("msg-%d", time.Now().UnixNano())
 
 	notification := fmt.Sprintf(`Call team_broadcast with my_slug "pm", channel "general", reply_to_id "%s" and reply with the answer.`, replyTo)
-	err := l.runHeadlessGeminiTurn(context.Background(), "pm", provider.KindGeminiVertex, notification)
+	err := l.runHeadlessGeminiTurn(context.Background(), "pm", provider.KindGemini, notification)
 	if err == nil {
 		t.Fatal("expected empty gemini output to fail")
 	}
@@ -117,13 +117,13 @@ func TestRunHeadlessGeminiTurnRejectsEmptyOutput(t *testing.T) {
 }
 
 func TestRunHeadlessGeminiTurnPassesTurnContextToProvider(t *testing.T) {
-	oldGeminiRunner := headlessGeminiVertexOneShot
-	defer func() { headlessGeminiVertexOneShot = oldGeminiRunner }()
+	oldGeminiRunner := headlessGeminiOneShot
+	defer func() { headlessGeminiOneShot = oldGeminiRunner }()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	headlessGeminiVertexOneShot = func(ctx context.Context, model, systemPrompt, prompt string) (string, error) {
+	headlessGeminiOneShot = func(ctx context.Context, model, systemPrompt, prompt string) (string, error) {
 		select {
 		case <-ctx.Done():
 			return "", ctx.Err()
@@ -136,19 +136,19 @@ func TestRunHeadlessGeminiTurnPassesTurnContextToProvider(t *testing.T) {
 	l := newHeadlessLauncherForTest()
 	l.broker = NewBroker()
 	notification := fmt.Sprintf(`Call team_broadcast with my_slug "pm", channel "general", reply_to_id "%s" and reply with the answer.`, fmt.Sprintf("msg-%d", time.Now().UnixNano()))
-	err := l.runHeadlessGeminiTurn(ctx, "pm", provider.KindGeminiVertex, notification)
+	err := l.runHeadlessGeminiTurn(ctx, "pm", provider.KindGemini, notification)
 	if err == nil || !strings.Contains(err.Error(), "context canceled") {
 		t.Fatalf("expected context cancellation from gemini provider, got %v", err)
 	}
 }
 
 func TestRunHeadlessGeminiTurnRetriesEmptyOutputOnceBeforePublishingFallback(t *testing.T) {
-	oldGeminiRunner := headlessGeminiVertexOneShot
-	defer func() { headlessGeminiVertexOneShot = oldGeminiRunner }()
+	oldGeminiRunner := headlessGeminiOneShot
+	defer func() { headlessGeminiOneShot = oldGeminiRunner }()
 	t.Setenv("HOME", t.TempDir())
 
 	calls := 0
-	headlessGeminiVertexOneShot = func(_ context.Context, model, systemPrompt, prompt string) (string, error) {
+	headlessGeminiOneShot = func(_ context.Context, model, systemPrompt, prompt string) (string, error) {
 		calls++
 		if calls == 1 {
 			return "   ", nil
@@ -163,7 +163,7 @@ func TestRunHeadlessGeminiTurnRetriesEmptyOutputOnceBeforePublishingFallback(t *
 	replyTo := fmt.Sprintf("msg-%d", time.Now().UnixNano())
 
 	notification := fmt.Sprintf(`Call team_broadcast with my_slug "pm", channel "general", reply_to_id "%s" and reply with the answer.`, replyTo)
-	if err := l.runHeadlessGeminiTurn(context.Background(), "pm", provider.KindGeminiVertex, notification); err != nil {
+	if err := l.runHeadlessGeminiTurn(context.Background(), "pm", provider.KindGemini, notification); err != nil {
 		t.Fatalf("runHeadlessGeminiTurn: %v", err)
 	}
 	if calls != 2 {
@@ -181,8 +181,8 @@ func TestRunHeadlessGeminiTurnRetriesEmptyOutputOnceBeforePublishingFallback(t *
 }
 
 func TestRunHeadlessGeminiTurnPublishesFallbackDespiteUnrelatedChannelPost(t *testing.T) {
-	oldGeminiRunner := headlessGeminiVertexOneShot
-	defer func() { headlessGeminiVertexOneShot = oldGeminiRunner }()
+	oldGeminiRunner := headlessGeminiOneShot
+	defer func() { headlessGeminiOneShot = oldGeminiRunner }()
 	t.Setenv("HOME", t.TempDir())
 
 	l := newHeadlessLauncherForTest()
@@ -190,7 +190,7 @@ func TestRunHeadlessGeminiTurnPublishesFallbackDespiteUnrelatedChannelPost(t *te
 	ensureTestMemberAccess(l.broker, "review", "pm", "PM")
 	replyTo := fmt.Sprintf("msg-%d", time.Now().UnixNano())
 
-	headlessGeminiVertexOneShot = func(_ context.Context, model, systemPrompt, prompt string) (string, error) {
+	headlessGeminiOneShot = func(_ context.Context, model, systemPrompt, prompt string) (string, error) {
 		if _, err := l.broker.PostMessage("pm", "review", "Unrelated progress update", nil, "msg-review"); err != nil {
 			t.Fatalf("post unrelated progress update: %v", err)
 		}
@@ -198,7 +198,7 @@ func TestRunHeadlessGeminiTurnPublishesFallbackDespiteUnrelatedChannelPost(t *te
 	}
 
 	notification := fmt.Sprintf(`Call team_broadcast with my_slug "pm", channel "human__pm", reply_to_id "%s" and reply with the answer. [WUPHF_REPLY_ROUTE channel="human__pm" reply_to_id="%s"]`, replyTo, replyTo)
-	if err := l.runHeadlessGeminiTurn(context.Background(), "pm", provider.KindGeminiVertex, notification); err != nil {
+	if err := l.runHeadlessGeminiTurn(context.Background(), "pm", provider.KindGemini, notification); err != nil {
 		t.Fatalf("runHeadlessGeminiTurn: %v", err)
 	}
 
@@ -216,12 +216,12 @@ func TestRunHeadlessGeminiTurnPublishesFallbackDespiteUnrelatedChannelPost(t *te
 	}
 }
 
-func TestRunHeadlessGeminiTurnUsesConfiguredVertexModel(t *testing.T) {
-	oldGeminiRunner := headlessGeminiVertexOneShot
-	defer func() { headlessGeminiVertexOneShot = oldGeminiRunner }()
+func TestRunHeadlessGeminiTurnUsesConfiguredModel(t *testing.T) {
+	oldGeminiRunner := headlessGeminiOneShot
+	defer func() { headlessGeminiOneShot = oldGeminiRunner }()
 
 	var gotModel string
-	headlessGeminiVertexOneShot = func(_ context.Context, model, systemPrompt, prompt string) (string, error) {
+	headlessGeminiOneShot = func(_ context.Context, model, systemPrompt, prompt string) (string, error) {
 		gotModel = model
 		return "Configured model reply", nil
 	}
@@ -233,7 +233,7 @@ func TestRunHeadlessGeminiTurnUsesConfiguredVertexModel(t *testing.T) {
 		Slug: "pm",
 		Name: "PM",
 		Provider: provider.ProviderBinding{
-			Kind:  provider.KindGeminiVertex,
+			Kind:  provider.KindGemini,
 			Model: "gemini-2.5-pro",
 		},
 	})
@@ -241,10 +241,10 @@ func TestRunHeadlessGeminiTurnUsesConfiguredVertexModel(t *testing.T) {
 	ensureTestMemberAccess(l.broker, "general", "pm", "PM")
 
 	notification := fmt.Sprintf(`Call team_broadcast with my_slug "pm", channel "general", reply_to_id "%s" and reply with the answer.`, fmt.Sprintf("msg-%d", time.Now().UnixNano()))
-	if err := l.runHeadlessGeminiTurn(context.Background(), "pm", provider.KindGeminiVertex, notification); err != nil {
+	if err := l.runHeadlessGeminiTurn(context.Background(), "pm", provider.KindGemini, notification); err != nil {
 		t.Fatalf("runHeadlessGeminiTurn: %v", err)
 	}
 	if gotModel != "gemini-2.5-pro" {
-		t.Fatalf("expected configured vertex model, got %q", gotModel)
+		t.Fatalf("expected configured gemini model, got %q", gotModel)
 	}
 }

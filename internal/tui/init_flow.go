@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +12,6 @@ import (
 	"github.com/nex-crm/wuphf/internal/agent"
 	"github.com/nex-crm/wuphf/internal/config"
 	"github.com/nex-crm/wuphf/internal/operations"
-	"github.com/nex-crm/wuphf/internal/provider"
 )
 
 var initFlowLookPathFn = exec.LookPath
@@ -233,7 +231,7 @@ func ProviderOptions() []PickerOption {
 		{Label: "Claude Code (default)", Value: "claude-code", Description: claudeDesc},
 		{Label: "Codex CLI", Value: "codex", Description: codexDesc},
 		{Label: "Gemini", Value: "gemini", Description: "Gemini via API key (no local CLI required)"},
-		{Label: "Gemini (Vertex Credits)", Value: "gemini-vertex", Description: "Gemini on Vertex AI using your Google Cloud credits"},
+		{Label: "Ollama", Value: "ollama", Description: "Local Ollama runtime via native API"},
 	}
 	return options
 }
@@ -515,11 +513,6 @@ func providerRuntimeStatus(providerName string) string {
 		return readinessStatusForBool(binaryAvailable("claude"))
 	case "codex":
 		return readinessStatusForBool(binaryAvailable("codex"))
-	case "gemini-vertex":
-		if _, err := provider.ResolveGeminiVertexProject(context.Background()); err != nil {
-			return "missing"
-		}
-		return "ready"
 	default:
 		return "ready"
 	}
@@ -533,11 +526,6 @@ func providerRuntimeDetail(providerName string) string {
 		return binaryReadinessDetail("codex", "Codex CLI is ready for teammate sessions.", "Install codex or pick another provider.")
 	case "gemini":
 		return "Gemini uses an API key. No local CLI is required."
-	case "gemini-vertex":
-		if _, err := provider.ResolveGeminiVertexProject(context.Background()); err != nil {
-			return "Gemini Vertex needs a Google Cloud project. Set WUPHF_VERTEX_PROJECT/GOOGLE_CLOUD_PROJECT or run gcloud config set project."
-		}
-		return "Gemini Vertex is ready to use your Google Cloud credits."
 	default:
 		return providerName + " is selected."
 	}

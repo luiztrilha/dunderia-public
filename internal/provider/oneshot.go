@@ -17,8 +17,6 @@ func RunConfiguredOneShot(systemPrompt, prompt, cwd string) (string, error) {
 		return RunCodexOneShot(systemPrompt, prompt, cwd)
 	case "gemini":
 		return RunGeminiOneShot(systemPrompt, prompt)
-	case "gemini-vertex":
-		return RunGeminiVertexOneShot(systemPrompt, prompt)
 	case "ollama":
 		return RunOllamaOneShot(systemPrompt, prompt)
 	default:

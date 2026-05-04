@@ -98,10 +98,6 @@
       "ollama": {
         "name": "Ollama",
         "desc": "Local Ollama runtime via native API"
-      },
-      "geminiVertex": {
-        "name": "Gemini (Vertex Credits)",
-        "desc": "Google Gemini on Vertex AI using your Google Cloud credits"
       }
     }
   },
@@ -458,8 +454,7 @@
           "claudeCode": "Claude Code",
           "codex": "Codex",
           "gemini": "Gemini",
-          "ollama": "Ollama",
-          "geminiVertex": "Gemini (Vertex Credits)"
+          "ollama": "Ollama"
         },
         "memory": {
           "none": "None (local only)"
@@ -644,7 +639,7 @@
         "hint": "Settings resolve in order: CLI flag → environment variable → config file → default. Set these in your shell profile to override config file values."
       },
       "cli": {
-        "provider": "LLM provider (claude-code, codex, gemini, ollama, gemini-vertex)",
+        "provider": "LLM provider (claude-code, codex, gemini, ollama)",
         "memoryBackend": "Memory backend (none only)",
         "blueprint": "Operation blueprint for this run",
         "tui": "Launch tmux TUI instead of web UI",

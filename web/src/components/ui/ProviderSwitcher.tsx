@@ -28,7 +28,6 @@ const PROVIDERS: ProviderOption[] = [
   { id: 'codex', nameKey: 'provider.options.codex.name', descKey: 'provider.options.codex.desc' },
   { id: 'gemini', nameKey: 'provider.options.gemini.name', descKey: 'provider.options.gemini.desc' },
   { id: 'ollama', nameKey: 'provider.options.ollama.name', descKey: 'provider.options.ollama.desc' },
-  { id: 'gemini-vertex', nameKey: 'provider.options.geminiVertex.name', descKey: 'provider.options.geminiVertex.desc' },
 ]
 
 export function ProviderSwitcherHost() {

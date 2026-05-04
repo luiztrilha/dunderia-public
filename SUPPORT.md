@@ -12,7 +12,7 @@
 Please include:
 
 - OS and architecture
-- provider in use (`claude-code`, `codex`, `gemini`, `gemini-vertex`, `ollama`)
+- provider in use (`claude-code`, `codex`, `gemini`, `ollama`)
 - how the app was installed (`npm`, source build, local binary)
 - exact command used
 - relevant logs or screenshots, with secrets redacted

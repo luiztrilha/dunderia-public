@@ -28,9 +28,7 @@ const RUNTIME_OPTIONS: RuntimeOption[] = [
   { value: 'claude-code', label: formatProviderLabel('claude-code') },
   { value: 'codex', label: formatProviderLabel('codex') },
   { value: 'gemini', label: formatProviderLabel('gemini') },
-  { value: 'gemini-vertex', label: formatProviderLabel('gemini-vertex') },
   { value: 'ollama', label: formatProviderLabel('ollama') },
-  { value: 'openclaude', label: formatProviderLabel('openclaude') },
 ]
 
 function runtimeChoiceFromAgent(agent: OfficeMember): RuntimeChoice {
@@ -38,9 +36,7 @@ function runtimeChoiceFromAgent(agent: OfficeMember): RuntimeChoice {
     case 'claude-code':
     case 'codex':
     case 'gemini':
-    case 'gemini-vertex':
     case 'ollama':
-    case 'openclaude':
       return agent.provider.kind
     default:
       return 'office-default'

@@ -309,7 +309,7 @@ type TeamTaskArgs struct {
 	ThreadID        string   `json:"thread_id,omitempty" jsonschema:"Related thread or message id"`
 	TaskType        string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
 	ExecutionMode   string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
-	RuntimeProvider string   `json:"runtime_provider,omitempty" jsonschema:"Optional runtime for this task turn. One of: claude-code, codex, gemini, gemini-vertex, ollama, openclaude. Empty inherits the assignee default."`
+	RuntimeProvider string   `json:"runtime_provider,omitempty" jsonschema:"Optional runtime for this task turn. One of: claude-code, codex, gemini, ollama. Empty inherits the assignee default."`
 	RuntimeModel    string   `json:"runtime_model,omitempty" jsonschema:"Optional model for this task turn, such as gpt-5.5, gpt-5.4, gpt-5.4-mini, claude-sonnet-4-6, or gemini-2.5-pro. Empty inherits the assignee/default model."`
 	ReasoningEffort string   `json:"reasoning_effort,omitempty" jsonschema:"Optional reasoning effort for Codex/OpenAI runtimes: default, low, medium, high, or xhigh."`
 	WorkspacePath   string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`
@@ -367,7 +367,7 @@ type TeamMemberArgs struct {
 	// Per-agent provider selection. Empty Provider means the agent inherits the
 	// install-wide default runtime. Set Provider to pick a specific runtime and
 	// (optionally) model for this agent.
-	Provider string `json:"provider,omitempty" jsonschema:"LLM runtime for this agent. One of: claude-code, codex, gemini, gemini-vertex. Empty = install default."`
+	Provider string `json:"provider,omitempty" jsonschema:"LLM runtime for this agent. One of: claude-code, codex, gemini, ollama. Empty = install default."`
 	Model    string `json:"model,omitempty" jsonschema:"Model name passed to the runtime (e.g. claude-sonnet-4.6, gpt-5.4, gemini-2.5-pro, gemini-3.1-pro-preview). Free-form; runtime validates."`
 	MySlug   string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
 }
@@ -380,7 +380,7 @@ type TeamPlanArgs struct {
 		Details         string   `json:"details,omitempty" jsonschema:"Optional task details"`
 		TaskType        string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
 		ExecutionMode   string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office, local_worktree, or external_workspace"`
-		RuntimeProvider string   `json:"runtime_provider,omitempty" jsonschema:"Optional runtime for this task turn. One of: claude-code, codex, gemini, gemini-vertex, ollama, openclaude. Empty inherits the assignee default."`
+		RuntimeProvider string   `json:"runtime_provider,omitempty" jsonschema:"Optional runtime for this task turn. One of: claude-code, codex, gemini, ollama. Empty inherits the assignee default."`
 		RuntimeModel    string   `json:"runtime_model,omitempty" jsonschema:"Optional model for this task turn, such as gpt-5.5, gpt-5.4, gpt-5.4-mini, claude-sonnet-4-6, or gemini-2.5-pro."`
 		ReasoningEffort string   `json:"reasoning_effort,omitempty" jsonschema:"Optional reasoning effort for Codex/OpenAI runtimes: default, low, medium, high, or xhigh."`
 		WorkspacePath   string   `json:"workspace_path,omitempty" jsonschema:"Optional repo path used when execution_mode is external_workspace"`

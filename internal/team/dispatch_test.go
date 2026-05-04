@@ -18,9 +18,9 @@ func TestNormalizeProviderKind(t *testing.T) {
 		{"CODEX", provider.KindCodex},
 		{"claude-code", provider.KindClaudeCode},
 		{"gemini", provider.KindGemini},
-		{"gemini-vertex", provider.KindGeminiVertex},
 		{"ollama", provider.KindOllama},
-		{"openclaude", provider.KindOpenclaude},
+		{"gemini-vertex", "gemini-vertex"},
+		{"openclaude", "openclaude"},
 		{"custom-runtime", "custom-runtime"},
 	}
 	for _, tt := range tests {
@@ -64,23 +64,6 @@ func TestMemberEffectiveProviderKind_PerAgentGeminiWins(t *testing.T) {
 	}
 }
 
-func TestMemberEffectiveProviderKind_PerAgentGeminiVertexWins(t *testing.T) {
-	b := NewBroker()
-	b.mu.Lock()
-	b.members = append(b.members, officeMember{
-		Slug:     "research-vertex",
-		Name:     "Research Vertex",
-		Provider: provider.ProviderBinding{Kind: provider.KindGeminiVertex},
-	})
-	b.memberIndex = nil
-	b.mu.Unlock()
-
-	l := &Launcher{broker: b, provider: provider.KindCodex}
-	if got := l.memberEffectiveProviderKind("research-vertex"); got != provider.KindGeminiVertex {
-		t.Fatalf("per-agent gemini-vertex should win over global fallback, got %q", got)
-	}
-}
-
 func TestMemberEffectiveProviderKind_PerAgentOllamaWins(t *testing.T) {
 	b := NewBroker()
 	b.mu.Lock()
@@ -95,23 +78,6 @@ func TestMemberEffectiveProviderKind_PerAgentOllamaWins(t *testing.T) {
 	l := &Launcher{broker: b, provider: provider.KindCodex}
 	if got := l.memberEffectiveProviderKind("coder-ollama"); got != provider.KindOllama {
 		t.Fatalf("per-agent ollama should win over global fallback, got %q", got)
-	}
-}
-
-func TestMemberEffectiveProviderKind_PerAgentOpenclaudeWins(t *testing.T) {
-	b := NewBroker()
-	b.mu.Lock()
-	b.members = append(b.members, officeMember{
-		Slug:     "writer-openclaude",
-		Name:     "Writer OpenClaude",
-		Provider: provider.ProviderBinding{Kind: provider.KindOpenclaude},
-	})
-	b.memberIndex = nil
-	b.mu.Unlock()
-
-	l := &Launcher{broker: b, provider: provider.KindCodex}
-	if got := l.memberEffectiveProviderKind("writer-openclaude"); got != provider.KindOpenclaude {
-		t.Fatalf("per-agent openclaude should win over global fallback, got %q", got)
 	}
 }
 
@@ -146,17 +112,17 @@ func TestBrokerMemberProviderKind_Lookup(t *testing.T) {
 	b := NewBroker()
 	b.mu.Lock()
 	b.members = append(b.members, officeMember{
-		Slug:     "research-vertex",
-		Name:     "Research Vertex",
-		Provider: provider.ProviderBinding{Kind: provider.KindGeminiVertex, Model: provider.GeminiVertexDefaultModel},
+		Slug:     "research-gemini",
+		Name:     "Research Gemini",
+		Provider: provider.ProviderBinding{Kind: provider.KindGemini, Model: provider.GeminiDefaultModel},
 	})
 	b.memberIndex = nil
 	b.mu.Unlock()
 
-	if got := b.MemberProviderKind("research-vertex"); got != provider.KindGeminiVertex {
-		t.Fatalf("MemberProviderKind = %q, want %q", got, provider.KindGeminiVertex)
+	if got := b.MemberProviderKind("research-gemini"); got != provider.KindGemini {
+		t.Fatalf("MemberProviderKind = %q, want %q", got, provider.KindGemini)
 	}
-	if binding := b.MemberProviderBinding("research-vertex"); binding.Model != provider.GeminiVertexDefaultModel {
+	if binding := b.MemberProviderBinding("research-gemini"); binding.Model != provider.GeminiDefaultModel {
 		t.Fatalf("MemberProviderBinding lost model: %+v", binding)
 	}
 	if got := b.MemberProviderKind("missing"); got != "" {

@@ -16,8 +16,6 @@ func DefaultStreamFnResolver(client *api.Client) agent.StreamFnResolver {
 			return CreateCodexCLIStreamFn(agentSlug)
 		case "gemini":
 			return CreateGeminiStreamFn(config.ResolveGeminiAPIKey())
-		case "gemini-vertex":
-			return CreateGeminiVertexStreamFn()
 		case "ollama":
 			return CreateOllamaStreamFn(config.ResolveOllamaBaseURL(), OllamaDefaultModel)
 		case "claude-code", "":

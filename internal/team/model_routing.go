@@ -120,7 +120,7 @@ func (l *Launcher) explicitTaskModelForProvider(task *teamTask, providerKind str
 		if explicitProvider == provider.KindClaudeCode || (explicitProvider == "" && inferredProvider == provider.KindClaudeCode) {
 			return model
 		}
-	case provider.KindGemini, provider.KindGeminiVertex:
+	case provider.KindGemini:
 		if explicitProvider == providerKind || (explicitProvider == "" && inferredProvider == provider.KindGemini) {
 			return model
 		}
@@ -155,7 +155,7 @@ func (l *Launcher) explicitMemberModelForProvider(slug, providerKind string) str
 		if explicitProvider == provider.KindClaudeCode || (explicitProvider == "" && (inferredProvider == "" || inferredProvider == provider.KindClaudeCode)) {
 			return model
 		}
-	case provider.KindGemini, provider.KindGeminiVertex:
+	case provider.KindGemini:
 		if explicitProvider == providerKind || (explicitProvider == "" && inferredProvider == provider.KindGemini) {
 			return model
 		}
@@ -299,13 +299,6 @@ func modelForProviderProfile(providerKind, profile, cwd string) string {
 			return "gemini-3.1-flash-lite"
 		default:
 			return provider.GeminiDefaultModel
-		}
-	case provider.KindGeminiVertex:
-		switch profile {
-		case modelProfileFast:
-			return "gemini-3.1-flash-lite"
-		default:
-			return provider.GeminiVertexDefaultModel
 		}
 	case provider.KindOllama:
 		return provider.OllamaDefaultModel

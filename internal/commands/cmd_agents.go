@@ -82,7 +82,7 @@ func cmdAgentList(ctx *SlashContext) error {
 func cmdAgentCreate(ctx *SlashContext, args string) error {
 	pos, flags := parseFlags(args)
 	if len(pos) < 1 {
-		ctx.AddMessage("system", "usage: /agent create <slug> --name <name> --provider <claude-code|codex|gemini|gemini-vertex|ollama> [--model <m>] [--role <r>] [--personality <p>]")
+		ctx.AddMessage("system", "usage: /agent create <slug> --name <name> --provider <claude-code|codex|gemini|ollama> [--model <m>] [--role <r>] [--personality <p>]")
 		return nil
 	}
 	slug := pos[0]

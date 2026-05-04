@@ -408,7 +408,7 @@ func TestProviderCommandOpensProviderPicker(t *testing.T) {
 		t.Fatalf("expected provider picker, got active=%v mode=%q", got.picker.IsActive(), got.pickerMode)
 	}
 	view := stripANSI(got.picker.View())
-	if !strings.Contains(view, "Codex CLI") || !strings.Contains(view, "Claude Code") || !strings.Contains(view, "Gemini") || !strings.Contains(view, "Vertex Credits") {
+	if !strings.Contains(view, "Codex CLI") || !strings.Contains(view, "Claude Code") || !strings.Contains(view, "Gemini") {
 		t.Fatalf("expected provider options in picker, got %q", view)
 	}
 }

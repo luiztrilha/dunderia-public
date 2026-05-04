@@ -8429,7 +8429,7 @@ func (b *Broker) handleConfig(w http.ResponseWriter, r *http.Request) {
 		if body.LLMProvider != nil {
 			provider = strings.TrimSpace(strings.ToLower(*body.LLMProvider))
 			switch provider {
-			case "claude-code", "codex", "gemini", "gemini-vertex", "ollama":
+			case "claude-code", "codex", "gemini", "ollama":
 				// ok
 			default:
 				http.Error(w, "unsupported llm_provider", http.StatusBadRequest)

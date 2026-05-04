@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strings"
 	"testing"
 
@@ -240,42 +239,6 @@ func TestRunHeadlessClaudeTurn_NoResumeFlag(t *testing.T) {
 		if arg == "--resume" {
 			t.Fatalf("--resume must not appear in a fresh session, got args: %v", capturedArgs)
 		}
-	}
-}
-
-func TestResolveHeadlessOpenClaudeCommandPrefersCmdShimOnWindows(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("Windows shim resolution only")
-	}
-
-	dir := t.TempDir()
-	cmdShim := filepath.Join(dir, "openclaude.cmd")
-	ps1Shim := filepath.Join(dir, "openclaude.ps1")
-	if err := os.WriteFile(cmdShim, []byte("@echo off\n"), 0o755); err != nil {
-		t.Fatalf("write cmd shim: %v", err)
-	}
-	if err := os.WriteFile(ps1Shim, []byte("exit 0\n"), 0o755); err != nil {
-		t.Fatalf("write ps1 shim: %v", err)
-	}
-
-	origLookPath := headlessClaudeLookPath
-	defer func() { headlessClaudeLookPath = origLookPath }()
-	headlessClaudeLookPath = func(file string) (string, error) {
-		return ps1Shim, nil
-	}
-
-	name, args, err := resolveHeadlessOpenClaudeCommand([]string{"--output-format", "stream-json", "--verbose"})
-	if err != nil {
-		t.Fatalf("resolve openclaude: %v", err)
-	}
-	if name != "cmd" {
-		t.Fatalf("command = %q, want cmd", name)
-	}
-	if len(args) < 3 || args[0] != "/c" || args[1] != cmdShim {
-		t.Fatalf("args = %#v, want cmd shim invocation", args)
-	}
-	if !slices.Contains(args, "--verbose") {
-		t.Fatalf("expected --verbose to be passed through, got %#v", args)
 	}
 }
 

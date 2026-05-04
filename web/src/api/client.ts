@@ -357,11 +357,9 @@ export type ProviderKind =
   | 'codex'
   | 'gemini'
   | 'ollama'
-  | 'gemini-vertex'
-  | 'openclaude'
 
 export type PerAgentProviderKind = ProviderKind
-export type GlobalLLMProvider = Exclude<ProviderKind, 'openclaude'>
+export type GlobalLLMProvider = ProviderKind
 
 export interface ProviderBinding {
   kind?: ProviderKind
@@ -1117,8 +1115,6 @@ const PROVIDER_LABELS: Record<ProviderKind, string> = {
   codex: 'Codex',
   gemini: 'Gemini',
   ollama: 'Ollama',
-  'gemini-vertex': 'Gemini (Vertex Credits)',
-  openclaude: 'OpenClaude (Vertex)',
 }
 
 export function formatProviderLabel(kind?: ProviderKind | null): string {

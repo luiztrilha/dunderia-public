@@ -56,8 +56,6 @@ const PROVIDERS: ProviderChoice[] = [
   { value: 'codex', label: formatProviderLabel('codex') },
   { value: 'gemini', label: formatProviderLabel('gemini') },
   { value: 'ollama', label: formatProviderLabel('ollama') },
-  { value: 'gemini-vertex', label: formatProviderLabel('gemini-vertex') },
-  { value: 'openclaude', label: formatProviderLabel('openclaude') },
 ]
 
 function slugify(name: string): string {

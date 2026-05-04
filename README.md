@@ -30,7 +30,6 @@ Escolha um provider suportado:
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) e o padrao
 - [Codex CLI](https://github.com/openai/codex) com `--provider codex`
 - [Gemini](https://ai.google.dev/) com `--provider gemini`
-- [Gemini on Vertex AI](https://cloud.google.com/vertex-ai/generative-ai/docs/start/quickstarts/quickstart-multimodal) com `--provider gemini-vertex`
 - [Ollama](https://ollama.com/) com `--provider ollama` e um modelo local ja baixado
 
 `tmux` so e necessario para `--tui`.
@@ -89,7 +88,7 @@ Quando o cloud backup ja estiver configurado e acessivel, esse mesmo comando tam
 
 | Flag | O que faz |
 |---|---|
-| `--provider <name>` | Sobrescreve o provider de runtime: `claude-code`, `codex`, `gemini`, `gemini-vertex`, `ollama` |
+| `--provider <name>` | Sobrescreve o provider de runtime: `claude-code`, `codex`, `gemini`, `ollama` |
 | `--blueprint <id>` | Inicia a partir de um blueprint operacional especifico |
 | `--pack <id>` | Alias legado para selecao de blueprint; ainda suporta os presets embutidos de compatibilidade |
 | `--from-scratch` | Ignora a configuracao salva do escritorio e sintetiza uma nova operacao a partir da sua diretiva |

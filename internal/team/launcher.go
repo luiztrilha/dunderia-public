@@ -2344,14 +2344,10 @@ func normalizeProviderKind(raw string) string {
 		return provider.KindCodex
 	case "gemini":
 		return provider.KindGemini
-	case "gemini-vertex":
-		return provider.KindGeminiVertex
 	case "ollama":
 		return provider.KindOllama
 	case "claude-code":
 		return provider.KindClaudeCode
-	case "openclaude":
-		return provider.KindOpenclaude
 	default:
 		return k
 	}
@@ -4674,14 +4670,6 @@ func (l *Launcher) warmRuntimeReadiness() {
 	signals := make([]string, 0, 3)
 
 	switch providerName {
-	case "gemini-vertex":
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		_, err := provider.ResolveGeminiVertexProject(ctx)
-		cancel()
-		if err != nil {
-			ready = false
-			signals = append(signals, "gemini-vertex: "+truncate(err.Error(), 180))
-		}
 	case "ollama":
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		err := provider.EnsureOllamaReady(ctx, config.ResolveOllamaBaseURL(), provider.OllamaDefaultModel)

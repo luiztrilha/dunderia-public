@@ -15,7 +15,7 @@ How DunderIA works under the hood, anchored to files you can open. `WUPHF` remai
                         ┌─────────────────────────────────┐
                         │  Per-agent headless runners     │
                         │  (Claude Code / Codex /         │
-                        │   Gemini / Gemini Vertex, fresh │
+                        │   Gemini / Ollama, fresh        │
                         │   session per turn, scoped MCP) │
                         └─────────────────────────────────┘
                                           │
@@ -34,7 +34,6 @@ How DunderIA works under the hood, anchored to files you can open. `WUPHF` remai
 | `internal/team/headless_codex.go` | Same one-shot runner model for Codex |
 | `internal/team/model_routing.go` | Conservative per-turn model profile resolver that stays inside the active provider family |
 | `internal/provider/gemini.go` | Gemini API-backed stream path for the global `gemini` provider |
-| `internal/provider/gemini_vertex.go` | Vertex AI-backed Gemini runner for `gemini-vertex` |
 | `internal/team/worktree.go` | Per-agent isolated git worktree so agents can't corrupt each other |
 | `internal/team/resume.go` | On restart, replays unfinished tasks + unanswered messages to the right agents |
 | `internal/teammcp/` | The per-agent MCP tool surface. DM mode loads ~4 tools; office mode loads more |

@@ -27,14 +27,14 @@ func captureMessages() (*SlashContext, *[]string) {
 	return ctx, &out
 }
 
-func TestBuildProviderPayload_GeminiVertex(t *testing.T) {
-	got := buildProviderPayload(provider.KindGeminiVertex, map[string]string{
-		"model": provider.GeminiVertexDefaultModel,
+func TestBuildProviderPayload_Gemini(t *testing.T) {
+	got := buildProviderPayload(provider.KindGemini, map[string]string{
+		"model": provider.GeminiDefaultModel,
 	})
-	if got["kind"] != provider.KindGeminiVertex {
+	if got["kind"] != provider.KindGemini {
 		t.Fatalf("kind=%v", got["kind"])
 	}
-	if got["model"] != provider.GeminiVertexDefaultModel {
+	if got["model"] != provider.GeminiDefaultModel {
 		t.Fatalf("model=%v", got["model"])
 	}
 }
@@ -140,14 +140,14 @@ func TestCmdAgentEdit_ProviderSwitch(t *testing.T) {
 	t.Setenv("WUPHF_BROKER_TOKEN", "test-token")
 
 	ctx, out := captureMessages()
-	if err := cmdAgentEdit(ctx, "pm-bot --provider gemini-vertex --model gemini-3.1-pro-preview"); err != nil {
+	if err := cmdAgentEdit(ctx, "pm-bot --provider gemini --model gemini-3.1-pro-preview"); err != nil {
 		t.Fatalf("cmdAgentEdit: %v", err)
 	}
 	if gotBody["action"] != "update" {
 		t.Fatalf("expected update action, got %v", gotBody["action"])
 	}
 	prov := gotBody["provider"].(map[string]any)
-	if prov["kind"] != "gemini-vertex" {
+	if prov["kind"] != "gemini" {
 		t.Fatalf("edit did not set provider kind: %+v", prov)
 	}
 	if prov["model"] != "gemini-3.1-pro-preview" {

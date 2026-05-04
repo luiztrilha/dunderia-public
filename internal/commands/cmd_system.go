@@ -135,7 +135,7 @@ func cmdProvider(ctx *SlashContext, args string) error {
 		{Label: "Codex CLI", Value: "codex", Description: "Codex via codex CLI"},
 		{Label: "Claude Code", Value: "claude-code", Description: "Claude via claude-code CLI"},
 		{Label: "Gemini", Value: "gemini", Description: "Gemini direct via API key/account"},
-		{Label: "Gemini (Vertex Credits)", Value: "gemini-vertex", Description: "Gemini on Vertex AI using your Google Cloud credits"},
+		{Label: "Ollama", Value: "ollama", Description: "Local Ollama runtime via native API"},
 	}
 	if ctx.ShowPicker != nil {
 		ctx.ShowPicker("Switch LLM Provider", options)

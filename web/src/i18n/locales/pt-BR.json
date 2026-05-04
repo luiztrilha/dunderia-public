@@ -98,10 +98,6 @@
       "ollama": {
         "name": "Ollama",
         "desc": "Runtime local do Ollama via API nativa"
-      },
-      "geminiVertex": {
-        "name": "Gemini (créditos Vertex)",
-        "desc": "Google Gemini no Vertex AI usando seus créditos Google Cloud"
       }
     }
   },
@@ -458,8 +454,7 @@
           "claudeCode": "Claude Code",
           "codex": "Codex",
           "gemini": "Gemini",
-          "ollama": "Ollama",
-          "geminiVertex": "Gemini (Vertex Credits)"
+          "ollama": "Ollama"
         },
         "memory": {
           "none": "Nenhum (apenas local)"
@@ -644,7 +639,7 @@
         "hint": "As configurações resolvem nesta ordem: flag de CLI → variável de ambiente → arquivo de configuração → padrão. Defina estas no seu perfil de shell para sobrescrever valores do arquivo de configuração."
       },
       "cli": {
-        "provider": "Provedor de LLM (claude-code, codex, gemini, ollama, gemini-vertex)",
+        "provider": "Provedor de LLM (claude-code, codex, gemini, ollama)",
         "memoryBackend": "Backend de memória (apenas none)",
         "blueprint": "Blueprint de operação para esta execução",
         "tui": "Inicia o TUI em tmux em vez da UI web",

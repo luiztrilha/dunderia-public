@@ -326,7 +326,6 @@ function GeneralSection({ cfg, save }: SectionProps) {
           <option value="codex">{t('settings.general.options.provider.codex')}</option>
           <option value="gemini">{t('settings.general.options.provider.gemini')}</option>
           <option value="ollama">{t('settings.general.options.provider.ollama')}</option>
-          <option value="gemini-vertex">{t('settings.general.options.provider.geminiVertex')}</option>
         </select>
         <div style={{ ...styles.rowLabelHint, marginTop: 6 }}>
           {t('settings.general.fields.provider.desc')}

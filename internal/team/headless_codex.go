@@ -36,9 +36,6 @@ var (
 	headlessOllamaRuntimeRunTurn = func(l *Launcher, ctx context.Context, slug, notification string, channel ...string) error {
 		return l.runHeadlessOllamaTurn(ctx, slug, notification, channel...)
 	}
-	headlessOpenClaudeRuntimeRunTurn = func(l *Launcher, ctx context.Context, slug, providerKind, notification string, channel ...string) error {
-		return l.runHeadlessOpenClaudeTurn(ctx, slug, providerKind, notification, channel...)
-	}
 	headlessCodexRunTurn = func(l *Launcher, ctx context.Context, slug, notification string, channel ...string) error {
 		kind := provider.KindClaudeCode
 		if l != nil {
@@ -49,12 +46,10 @@ var (
 			return headlessCodexRuntimeRunTurn(l, ctx, slug, notification, channel...)
 		case provider.KindClaudeCode:
 			return headlessClaudeRuntimeRunTurn(l, ctx, slug, notification, channel...)
-		case provider.KindGemini, provider.KindGeminiVertex:
+		case provider.KindGemini:
 			return headlessGeminiRuntimeRunTurn(l, ctx, slug, kind, notification, channel...)
 		case provider.KindOllama:
 			return headlessOllamaRuntimeRunTurn(l, ctx, slug, notification, channel...)
-		case provider.KindOpenclaude:
-			return headlessOpenClaudeRuntimeRunTurn(l, ctx, slug, kind, notification, channel...)
 		default:
 			return fmt.Errorf("unsupported headless provider %q for @%s", kind, slug)
 		}
@@ -86,14 +81,6 @@ var (
 			return err == nil
 		case provider.KindGemini:
 			return strings.TrimSpace(config.ResolveGeminiAPIKey()) != ""
-		case provider.KindGeminiVertex:
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-			_, err := provider.ResolveGeminiVertexProject(ctx)
-			return err == nil
-		case provider.KindOpenclaude:
-			_, err := headlessClaudeLookPath("openclaude")
-			return err == nil
 		default:
 			return false
 		}
@@ -1066,7 +1053,6 @@ func isHeadlessRuntimeProviderFailure(detail string) bool {
 	}
 	hasRuntimeMarker := strings.Contains(normalized, "codex") ||
 		strings.Contains(normalized, "claude") ||
-		strings.Contains(normalized, "openclaude") ||
 		strings.Contains(normalized, "gemini") ||
 		strings.Contains(normalized, "ollama") ||
 		strings.Contains(normalized, "provider")

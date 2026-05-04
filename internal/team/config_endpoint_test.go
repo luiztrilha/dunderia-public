@@ -112,7 +112,7 @@ func TestConfigEndpointAndHealth(t *testing.T) {
 	}
 }
 
-func TestConfigEndpointAcceptsGeminiVertexProviderFamily(t *testing.T) {
+func TestConfigEndpointAcceptsGeminiProvider(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
 	cfgPath := filepath.Join(tmp, ".wuphf", "config.json")
@@ -125,21 +125,18 @@ func TestConfigEndpointAcceptsGeminiVertexProviderFamily(t *testing.T) {
 	b := newConfigTestBroker()
 	b.runtimeProvider = "claude-code"
 
-	for _, providerName := range []string{"gemini", "gemini-vertex"} {
-		payload := []byte(`{"llm_provider":"` + providerName + `"}`)
-		resp := doConfigRequest(t, b, http.MethodPost, "/config", payload)
-		raw := resp.Body.Bytes()
-		if resp.Code != http.StatusOK {
-			t.Fatalf("POST /config (%s) status=%d body=%s", providerName, resp.Code, string(raw))
-		}
+	resp := doConfigRequest(t, b, http.MethodPost, "/config", []byte(`{"llm_provider":"gemini"}`))
+	raw := resp.Body.Bytes()
+	if resp.Code != http.StatusOK {
+		t.Fatalf("POST /config gemini status=%d body=%s", resp.Code, string(raw))
+	}
 
-		resp = doConfigRequest(t, b, http.MethodGet, "/config", nil)
-		raw = resp.Body.Bytes()
-		var cfgResp map[string]any
-		_ = json.Unmarshal(raw, &cfgResp)
-		if got, _ := cfgResp["llm_provider"].(string); got != providerName {
-			t.Fatalf("expected /config llm_provider=%q, got %q (body=%s)", providerName, got, string(raw))
-		}
+	resp = doConfigRequest(t, b, http.MethodGet, "/config", nil)
+	raw = resp.Body.Bytes()
+	var cfgResp map[string]any
+	_ = json.Unmarshal(raw, &cfgResp)
+	if got, _ := cfgResp["llm_provider"].(string); got != "gemini" {
+		t.Fatalf("expected /config llm_provider=gemini, got %q (body=%s)", got, string(raw))
 	}
 }
 
@@ -179,7 +176,7 @@ func TestConfigEndpointRoundTripsCloudBackupSettings(t *testing.T) {
 	defer restore()
 
 	b := newConfigTestBroker()
-	b.runtimeProvider = "gemini-vertex"
+	b.runtimeProvider = "gemini"
 
 	resp := doConfigRequest(t, b, http.MethodPost, "/config", []byte(`{"cloud_backup_provider":"gcs","cloud_backup_bucket":"dunderia-backups","cloud_backup_prefix":"office-a"}`))
 	raw := resp.Body.Bytes()
@@ -238,7 +235,7 @@ func TestConfigEndpointRejectsMutationWhenConfigIsUnreadable(t *testing.T) {
 	}
 
 	b := newConfigTestBroker()
-	b.runtimeProvider = "gemini-vertex"
+	b.runtimeProvider = "gemini"
 
 	resp := doConfigRequest(t, b, http.MethodPost, "/config", []byte(`{"web_search_provider":"brave"}`))
 	raw := resp.Body.Bytes()

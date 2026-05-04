@@ -6,12 +6,10 @@ import "fmt"
 // the install-wide default" (config.ResolveLLMProvider at dispatch time), which
 // keeps manifests written before per-agent providers existed loading unchanged.
 const (
-	KindClaudeCode   = "claude-code"
-	KindCodex        = "codex"
-	KindGemini       = "gemini"
-	KindGeminiVertex = "gemini-vertex"
-	KindOllama       = "ollama"
-	KindOpenclaude   = "openclaude"
+	KindClaudeCode = "claude-code"
+	KindCodex      = "codex"
+	KindGemini     = "gemini"
+	KindOllama     = "ollama"
 )
 
 // ProviderBinding is the per-agent runtime selection persisted on an office
@@ -27,18 +25,16 @@ type ProviderBinding struct {
 // The empty string is valid and means "use install-wide default."
 func ValidateKind(s string) error {
 	switch s {
-	case "", KindClaudeCode, KindCodex, KindGemini, KindGeminiVertex, KindOllama, KindOpenclaude:
+	case "", KindClaudeCode, KindCodex, KindGemini, KindOllama:
 		return nil
 	default:
 		return fmt.Errorf(
-			"unknown provider kind %q (valid: %s, %s, %s, %s, %s, %s, or empty)",
+			"unknown provider kind %q (valid: %s, %s, %s, %s, or empty)",
 			s,
 			KindClaudeCode,
 			KindCodex,
 			KindGemini,
-			KindGeminiVertex,
 			KindOllama,
-			KindOpenclaude,
 		)
 	}
 }

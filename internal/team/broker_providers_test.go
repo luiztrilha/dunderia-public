@@ -64,13 +64,13 @@ func TestHandleOfficeMembers_UpdateSwitchesProvider(t *testing.T) {
 		t.Fatalf("create status=%d", r.StatusCode)
 	}
 
-	// Update to gemini-vertex
+	// Update to gemini
 	update := map[string]any{
 		"action": "update",
 		"slug":   "switcher",
 		"provider": map[string]any{
-			"kind":  provider.KindGeminiVertex,
-			"model": provider.GeminiVertexDefaultModel,
+			"kind":  provider.KindGemini,
+			"model": provider.GeminiDefaultModel,
 		},
 	}
 	if r := doBrokerPost(t, ts, token, "/office-members", update); r.StatusCode != http.StatusOK {
@@ -80,11 +80,11 @@ func TestHandleOfficeMembers_UpdateSwitchesProvider(t *testing.T) {
 	b.mu.Lock()
 	m := b.findMemberLocked("switcher")
 	b.mu.Unlock()
-	if m.Provider.Kind != provider.KindGeminiVertex {
+	if m.Provider.Kind != provider.KindGemini {
 		t.Fatalf("provider not switched: %q", m.Provider.Kind)
 	}
-	if m.Provider.Model != provider.GeminiVertexDefaultModel {
-		t.Fatalf("new gemini-vertex model missing: %+v", m.Provider)
+	if m.Provider.Model != provider.GeminiDefaultModel {
+		t.Fatalf("new gemini model missing: %+v", m.Provider)
 	}
 }
 
@@ -293,7 +293,7 @@ func TestHandleOfficeMembers_UpdateRejectsRemovedProvider(t *testing.T) {
 		"slug":   "switcher-legacy",
 		"provider": map[string]any{
 			"kind":  "legacy-runtime",
-			"model": provider.GeminiVertexDefaultModel,
+			"model": provider.GeminiDefaultModel,
 		},
 	}
 	if r := doBrokerPost(t, ts, token, "/office-members", update); r.StatusCode != http.StatusBadRequest {
@@ -301,8 +301,8 @@ func TestHandleOfficeMembers_UpdateRejectsRemovedProvider(t *testing.T) {
 	}
 }
 
-func TestHandleOfficeMembers_UpdateSwitchesProviderToOpenclaude(t *testing.T) {
-	b, ts, token := newBrokerHTTPTest(t)
+func TestHandleOfficeMembers_UpdateRejectsOpenclaudeProvider(t *testing.T) {
+	_, ts, token := newBrokerHTTPTest(t)
 	defer ts.Close()
 
 	create := map[string]any{
@@ -323,18 +323,8 @@ func TestHandleOfficeMembers_UpdateSwitchesProviderToOpenclaude(t *testing.T) {
 			"model": "claude-sonnet-4-6",
 		},
 	}
-	if r := doBrokerPost(t, ts, token, "/office-members", update); r.StatusCode != http.StatusOK {
+	if r := doBrokerPost(t, ts, token, "/office-members", update); r.StatusCode != http.StatusBadRequest {
 		t.Fatalf("update status=%d", r.StatusCode)
-	}
-
-	b.mu.Lock()
-	m := b.findMemberLocked("switcher-openclaude")
-	b.mu.Unlock()
-	if m.Provider.Kind != "openclaude" {
-		t.Fatalf("provider not switched: %q", m.Provider.Kind)
-	}
-	if m.Provider.Model != "claude-sonnet-4-6" {
-		t.Fatalf("provider model not updated: %q", m.Provider.Model)
 	}
 }
 
@@ -371,8 +361,8 @@ func TestProviderFieldSurvivesBrokerReload(t *testing.T) {
 		Slug: "persist-test",
 		Name: "Persist Test",
 		Provider: provider.ProviderBinding{
-			Kind:  provider.KindGeminiVertex,
-			Model: provider.GeminiVertexDefaultModel,
+			Kind:  provider.KindGemini,
+			Model: provider.GeminiDefaultModel,
 		},
 	})
 	b.memberIndex[b.members[len(b.members)-1].Slug] = len(b.members) - 1
@@ -389,10 +379,10 @@ func TestProviderFieldSurvivesBrokerReload(t *testing.T) {
 	if got == nil {
 		t.Fatal("member did not survive reload")
 	}
-	if got.Provider.Kind != provider.KindGeminiVertex {
+	if got.Provider.Kind != provider.KindGemini {
 		t.Fatalf("kind not persisted: %q", got.Provider.Kind)
 	}
-	if got.Provider.Model != provider.GeminiVertexDefaultModel {
+	if got.Provider.Model != provider.GeminiDefaultModel {
 		t.Fatalf("provider model not persisted: %+v", got.Provider)
 	}
 }
@@ -466,7 +456,7 @@ func TestHandleOfficeMembers_UpdateManifestProviderOverrideSurvivesReload(t *tes
 				Name:     "CEO",
 				Role:     "CEO",
 				System:   true,
-				Provider: provider.ProviderBinding{Kind: provider.KindGeminiVertex},
+				Provider: provider.ProviderBinding{Kind: provider.KindGemini},
 			},
 			{
 				Slug:     "frontend",
@@ -547,7 +537,7 @@ func TestBrokerReloadPrefersPersistedMemberProviderOverStaleManifest(t *testing.
 				Name:     "CEO",
 				Role:     "CEO",
 				System:   true,
-				Provider: provider.ProviderBinding{Kind: provider.KindGeminiVertex},
+				Provider: provider.ProviderBinding{Kind: provider.KindGemini},
 			},
 			{
 				Slug:     "reviewer",

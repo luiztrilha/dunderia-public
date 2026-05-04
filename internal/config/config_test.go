@@ -700,11 +700,11 @@ func TestResolveLLMProviderUsesGeminiEnvOverride(t *testing.T) {
 	})
 }
 
-func TestResolveLLMProviderUsesGeminiVertexEnvOverride(t *testing.T) {
+func TestResolveLLMProviderIgnoresGeminiVertexEnvOverride(t *testing.T) {
 	withTempConfig(t, func(_ string) {
 		t.Setenv("WUPHF_LLM_PROVIDER", "gemini-vertex")
-		if got := ResolveLLMProvider(""); got != "gemini-vertex" {
-			t.Fatalf("expected gemini-vertex env override, got %q", got)
+		if got := ResolveLLMProvider(""); got != "claude-code" {
+			t.Fatalf("expected unsupported gemini-vertex env override to fall back, got %q", got)
 		}
 	})
 }
@@ -727,11 +727,11 @@ func TestResolveLLMProviderNormalizesUnsupportedConfig(t *testing.T) {
 	})
 }
 
-func TestResolveLLMProviderAcceptsGeminiVertexConfig(t *testing.T) {
+func TestResolveLLMProviderRejectsGeminiVertexConfig(t *testing.T) {
 	withTempConfig(t, func(_ string) {
 		_ = Save(Config{LLMProvider: "gemini-vertex"})
-		if got := ResolveLLMProvider(""); got != "gemini-vertex" {
-			t.Fatalf("expected gemini-vertex config to be accepted, got %q", got)
+		if got := ResolveLLMProvider(""); got != "claude-code" {
+			t.Fatalf("expected unsupported gemini-vertex config to fall back, got %q", got)
 		}
 	})
 }

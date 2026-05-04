@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -273,13 +272,11 @@ func TestHeadlessCodexRunTurnDispatchesPerAgentProvider(t *testing.T) {
 	oldClaudeRunner := headlessClaudeRuntimeRunTurn
 	oldGeminiRunner := headlessGeminiRuntimeRunTurn
 	oldOllamaRunner := headlessOllamaRuntimeRunTurn
-	oldOpenClaudeRunner := headlessOpenClaudeRuntimeRunTurn
 	defer func() {
 		headlessCodexRuntimeRunTurn = oldCodexRunner
 		headlessClaudeRuntimeRunTurn = oldClaudeRunner
 		headlessGeminiRuntimeRunTurn = oldGeminiRunner
 		headlessOllamaRuntimeRunTurn = oldOllamaRunner
-		headlessOpenClaudeRuntimeRunTurn = oldOpenClaudeRunner
 	}()
 
 	tests := []struct {
@@ -317,30 +314,12 @@ func TestHeadlessCodexRunTurnDispatchesPerAgentProvider(t *testing.T) {
 			wantProvider:   provider.KindGemini,
 		},
 		{
-			name:           "gemini-vertex binding uses provider runtime",
-			globalProvider: provider.KindCodex,
-			slug:           "agent-gemini-vertex",
-			bindingKind:    provider.KindGeminiVertex,
-			channel:        "writing",
-			wantRunner:     "gemini-native",
-			wantProvider:   provider.KindGeminiVertex,
-		},
-		{
 			name:           "ollama binding uses provider runtime",
 			globalProvider: provider.KindClaudeCode,
 			slug:           "agent-ollama",
 			bindingKind:    provider.KindOllama,
 			channel:        "support",
 			wantRunner:     "ollama",
-		},
-		{
-			name:           "openclaude binding uses provider runtime",
-			globalProvider: provider.KindCodex,
-			slug:           "agent-openclaude",
-			bindingKind:    provider.KindOpenclaude,
-			channel:        "writing",
-			wantRunner:     "openclaude-compatible",
-			wantProvider:   provider.KindOpenclaude,
 		},
 	}
 
@@ -361,10 +340,6 @@ func TestHeadlessCodexRunTurnDispatchesPerAgentProvider(t *testing.T) {
 			}
 			headlessOllamaRuntimeRunTurn = func(_ *Launcher, _ context.Context, slug, notification string, channel ...string) error {
 				calls <- dispatchCall{runner: "ollama", slug: slug, channel: firstNonEmpty(channel...)}
-				return nil
-			}
-			headlessOpenClaudeRuntimeRunTurn = func(_ *Launcher, _ context.Context, slug, providerKind, notification string, channel ...string) error {
-				calls <- dispatchCall{runner: "openclaude-compatible", provider: providerKind, slug: slug, channel: firstNonEmpty(channel...)}
 				return nil
 			}
 
@@ -600,13 +575,6 @@ func TestEnqueueHeadlessCodexTurnRecordClearsProviderOverride(t *testing.T) {
 	}
 }
 
-func TestRunHeadlessOpenClaudeTurnUsesVertexProvider(t *testing.T) {
-	testRunHeadlessOpenClaudeTurnUsesProvider(t, provider.KindOpenclaude, "vertex")
-}
-
-func TestRunHeadlessOpenClaudeTurnUsesGeminiProvider(t *testing.T) {
-	testRunHeadlessOpenClaudeTurnUsesProvider(t, provider.KindGemini, "gemini")
-}
 func TestRunHeadlessCodexTurnUsesAssignedWorktreeForCodingAgents(t *testing.T) {
 	recordFile := filepath.Join(t.TempDir(), "headless-codex-record.jsonl")
 	worktreeDir := t.TempDir()
@@ -1804,8 +1772,8 @@ func TestHeadlessClaudeCompatibleHelperProcess(t *testing.T) {
 		t.Fatalf("write helper record: %v", err)
 	}
 
-	_, _ = os.Stdout.WriteString("{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"openclaude office reply\"}]}}\n")
-	_, _ = os.Stdout.WriteString("{\"type\":\"result\",\"result\":\"openclaude office reply\",\"usage\":{\"input_tokens\":22,\"output_tokens\":7,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0}}\n")
+	_, _ = os.Stdout.WriteString("{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"provider office reply\"}]}}\n")
+	_, _ = os.Stdout.WriteString("{\"type\":\"result\",\"result\":\"provider office reply\",\"usage\":{\"input_tokens\":22,\"output_tokens\":7,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0}}\n")
 	os.Exit(0)
 }
 
@@ -1820,90 +1788,6 @@ func readHeadlessCodexRecord(t *testing.T, path string) headlessCodexRecord {
 		t.Fatalf("unmarshal record: %v", err)
 	}
 	return record
-}
-
-func testRunHeadlessOpenClaudeTurnUsesProvider(t *testing.T, runtimeKind string, wantCLIProvider string) {
-	t.Helper()
-
-	recordFile := filepath.Join(t.TempDir(), "headless-openclaude-record.jsonl")
-	openClaudeDir := t.TempDir()
-	openClaudeCmd := filepath.Join(openClaudeDir, "openclaude.cmd")
-	openClaudePs1 := filepath.Join(openClaudeDir, "openclaude.ps1")
-	oldLookPath := headlessClaudeLookPath
-	oldCommandContext := headlessClaudeCommandContext
-	defer func() {
-		headlessClaudeLookPath = oldLookPath
-		headlessClaudeCommandContext = oldCommandContext
-	}()
-
-	if err := os.WriteFile(openClaudeCmd, []byte("@echo off\r\n"), 0o644); err != nil {
-		t.Fatalf("write openclaude.cmd: %v", err)
-	}
-	if err := os.WriteFile(openClaudePs1, []byte("Write-Output 'noop'\n"), 0o644); err != nil {
-		t.Fatalf("write openclaude.ps1: %v", err)
-	}
-
-	headlessClaudeLookPath = func(file string) (string, error) {
-		if file == "openclaude" {
-			return openClaudeCmd, nil
-		}
-		if file == "nex-mcp" {
-			return "/usr/bin/nex-mcp", nil
-		}
-		return "", exec.ErrNotFound
-	}
-	headlessClaudeCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
-		cmdArgs := []string{"-test.run=TestHeadlessClaudeCompatibleHelperProcess", "--", name}
-		cmdArgs = append(cmdArgs, args...)
-		return exec.CommandContext(ctx, os.Args[0], cmdArgs...)
-	}
-
-	t.Setenv("GO_WANT_HEADLESS_CLAUDE_COMPAT_HELPER_PROCESS", "1")
-	t.Setenv("HEADLESS_CODEX_RECORD_FILE", recordFile)
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_API_KEY", "nex-secret-key")
-
-	l := &Launcher{
-		pack:        agent.GetPack("founding-team"),
-		cwd:         t.TempDir(),
-		broker:      NewBroker(),
-		headlessCtx: context.Background(),
-	}
-
-	if err := l.runHeadlessOpenClaudeTurn(context.Background(), "ceo", runtimeKind, "You have new work in #launch."); err != nil {
-		t.Fatalf("runHeadlessOpenClaudeTurn: %v", err)
-	}
-
-	record := readHeadlessCodexRecord(t, recordFile)
-	if runtime.GOOS == "windows" {
-		if record.Name != "pwsh" {
-			t.Fatalf("expected pwsh wrapper, got %q", record.Name)
-		}
-		if len(record.Args) < 2 || record.Args[0] != "-File" || !samePath(record.Args[1], openClaudePs1) {
-			t.Fatalf("expected pwsh -File %q wrapper args, got %#v", openClaudePs1, record.Args)
-		}
-	} else if record.Name != "openclaude" {
-		t.Fatalf("expected direct openclaude binary, got %q", record.Name)
-	}
-	joinedArgs := strings.Join(record.Args, " ")
-	if !strings.Contains(joinedArgs, "--provider "+wantCLIProvider) {
-		t.Fatalf("expected openclaude provider %q, got %#v", wantCLIProvider, record.Args)
-	}
-	if !strings.Contains(joinedArgs, "--output-format stream-json") {
-		t.Fatalf("expected stream-json output format, got %#v", record.Args)
-	}
-	if !strings.Contains(joinedArgs, "--append-system-prompt") {
-		t.Fatalf("expected append-system-prompt, got %#v", record.Args)
-	}
-	if !strings.Contains(joinedArgs, "--mcp-config") || !strings.Contains(joinedArgs, "--strict-mcp-config") {
-		t.Fatalf("expected MCP config args, got %#v", record.Args)
-	}
-	if !containsEnv(record.Env, "WUPHF_HEADLESS_PROVIDER="+runtimeKind) {
-		t.Fatalf("expected runtime env %q, got %#v", runtimeKind, record.Env)
-	}
-	if !strings.Contains(record.Stdin, "You have new work in #launch.") {
-		t.Fatalf("expected notification in stdin, got %q", record.Stdin)
-	}
 }
 
 func TestRunHeadlessCodexTurnUsesTaskRuntimeOverrides(t *testing.T) {

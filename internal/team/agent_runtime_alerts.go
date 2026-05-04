@@ -133,8 +133,6 @@ func (l *Launcher) agentCanFallbackFromProviderFailure(slug string, channel ...s
 		provider.KindClaudeCode,
 		provider.KindCodex,
 		provider.KindGemini,
-		provider.KindGeminiVertex,
-		provider.KindOpenclaude,
 	} {
 		if normalizeProviderKind(candidate) == current {
 			continue

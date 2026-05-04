@@ -10,8 +10,7 @@ import (
 )
 
 var (
-	headlessGeminiOneShot       = provider.RunGeminiOneShotWithModelContext
-	headlessGeminiVertexOneShot = provider.RunGeminiVertexOneShotWithModelContext
+	headlessGeminiOneShot = provider.RunGeminiOneShotWithModelContext
 )
 
 const headlessGeminiEmptyReplyRetryLimit = 1
@@ -34,10 +33,6 @@ func (l *Launcher) runHeadlessGeminiTurn(ctx context.Context, slug, runtimeKind,
 	case provider.KindGemini:
 		runOneShot = func(ctx context.Context, systemPrompt, prompt string) (string, error) {
 			return headlessGeminiOneShot(ctx, route.Model, systemPrompt, prompt)
-		}
-	case provider.KindGeminiVertex:
-		runOneShot = func(ctx context.Context, systemPrompt, prompt string) (string, error) {
-			return headlessGeminiVertexOneShot(ctx, route.Model, systemPrompt, prompt)
 		}
 	default:
 		return fmt.Errorf("unsupported gemini runtime %q", runtimeKind)

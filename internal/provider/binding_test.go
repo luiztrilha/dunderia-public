@@ -17,9 +17,9 @@ func TestValidateKind(t *testing.T) {
 		{"claude_code", "claude-code", false},
 		{"codex", "codex", false},
 		{"gemini", "gemini", false},
-		{"gemini_vertex", "gemini-vertex", false},
+		{"gemini_vertex_rejected", "gemini-vertex", true},
 		{"ollama", "ollama", false},
-		{"openclaude", "openclaude", false},
+		{"openclaude_rejected", "openclaude", true},
 		{"unknown", "not-a-runtime", true},
 		{"typo", "claud-code", true},
 		{"uppercase_rejected", "Codex", true},
@@ -77,9 +77,7 @@ func TestBindingJSONRoundTrip_RuntimeKinds(t *testing.T) {
 	tests := []ProviderBinding{
 		{Kind: "codex", Model: "gpt-5.4"},
 		{Kind: "gemini", Model: "gemini-2.5-pro"},
-		{Kind: "gemini-vertex", Model: "gemini-3.1-pro-preview"},
 		{Kind: "ollama", Model: "qwen2.5-coder:7b"},
-		{Kind: "openclaude", Model: "claude-sonnet-4-6"},
 	}
 	for _, in := range tests {
 		in := in

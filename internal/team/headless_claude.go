@@ -39,24 +39,6 @@ func (l *Launcher) runHeadlessClaudeTurn(ctx context.Context, slug string, notif
 	}, channel...)
 }
 
-func (l *Launcher) runHeadlessOpenClaudeTurn(ctx context.Context, slug, runtimeKind, notification string, channel ...string) error {
-	runtimeKind = normalizeProviderKind(runtimeKind)
-	runtime := headlessClaudeRuntime{
-		Binary:               "openclaude",
-		HeadlessProvider:     runtimeKind,
-		UsageModelDescriptor: runtimeKind,
-	}
-	switch runtimeKind {
-	case provider.KindOpenclaude:
-		runtime.ProviderFlag = "vertex"
-	case provider.KindGemini:
-		runtime.ProviderFlag = "gemini"
-	default:
-		return fmt.Errorf("unsupported openclaude runtime %q", runtimeKind)
-	}
-	return l.runHeadlessClaudeCompatibleTurn(ctx, slug, notification, runtime, channel...)
-}
-
 func (l *Launcher) runHeadlessClaudeCompatibleTurn(ctx context.Context, slug string, notification string, runtime headlessClaudeRuntime, channel ...string) error {
 	notification, changed := normalizeHeadlessPromptPayload(notification)
 	if changed {
@@ -101,13 +83,7 @@ func (l *Launcher) runHeadlessClaudeCompatibleTurn(ctx context.Context, slug str
 
 	commandName := runtime.Binary
 	commandArgs := append([]string(nil), args...)
-	if runtime.Binary == "openclaude" {
-		var err error
-		commandName, commandArgs, err = resolveHeadlessOpenClaudeCommand(args)
-		if err != nil {
-			return err
-		}
-	} else if _, err := headlessClaudeLookPath(runtime.Binary); err != nil {
+	if _, err := headlessClaudeLookPath(runtime.Binary); err != nil {
 		return fmt.Errorf("%s not found: %w", runtime.Binary, err)
 	}
 
@@ -291,25 +267,6 @@ func (l *Launcher) runHeadlessClaudeCompatibleTurn(ctx context.Context, slug str
 		l.publishHeadlessFallbackReply(slug, notification, text, startedAt)
 	}
 	return nil
-}
-
-func resolveHeadlessOpenClaudeCommand(args []string) (string, []string, error) {
-	if runtime.GOOS != "windows" {
-		return "openclaude", args, nil
-	}
-	bin, err := headlessClaudeLookPath("openclaude")
-	if err != nil {
-		return "", nil, fmt.Errorf("openclaude not found: %w", err)
-	}
-	cmdShim := strings.TrimSuffix(bin, filepath.Ext(bin)) + ".cmd"
-	if _, err := os.Stat(cmdShim); err == nil {
-		return "cmd", append([]string{"/c", cmdShim}, args...), nil
-	}
-	ps1 := strings.TrimSuffix(bin, filepath.Ext(bin)) + ".ps1"
-	if _, err := os.Stat(ps1); err == nil {
-		return "pwsh", append([]string{"-File", ps1}, args...), nil
-	}
-	return "cmd", append([]string{"/c", bin}, args...), nil
 }
 
 func (r headlessClaudeRuntime) usageModel(l *Launcher, slug string) string {

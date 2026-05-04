@@ -100,10 +100,10 @@ func TestInitFlowMentionsManagedIntegrations(t *testing.T) {
 func TestProviderOptionsIncludeSupportedGlobalProviders(t *testing.T) {
 	options := ProviderOptions()
 	want := map[string]bool{
-		"claude-code":   false,
-		"codex":         false,
-		"gemini":        false,
-		"gemini-vertex": false,
+		"claude-code": false,
+		"codex":       false,
+		"gemini":      false,
+		"ollama":      false,
 	}
 	for _, opt := range options {
 		if _, ok := want[opt.Value]; ok {
