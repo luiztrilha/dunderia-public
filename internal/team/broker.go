@@ -6380,6 +6380,24 @@ func (b *Broker) scheduleJobLocked(job schedulerJob) error {
 	return nil
 }
 
+func (b *Broker) removeSchedulerJobBySlugLocked(slug string) bool {
+	slug = strings.TrimSpace(slug)
+	if slug == "" || len(b.scheduler) == 0 {
+		return false
+	}
+	filtered := b.scheduler[:0]
+	removed := false
+	for _, job := range b.scheduler {
+		if strings.TrimSpace(job.Slug) == slug {
+			removed = true
+			continue
+		}
+		filtered = append(filtered, job)
+	}
+	b.scheduler = filtered
+	return removed
+}
+
 func normalizeSchedulerSlug(parts ...string) string {
 	var filtered []string
 	for _, part := range parts {

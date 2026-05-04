@@ -50,6 +50,13 @@ func (b *Broker) EnsureCEOConversationFollowUpAuditJob() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	if len(b.messages) == 0 && len(activeRequests(b.requests)) == 0 {
+		if b.removeSchedulerJobBySlugLocked(ceoConversationFollowUpJobSlug) {
+			return b.saveLocked()
+		}
+		return nil
+	}
+
 	nextRun := time.Now().UTC().Add(ceoConversationFollowUpInterval).Format(time.RFC3339)
 	desired := normalizeSchedulerJob(schedulerJob{
 		Slug:            ceoConversationFollowUpJobSlug,
