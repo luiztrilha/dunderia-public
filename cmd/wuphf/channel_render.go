@@ -26,7 +26,7 @@ func buildOfficeMessageLines(messages []brokerMessage, expanded map[string]bool,
 	if len(messages) == 0 {
 		lines = append(lines,
 			renderedLine{Text: ""},
-			renderedLine{Text: mutedStyle.Render("  Welcome to the DunderIA office. The team is assembled.")},
+			renderedLine{Text: mutedStyle.Render("  Welcome to the MaestrIA office. The team is assembled.")},
 			renderedLine{Text: mutedStyle.Render("  Drop a company-building thought in #general, or tag a teammate to get things moving.")},
 			renderedLine{Text: ""},
 			renderedLine{Text: mutedStyle.Render("  Suggested: Let's build an AI notetaking company.")},

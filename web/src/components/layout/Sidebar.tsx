@@ -87,7 +87,7 @@ export function Sidebar() {
       <div className="sidebar-header">
         <div className="sidebar-brand-lockup">
           <span className="sidebar-brand-eyebrow">{t(`layout.rail.${primaryRail}`)}</span>
-          <span className="sidebar-logo">DunderIA</span>
+          <span className="sidebar-logo">MaestrIA</span>
         </div>
 
         <div ref={menuRootRef} className="sidebar-toolbar">

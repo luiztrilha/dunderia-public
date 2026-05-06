@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 type desktopLaunchRequest struct {
@@ -22,6 +23,27 @@ type desktopLaunchResponse struct {
 	WebURL     string `json:"web_url"`
 	DesktopDir string `json:"desktop_dir,omitempty"`
 	Message    string `json:"message"`
+}
+
+type desktopIDEPreviewResponse struct {
+	GeneratedAt string                     `json:"generated_at"`
+	Persisted   bool                       `json:"persisted"`
+	Status      string                     `json:"status"`
+	Summary     map[string]int             `json:"summary"`
+	Surfaces    []desktopIDEPreviewSurface `json:"surfaces"`
+}
+
+type desktopIDEPreviewSurface struct {
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
+	Kind             string   `json:"kind"`
+	Readiness        string   `json:"readiness"`
+	RequiredChecks   []string `json:"required_checks,omitempty"`
+	MissingChecks    []string `json:"missing_checks,omitempty"`
+	RiskSignals      []string `json:"risk_signals,omitempty"`
+	LaunchEndpoint   string   `json:"launch_endpoint,omitempty"`
+	CanonicalSurface string   `json:"canonical_surface,omitempty"`
+	NextStep         string   `json:"next_step,omitempty"`
 }
 
 var desktopLaunchLookPath = exec.LookPath
@@ -78,6 +100,109 @@ func (b *Broker) handleDesktopLaunch(w http.ResponseWriter, r *http.Request) {
 		DesktopDir: desktopDir,
 		Message:    "Desktop mode launched.",
 	})
+}
+
+func (b *Broker) handleDesktopIDEPreview(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	desktopDir := desktopRuntimeDir()
+	npm, npmErr := resolveDesktopNPM()
+	payload := buildDesktopIDEPreview(desktopDir, npm, npmErr)
+	writeDesktopLaunchJSON(w, http.StatusOK, payload)
+}
+
+func buildDesktopIDEPreview(desktopDir, npmPath string, npmErr error) desktopIDEPreviewResponse {
+	packageOK := false
+	if _, err := os.Stat(filepath.Join(desktopDir, "package.json")); err == nil {
+		packageOK = true
+	}
+	npmOK := npmErr == nil && strings.TrimSpace(npmPath) != ""
+	desktop := desktopIDEPreviewSurface{
+		ID:               "desktop-shell",
+		Name:             "Desktop shell",
+		Kind:             "electron_shell",
+		Readiness:        desktopPreviewReadiness(packageOK && npmOK),
+		RequiredChecks:   []string{"desktop_package", "npm_binary", "reuse_existing_broker", "no_topology_mutation"},
+		LaunchEndpoint:   "/integrations/desktop/launch",
+		CanonicalSurface: "web_studio",
+		NextStep:         "Use the desktop shell as an optional wrapper around the existing web Studio; do not replace the broker/runtime.",
+	}
+	if !packageOK {
+		desktop.MissingChecks = append(desktop.MissingChecks, "desktop_package")
+	}
+	if !npmOK {
+		desktop.MissingChecks = append(desktop.MissingChecks, "npm_binary")
+	}
+	desktop.RiskSignals = desktopPreviewRiskSignals(desktop)
+
+	tray := desktopIDEPreviewSurface{
+		ID:               "desktop-tray",
+		Name:             "Tray shell",
+		Kind:             "desktop_tray",
+		Readiness:        desktopPreviewReadiness(packageOK),
+		RequiredChecks:   []string{"desktop_package", "reuse_existing_broker", "no_topology_mutation"},
+		LaunchEndpoint:   "/integrations/desktop/launch",
+		CanonicalSurface: "web_studio",
+		NextStep:         "Keep tray actions limited to opening Studio, reload, and diagnostics; no agent/channel/topology mutation.",
+	}
+	if !packageOK {
+		tray.MissingChecks = append(tray.MissingChecks, "desktop_package")
+	}
+	tray.RiskSignals = desktopPreviewRiskSignals(tray)
+
+	browserLab := desktopIDEPreviewSurface{
+		ID:               "browser-lab",
+		Name:             "Browser Lab",
+		Kind:             "browser_inspection",
+		Readiness:        desktopPreviewReadiness(packageOK),
+		RequiredChecks:   []string{"desktop_package", "browserview_bridge", "task_artifact_handoff"},
+		LaunchEndpoint:   "/integrations/desktop/launch",
+		CanonicalSurface: "task_browser_inspection_artifacts",
+		NextStep:         "Capture browser selections as task browser_inspection artifacts before using them as agent handoff context.",
+	}
+	if !packageOK {
+		browserLab.MissingChecks = append(browserLab.MissingChecks, "desktop_package")
+	}
+	browserLab.RiskSignals = desktopPreviewRiskSignals(browserLab)
+
+	surfaces := []desktopIDEPreviewSurface{desktop, tray, browserLab}
+	status := "ok"
+	summary := map[string]int{"total": len(surfaces)}
+	for _, surface := range surfaces {
+		summary["readiness_"+surface.Readiness]++
+		if len(surface.MissingChecks) > 0 {
+			summary["missing_check"] += len(surface.MissingChecks)
+		}
+		if surface.Readiness == "blocked" {
+			status = "blocked"
+		} else if surface.Readiness == "review" && status == "ok" {
+			status = "review"
+		}
+	}
+	return desktopIDEPreviewResponse{
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		Persisted:   false,
+		Status:      status,
+		Summary:     summary,
+		Surfaces:    surfaces,
+	}
+}
+
+func desktopPreviewReadiness(ok bool) string {
+	if ok {
+		return "ready"
+	}
+	return "blocked"
+}
+
+func desktopPreviewRiskSignals(surface desktopIDEPreviewSurface) []string {
+	signals := []string{"optional_wrapper", "web_studio_canonical", "no_topology_mutation"}
+	if len(surface.MissingChecks) > 0 {
+		signals = append(signals, "missing_check")
+	}
+	return compactStringList(signals)
 }
 
 func writeDesktopLaunchJSON(w http.ResponseWriter, statusCode int, body any) {

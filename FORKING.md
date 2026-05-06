@@ -1,6 +1,6 @@
-# Forking DunderIA
+# Forking MaestrIA
 
-Guia direto para adaptar o DunderIA sem herdar branding, release path ou documentacao quebrada.
+Guia direto para adaptar a MaestrIA sem herdar branding, release path ou documentacao quebrada.
 
 Antes de mexer, leia o [ARCHITECTURE.md](ARCHITECTURE.md). Ele mostra onde o runtime realmente vive.
 
@@ -60,7 +60,7 @@ Se a sua intencao nao e remover Nex, mantenha a integracao como opcional e docum
 
 ## 3. Nome do produto vs codinome tecnico
 
-O nome publico atual e **DunderIA**. O codinome historico **`wuphf`** ainda aparece em:
+O nome publico atual e **MaestrIA**. O codinome historico **`wuphf`** ainda aparece em:
 
 - binario e pasta `cmd/wuphf/`
 - modulo Go em `go.mod`
@@ -97,7 +97,7 @@ Se voce for vender ou redistribuir o projeto com outra identidade, os pontos mai
 Uma busca util:
 
 ```bash
-rg -n "DunderIA|WUPHF|Nex|The Office|Scranton|Michael|Ryan" ./cmd ./internal ./web ./npm
+rg -n "MaestrIA|WUPHF|Nex|The Office|Scranton|Michael|Ryan" ./cmd ./internal ./web ./npm
 ```
 
 ## 5. Blueprints e presets

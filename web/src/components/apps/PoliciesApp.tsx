@@ -19,10 +19,25 @@ function makeRequestId(): string {
   return `policy-${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-const SECTIONS = [
+interface PolicySection {
+  key: string
+  i18nKey?: string
+  label?: string
+  icon: string
+}
+
+const SECTIONS: PolicySection[] = [
   { key: 'human_directed', i18nKey: 'apps.policies.sections.humanDirected', icon: '\uD83D\uDC64' },
   { key: 'auto_detected', i18nKey: 'apps.policies.sections.autoDetected', icon: '\uD83E\uDD16' },
-] as const
+  { key: 'restored_backup', i18nKey: 'apps.policies.sections.restoredBackup', icon: '\uD83D\uDCE6' },
+]
+const KNOWN_POLICY_SOURCES = new Set(SECTIONS.map((section) => section.key))
+
+function humanizePolicySource(source: string): string {
+  return source
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
 
 export function PoliciesApp() {
   const { t } = useTranslation()
@@ -105,6 +120,19 @@ export function PoliciesApp() {
   )
 
   const activePolicies = (data?.policies ?? []).filter((p) => p.active !== false)
+  const extraPolicySources = Array.from(new Set(
+    activePolicies
+      .map((p) => p.source)
+      .filter((source) => source && !KNOWN_POLICY_SOURCES.has(source)),
+  ))
+  const policySections: PolicySection[] = [
+    ...SECTIONS,
+    ...extraPolicySources.map((source) => ({
+      key: source,
+      label: humanizePolicySource(source),
+      icon: '\uD83D\uDCC1',
+    })),
+  ]
 
   return (
     <>
@@ -178,7 +206,7 @@ export function PoliciesApp() {
 
       {!isLoading && !error && activePolicies.length > 0 && (
         <div style={{ padding: '8px 0' }}>
-          {SECTIONS.map((section) => {
+          {policySections.map((section) => {
             const sectionPolicies = activePolicies.filter((p) => p.source === section.key)
             if (sectionPolicies.length === 0) return null
             return (
@@ -195,7 +223,7 @@ export function PoliciesApp() {
                   letterSpacing: '0.08em',
                 }}>
                   <span>{section.icon}</span>
-                  <span>{t(section.i18nKey)}</span>
+                  <span>{section.i18nKey ? t(section.i18nKey) : section.label}</span>
                 </div>
                 {sectionPolicies.map((policy) => (
                   <PolicyRow key={policy.id} policy={policy} onDelete={handleDelete} />

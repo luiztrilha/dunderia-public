@@ -122,7 +122,7 @@ func TestSyncDefaultStateMirrorsAndRestoresLightweightAssets(t *testing.T) {
 		t.Fatalf("unexpected restored assets:\n got: %v\nwant: %v", restored, wantRestored)
 	}
 
-	assertFileContent(t, filepath.Join(targetHome, ".wuphf", "company.json"), `{"name":"DunderIA"}`)
+	assertFileContent(t, filepath.Join(targetHome, ".wuphf", "company.json"), `{"name":"MaestrIA"}`)
 	assertFileContent(t, filepath.Join(targetHome, ".wuphf", "onboarded.json"), `{"version":1}`)
 	assertFileContent(t, filepath.Join(targetHome, ".wuphf", "cloud-backup-bootstrap.json"), `{"provider":"gcs"}`)
 	assertFileContent(t, filepath.Join(targetHome, ".codex", "auth.json"), `{"access_token":"token"}`)
@@ -186,7 +186,7 @@ func TestMirrorAndRestoreDedicatedOfficeFiles(t *testing.T) {
 
 func seedDefaultLightweightAssets(t *testing.T, home string, adcPath string) {
 	t.Helper()
-	writeTestFile(t, filepath.Join(home, ".wuphf", "company.json"), `{"name":"DunderIA"}`)
+	writeTestFile(t, filepath.Join(home, ".wuphf", "company.json"), `{"name":"MaestrIA"}`)
 	writeTestFile(t, filepath.Join(home, ".wuphf", "onboarded.json"), `{"version":1}`)
 	writeTestFile(t, filepath.Join(home, ".wuphf", "cloud-backup-bootstrap.json"), `{"provider":"gcs"}`)
 	writeTestFile(t, filepath.Join(home, ".codex", "auth.json"), `{"access_token":"token"}`)

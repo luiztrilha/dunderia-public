@@ -8,7 +8,7 @@ go build -o wuphf ./cmd/wuphf
 
 ## Stable Local Tests
 
-For repeatable local runs, isolate DunderIA runtime state, task logs, Go temp, and Go build cache:
+For repeatable local runs, isolate MaestrIA runtime state, task logs, Go temp, and Go build cache:
 
 ```powershell
 pwsh -File scripts/run-stable-tests.ps1
@@ -56,7 +56,7 @@ pwsh -File scripts/windows/uninstall_user_logon_bootstrap.ps1
 
 ## Environments
 
-The DunderIA runtime still reads `WUPHF_BASE_URL` as a legacy compatibility variable for the Nex-compatible API surface, falling back to `https://app.nex.ai` in production only when that backend is explicitly used. The staging hostname below still carries the old `wuphf.ai` name because that legacy backend has not been renamed.
+The MaestrIA runtime still reads `WUPHF_BASE_URL` as a legacy compatibility variable for the Nex-compatible API surface, falling back to `https://app.nex.ai` in production only when that backend is explicitly used. The staging hostname below still carries the old `wuphf.ai` name because that legacy backend has not been renamed.
 
 | Environment | `WUPHF_BASE_URL` |
 |-------------|----------------|
@@ -104,7 +104,7 @@ The stop action is dry-run by default. `-Force` is required before the script ki
 
 ## Local Secret Store
 
-DunderIA includes an encrypted local secret store for manual operator use:
+MaestrIA includes an encrypted local secret store for manual operator use:
 
 ```powershell
 $env:WUPHF_SECRET_STORE_PASSPHRASE = "<local passphrase>"

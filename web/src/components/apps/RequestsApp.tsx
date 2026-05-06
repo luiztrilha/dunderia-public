@@ -10,7 +10,7 @@ import { showNotice } from '../ui/Toast'
 export function RequestsApp() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { all: allRequests, pending, isLoading, error } = useRequests()
+  const { all: allRequests, pending, isLoading, error } = useRequests({ allChannels: true })
   const [busyRequestId, setBusyRequestId] = useState<string | null>(null)
   const [customTextByOption, setCustomTextByOption] = useState<Record<string, string>>({})
   const answered = allRequests.filter((r) => r.status && r.status !== 'open' && r.status !== 'pending')

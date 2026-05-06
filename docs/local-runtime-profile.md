@@ -1,6 +1,6 @@
 # Local Runtime Profile
 
-DunderIA uses two different profile shapes. Keep them separate.
+MaestrIA uses two different profile shapes. Keep them separate.
 
 ## Active Runtime
 
@@ -18,7 +18,7 @@ The reusable public baseline lives in:
 
 - `templates/starter-kit/`
 
-Use this when a fresh DunderIA install should receive validated public defaults:
+Use this when a fresh MaestrIA install should receive validated public defaults:
 
 - Codex skills
 - Superpowers skills
@@ -46,13 +46,13 @@ Promote from `local-runtime-profile` only when all are true:
 
 - the content is reusable outside the private machine
 - it does not contain secrets, live state, history, customer context or private paths
-- it fits an active consumer: Codex, DunderIA starter-kit, `.agents`, docs or prompts
+- it fits an active consumer: Codex, MaestrIA starter-kit, `.agents`, docs or prompts
 - it has a clear canonical destination
 
 Preferred destinations:
 
 - reusable Codex behavior: `C:\Users\l.sousa\.codex\AGENTS.md`
-- reusable DunderIA repo behavior: this repo under `docs/` or `AGENTS.md`
+- reusable MaestrIA repo behavior: this repo under `docs/` or `AGENTS.md`
 - public bootstrap assets: `templates/starter-kit/`
 - public explanation: `docs/`
 - private daily/context memory: `D:\Repos\memory\YYYY-MM-DD.md`

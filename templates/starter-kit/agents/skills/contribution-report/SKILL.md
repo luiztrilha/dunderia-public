@@ -41,7 +41,7 @@ Use this shape unless the user requested another format:
 2. What the source actually adds
 3. Useful ideas to port
 4. Risks and non-portable pieces
-5. Recommended DunderIA changes
+5. Recommended MaestrIA changes
 6. Verification or evidence
 
 ## Heuristics
@@ -62,7 +62,7 @@ Be careful with:
 - plugin systems that claim sandboxing but run trusted code;
 - broad auth or secret access;
 - topology mutations disguised as onboarding;
-- code that assumes a SaaS backend when DunderIA is local-first.
+- code that assumes a SaaS backend when MaestrIA is local-first.
 
 ## Final Output
 

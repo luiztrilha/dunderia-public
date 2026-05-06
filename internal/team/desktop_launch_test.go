@@ -3,7 +3,9 @@ package team
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -64,6 +66,41 @@ func TestDesktopLaunchRejectsRemoteWebURL(t *testing.T) {
 	}
 	if len(b.Actions()) != 0 {
 		t.Fatalf("rejected launch should not record actions, got %+v", b.Actions())
+	}
+}
+
+func TestDesktopIDEPreviewIsReadOnlyAndKeepsWebStudioCanonical(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"scripts":{"start":"electron ."}}`), 0o644); err != nil {
+		t.Fatalf("write package: %v", err)
+	}
+	payload := buildDesktopIDEPreview(dir, "npm.cmd", nil)
+	if payload.Persisted || payload.Status != "ok" || len(payload.Surfaces) != 3 {
+		t.Fatalf("expected ready read-only desktop preview, got %+v", payload)
+	}
+	for _, surface := range payload.Surfaces {
+		if surface.CanonicalSurface == "" || !stringSliceContains(surface.RiskSignals, "web_studio_canonical") || !stringSliceContains(surface.RiskSignals, "no_topology_mutation") {
+			t.Fatalf("expected desktop preview to preserve web Studio/runtime boundaries, got %+v", surface)
+		}
+	}
+}
+
+func TestDesktopIDEPreviewBlocksMissingDependencies(t *testing.T) {
+	payload := buildDesktopIDEPreview(t.TempDir(), "", fmt.Errorf("npm missing"))
+	if payload.Status != "blocked" {
+		t.Fatalf("expected blocked desktop preview, got %+v", payload)
+	}
+	var sawDesktop bool
+	for _, surface := range payload.Surfaces {
+		if surface.ID == "desktop-shell" {
+			sawDesktop = true
+			if surface.Readiness != "blocked" || !stringSliceContains(surface.MissingChecks, "desktop_package") || !stringSliceContains(surface.MissingChecks, "npm_binary") {
+				t.Fatalf("expected missing package/npm checks, got %+v", surface)
+			}
+		}
+	}
+	if !sawDesktop {
+		t.Fatalf("expected desktop shell surface, got %+v", payload.Surfaces)
 	}
 }
 

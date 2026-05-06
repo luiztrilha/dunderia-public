@@ -99,6 +99,45 @@ func TestBuildOperatorTasksLockedIncludesHumanRequestRecommendation(t *testing.T
 	}
 }
 
+func TestBuildOperatorTasksLockedIncludesTaskLivenessHistory(t *testing.T) {
+	isolateBrokerPersistenceEnv(t)
+
+	b := NewBroker()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	ensureTestMemberAccess(b, "general", "builder", "Builder")
+	b.tasks = []teamTask{{
+		ID:        "task-live",
+		Channel:   "general",
+		Title:     "Inspect liveness",
+		Owner:     "builder",
+		Status:    "in_progress",
+		CreatedAt: "2026-05-05T10:00:00Z",
+		UpdatedAt: "2026-05-05T10:03:00Z",
+	}}
+	b.actions = []officeActionLog{
+		{ID: "action-old", Kind: "liveness_recorded", Source: "runtime", Channel: "general", Actor: "builder", Summary: "plan_only: agent described future work", RelatedID: "task-live", CreatedAt: "2026-05-05T10:01:00Z"},
+		{ID: "action-other", Kind: "liveness_recorded", Source: "runtime", Channel: "other", Actor: "builder", Summary: "blocked: wrong channel", RelatedID: "task-live", CreatedAt: "2026-05-05T10:02:00Z"},
+		{ID: "action-new", Kind: "liveness_recorded", Source: "runtime", Channel: "general", Actor: "builder", Summary: "completed: task reached durable state", RelatedID: "task-live", CreatedAt: "2026-05-05T10:03:00Z"},
+	}
+
+	tasks := b.buildOperatorTasksLocked("general", false, true, "", "")
+	if len(tasks) != 1 {
+		t.Fatalf("expected one task, got %+v", tasks)
+	}
+	got := tasks[0]
+	if got.LivenessState != "completed" || got.LivenessReason != "task reached durable state" || got.LivenessAt != "2026-05-05T10:03:00Z" {
+		t.Fatalf("expected latest liveness summary on task, got %+v", got)
+	}
+	if len(got.LivenessHistory) != 2 {
+		t.Fatalf("expected same-channel liveness history, got %+v", got.LivenessHistory)
+	}
+	if got.LivenessHistory[0].State != "completed" || got.LivenessHistory[1].State != "plan_only" {
+		t.Fatalf("expected newest-first liveness history, got %+v", got.LivenessHistory)
+	}
+}
+
 func TestBuildDeliveriesLockedAggregatesArtifactsAndPendingHuman(t *testing.T) {
 	isolateBrokerPersistenceEnv(t)
 
@@ -131,7 +170,7 @@ func TestBuildDeliveriesLockedAggregatesArtifactsAndPendingHuman(t *testing.T) {
 		UpdatedAt:    "2026-04-23T12:06:00Z",
 	}}
 
-	deliveries := b.buildDeliveriesLocked("general", false, true)
+	deliveries := b.buildDeliveriesLocked("general", false, true, false)
 	if len(deliveries) != 1 {
 		t.Fatalf("expected 1 delivery, got %#v", deliveries)
 	}
@@ -159,7 +198,39 @@ func TestBuildDeliveriesLockedAggregatesArtifactsAndPendingHuman(t *testing.T) {
 	}
 }
 
-func TestBuildDeliveriesLockedPrefersBusinessWorkspaceOverHelperReposAndDunderiaWorktrees(t *testing.T) {
+func TestBuildDeliveriesLockedSkipsArchivedSources(t *testing.T) {
+	isolateBrokerPersistenceEnv(t)
+
+	b := NewBroker()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.tasks = []teamTask{{
+		ID:         "task-1",
+		Channel:    "general",
+		Title:      "Archived delivery task",
+		Status:     "done",
+		PipelineID: "cleanup",
+		ArchivedAt: "2026-05-04T17:09:54Z",
+		UpdatedAt:  "2026-05-04T17:09:54Z",
+	}}
+	b.requests = []humanInterview{{
+		ID:           "request-1",
+		Channel:      "general",
+		Title:        "Archived blocker",
+		Status:       "answered",
+		Question:     "Already handled?",
+		SourceTaskID: "task-1",
+		ArchivedAt:   "2026-05-04T17:09:54Z",
+		UpdatedAt:    "2026-05-04T17:09:54Z",
+	}}
+
+	if deliveries := b.buildDeliveriesLocked("general", false, true, false); len(deliveries) != 0 {
+		t.Fatalf("expected archived task/request sources to be hidden from deliveries, got %#v", deliveries)
+	}
+}
+
+func TestBuildDeliveriesLockedPrefersBusinessWorkspaceOverHelperReposAndMaestrIAWorktrees(t *testing.T) {
 	isolateBrokerPersistenceEnv(t)
 
 	b := NewBroker()
@@ -199,7 +270,7 @@ func TestBuildDeliveriesLockedPrefersBusinessWorkspaceOverHelperReposAndDunderia
 		},
 	}
 
-	deliveries := b.buildDeliveriesLocked("convenios-web-legado", false, true)
+	deliveries := b.buildDeliveriesLocked("convenios-web-legado", false, true, false)
 	if len(deliveries) != 1 {
 		t.Fatalf("expected 1 delivery bucket, got %#v", deliveries)
 	}
@@ -208,7 +279,7 @@ func TestBuildDeliveriesLockedPrefersBusinessWorkspaceOverHelperReposAndDunderia
 	}
 }
 
-func TestBuildDeliveriesLockedPrefersDunderiaWorktreeOverHelperWorkspaceWhenNoBusinessRepoExists(t *testing.T) {
+func TestBuildDeliveriesLockedPrefersMaestrIAWorktreeOverHelperWorkspaceWhenNoBusinessRepoExists(t *testing.T) {
 	isolateBrokerPersistenceEnv(t)
 
 	b := NewBroker()
@@ -229,7 +300,7 @@ func TestBuildDeliveriesLockedPrefersDunderiaWorktreeOverHelperWorkspaceWhenNoBu
 		{
 			ID:           "task-2",
 			Channel:      "convenios-web-azure",
-			Title:        "Dunderia worktree lane",
+			Title:        "MaestrIA worktree lane",
 			Owner:        "ceo",
 			Status:       "canceled",
 			PipelineID:   "bugfix",
@@ -238,7 +309,7 @@ func TestBuildDeliveriesLockedPrefersDunderiaWorktreeOverHelperWorkspaceWhenNoBu
 		},
 	}
 
-	deliveries := b.buildDeliveriesLocked("convenios-web-azure", false, true)
+	deliveries := b.buildDeliveriesLocked("convenios-web-azure", false, true, false)
 	if len(deliveries) != 1 {
 		t.Fatalf("expected 1 delivery bucket, got %#v", deliveries)
 	}
@@ -279,7 +350,7 @@ func TestBuildDeliveriesLockedUsesChannelLinkedRepoWhenTaskHasNoRepository(t *te
 		},
 	}
 
-	deliveries := b.buildDeliveriesLocked("convenios-web-azure", false, true)
+	deliveries := b.buildDeliveriesLocked("convenios-web-azure", false, true, false)
 	if len(deliveries) != 1 {
 		t.Fatalf("expected 1 delivery bucket, got %#v", deliveries)
 	}
@@ -314,7 +385,7 @@ func TestBuildDeliveriesLockedUsesMentionedWorkspaceForTerminalSmokeHistory(t *t
 		},
 	}
 
-	deliveries := b.buildDeliveriesLocked("general", false, true)
+	deliveries := b.buildDeliveriesLocked("general", false, true, false)
 	if len(deliveries) != 1 {
 		t.Fatalf("expected 1 delivery bucket, got %#v", deliveries)
 	}
@@ -356,7 +427,7 @@ func TestBuildDeliveriesLockedKeepsPipelineBucketsScopedPerChannel(t *testing.T)
 		},
 	}
 
-	deliveries := b.buildDeliveriesLocked("", true, true)
+	deliveries := b.buildDeliveriesLocked("", true, true, false)
 	if len(deliveries) != 2 {
 		t.Fatalf("expected 2 deliveries split by channel, got %#v", deliveries)
 	}
@@ -469,7 +540,7 @@ func TestBuildOperatorTasksLockedPrefersExplicitWorkspaceMatch(t *testing.T) {
 		{
 			ID:        "task-1",
 			Channel:   "convenios-web-azure",
-			Title:     "Revisao tecnica abrangente da base DunderIA",
+			Title:     "Revisao tecnica abrangente da base MaestrIA",
 			Details:   "Produzir relatorio .md priorizado.",
 			Owner:     "reviewer",
 			Status:    "in_progress",

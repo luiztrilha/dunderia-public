@@ -20,12 +20,38 @@ func (b *Broker) appendActionWithRefsLocked(kind, source, channel, actor, summar
 		DecisionID: strings.TrimSpace(decisionID),
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 	}
+	if reason, severity := governanceReviewForAction(record.Kind, record.Source); reason != "" {
+		record.RequiresApproval = true
+		record.ApprovalReason = reason
+		record.GovernanceSeverity = severity
+	}
 	b.actions = append(b.actions, record)
 	b.recordChannelMemoryForActionLocked(record)
 	if len(b.actions) > 150 {
 		b.actions = append([]officeActionLog(nil), b.actions[len(b.actions)-150:]...)
 	}
 	b.publishActionLocked(record)
+}
+
+func governanceReviewForAction(kind, source string) (string, string) {
+	kind = strings.ToLower(strings.TrimSpace(kind))
+	source = strings.ToLower(strings.TrimSpace(source))
+	switch {
+	case strings.HasPrefix(kind, "github_"):
+		return "GitHub publication or sync action should be reviewable by a human.", "warning"
+	case strings.Contains(kind, "package_generated"):
+		return "Generated package action changes exported runtime material and should remain auditable.", "info"
+	case strings.Contains(kind, "external_workflow_executed") || strings.Contains(kind, "external_action_executed"):
+		return "External workflow action can mutate connected systems and should remain auditable.", "warning"
+	case strings.Contains(kind, "skill_created") || strings.Contains(kind, "skill_update") || strings.Contains(kind, "skill_invocation"):
+		return "Skill lifecycle action can alter agent behavior and should remain auditable.", "warning"
+	case strings.Contains(kind, "channel_created") || strings.Contains(kind, "member_created"):
+		return "Office topology action can change routing and should remain auditable.", "warning"
+	case source == "gh" || source == "github":
+		return "GitHub-originated action should remain tied to a reviewable trail.", "warning"
+	default:
+		return "", ""
+	}
 }
 
 func parseSequentialRecordOrdinal(id, prefix string) (int, bool) {

@@ -23,6 +23,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/nex-crm/wuphf/internal/commands"
 	"github.com/nex-crm/wuphf/internal/company"
 	"github.com/nex-crm/wuphf/internal/config"
 	"github.com/nex-crm/wuphf/internal/setup"
@@ -698,46 +699,51 @@ var mentionPattern = regexp.MustCompile(`@([A-Za-z0-9_-]+)`)
 var brokerTokenPath = "/tmp/wuphf-broker-token"
 var officeDirectory = map[string]officeMemberInfo{}
 
-var channelSlashCommands = []tui.SlashCommand{
-	{Name: "init", Description: "Run setup and save your default runtime choices", Category: "setup"},
-	{Name: "provider", Description: "Switch LLM provider for this run", Category: "setup"},
-	{Name: "doctor", Description: "Check readiness and runtime health", Category: "setup"},
-	{Name: "integrate", Description: "Connect a managed integration", Category: "setup"},
-	{Name: "connect", Description: "Bring Telegram or other integrations into the office", Category: "setup"},
-	{Name: "1o1", Description: "Direct 1:1 with an agent", Category: "session"},
-	{Name: "messages", Description: "Show the main office feed — where it all happens", Category: "navigate"},
-	{Name: "inbox", Description: "Show the selected agent inbox lane in 1:1 mode", Category: "navigate"},
-	{Name: "outbox", Description: "Show the selected agent outbox lane in 1:1 mode", Category: "navigate"},
-	{Name: "recover", Description: "Session recovery for interrupted work", Category: "navigate"},
-	{Name: "resume", Description: "Alias for /recover", Category: "navigate"},
-	{Name: "rewind", Description: "Catch up from here without replaying everything", Category: "navigate"},
-	{Name: "search", Description: "Search channels, tasks, requests, and messages", Category: "navigate"},
-	{Name: "insert", Description: "Insert a channel, task, request, or message reference", Category: "navigate"},
-	{Name: "switcher", Description: "Switch office/direct session views", Category: "navigate"},
-	{Name: "tasks", Description: "Show active work across the office", Category: "navigate"},
-	{Name: "switch", Description: "Switch to another channel", Category: "navigate"},
-	{Name: "channels", Description: "Browse and manage channels", Category: "navigate"},
-	{Name: "channel", Description: "Create or remove a channel", Category: "channels"},
-	{Name: "agents", Description: "Manage your team roster", Category: "people"},
-	{Name: "agent", Description: "Add, remove, enable, or disable a teammate", Category: "people"},
-	{Name: "agent prompt", Description: "Generate a new teammate from a prompt", Category: "people"},
-	{Name: "task", Description: "Claim, release, or complete a task — ownership matters here", Category: "work"},
-	{Name: "policies", Description: "Signals, watchdogs, and decisions", Category: "navigate"},
-	{Name: "calendar", Description: "Office schedule and queued work", Category: "navigate"},
-	{Name: "queue", Description: "Alias for /calendar", Category: "navigate"},
-	{Name: "artifacts", Description: "Task logs, approvals, and workflow artifacts", Category: "navigate"},
-	{Name: "skills", Description: "Show available skills for the office", Category: "navigate"},
-	{Name: "skill", Description: "Create, invoke, or manage a skill — the office gets smarter over time", Category: "work"},
-	{Name: "reply", Description: "Reply in thread — threads keep context, unlike forwarded email chains", Category: "conversation"},
-	{Name: "threads", Description: "Browse conversation threads", Category: "conversation"},
-	{Name: "expand", Description: "Expand a collapsed thread", Category: "conversation"},
-	{Name: "collapse", Description: "Collapse a thread", Category: "conversation"},
-	{Name: "cancel", Description: "Exit the current mode", Category: "conversation"},
-	{Name: "collab", Description: "Open-floor mode where all agents see all messages", Category: "session"},
-	{Name: "focus", Description: "Delegation mode — CEO routes, specialists execute (that's how it was always meant to work)", Category: "session"},
-	{Name: "reset", Description: "Reset channel and agents", Category: "session"},
-	{Name: "reset-dm", Description: "Clear direct messages with an agent", Category: "session"},
-	{Name: "quit", Description: "Exit DunderIA", Category: "session"},
+var channelSlashCommands = buildChannelSlashCommands()
+
+func buildChannelSlashCommands() []tui.SlashCommand {
+	manifest := commands.FilterCommandManifest(commands.BuildCommandManifest(), commands.SurfaceTUI)
+	out := make([]tui.SlashCommand, 0, len(manifest))
+	for _, entry := range manifest {
+		name := strings.TrimPrefix(strings.TrimSpace(entry.Name), "/")
+		if name == "" {
+			continue
+		}
+		out = append(out, tui.SlashCommand{
+			Name:        name,
+			Description: entry.Description,
+			Category:    entry.Category,
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		left := tuiCommandOrder(out[i].Name)
+		right := tuiCommandOrder(out[j].Name)
+		if left != right {
+			return left < right
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
+}
+
+func tuiCommandOrder(name string) int {
+	order := []string{
+		"init", "provider", "doctor", "integrate", "connect",
+		"1o1", "messages", "general", "inbox", "outbox",
+		"recover", "resume", "rewind", "search", "insert",
+		"switcher", "tasks", "switch", "channels", "channel",
+		"requests", "request", "agents", "agent", "agent prompt",
+		"task", "policies", "calendar", "queue", "artifacts",
+		"skills", "skill", "reply", "threads", "expand",
+		"collapse", "cancel", "dm", "collab", "focus",
+		"reset", "reset-dm", "quit",
+	}
+	for idx, candidate := range order {
+		if candidate == name {
+			return idx
+		}
+	}
+	return len(order)
 }
 
 // oneOnOneBlacklist lists command names blocked in 1:1 mode.
@@ -765,7 +771,28 @@ func buildOneOnOneSlashCommands() []tui.SlashCommand {
 		}
 		cmds = append(cmds, cmd)
 	}
+	sort.SliceStable(cmds, func(i, j int) bool {
+		left := oneOnOneCommandOrder(cmds[i].Name)
+		right := oneOnOneCommandOrder(cmds[j].Name)
+		if left != right {
+			return left < right
+		}
+		return tuiCommandOrder(cmds[i].Name) < tuiCommandOrder(cmds[j].Name)
+	})
 	return cmds
+}
+
+func oneOnOneCommandOrder(name string) int {
+	switch name {
+	case "reset":
+		return 0
+	case "reset-dm":
+		return 1
+	case "switch":
+		return 2
+	default:
+		return 10 + tuiCommandOrder(name)
+	}
 }
 
 type channelPickerMode string
@@ -1210,7 +1237,7 @@ func (m channelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 			m.lastCtrlCAt = now
-			m.setTransientNotice("Press Ctrl+C again to quit DunderIA.")
+			m.setTransientNotice("Press Ctrl+C again to quit MaestrIA.")
 			return m, nil
 		case "ctrl+b":
 			if m.isOneOnOne() {
@@ -1875,7 +1902,7 @@ func (m channelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.notice = "Telegram connect failed: " + msg.err.Error()
 			return m, nil
 		}
-		m.notice = fmt.Sprintf("Connected \"%s\" as #%s. Restart DunderIA to activate the Telegram bridge.", msg.groupTitle, msg.channelSlug)
+		m.notice = fmt.Sprintf("Connected \"%s\" as #%s. Restart MaestrIA to activate the Telegram bridge.", msg.groupTitle, msg.channelSlug)
 		m.activeChannel = msg.channelSlug
 		m.activeApp = officeAppMessages
 		m.resetChannelFeedState()
@@ -5608,11 +5635,11 @@ func (m channelModel) buildAgentPickerOptions() []tui.PickerOption {
 }
 
 func (m channelModel) buildOneOnOneModePickerOptions() []tui.PickerOption {
-	enableDescription := "Restart DunderIA in direct mode with one selected agent and kill the rest of the Claude sessions"
+	enableDescription := "Restart MaestrIA in direct mode with one selected agent and kill the rest of the Claude sessions"
 	if m.isOneOnOne() {
 		enableDescription = "Pick a different single agent for this direct session"
 	}
-	disableDescription := "Restart DunderIA with the full office team"
+	disableDescription := "Restart MaestrIA with the full office team"
 	if !m.isOneOnOne() {
 		disableDescription = "Already using the full office team"
 	}
@@ -5844,10 +5871,10 @@ func applyTeamSetup() tea.Cmd {
 		}
 		cfg, _ := config.Load()
 		if current := strings.TrimSpace(os.Getenv("WUPHF_HEADLESS_PROVIDER")); current != "" {
-			return channelInitDoneMsg{notice: notice + " Setup saved. Restart DunderIA to reload the " + current + " office runtime with the new configuration."}
+			return channelInitDoneMsg{notice: notice + " Setup saved. Restart MaestrIA to reload the " + current + " office runtime with the new configuration."}
 		}
 		if config.ResolveLLMProvider("") == "codex" || strings.TrimSpace(cfg.LLMProvider) == "codex" {
-			return channelInitDoneMsg{notice: notice + " Codex was saved as the LLM provider. Restart DunderIA to launch the headless Codex office runtime."}
+			return channelInitDoneMsg{notice: notice + " Codex was saved as the LLM provider. Restart MaestrIA to launch the headless Codex office runtime."}
 		}
 		l, err := team.NewLauncher("")
 		if err != nil {
@@ -5875,7 +5902,7 @@ func applyProviderSelection(providerName string) tea.Cmd {
 		}
 
 		if current := strings.TrimSpace(os.Getenv("WUPHF_HEADLESS_PROVIDER")); current != "" {
-			return channelInitDoneMsg{notice: "Provider switched to " + providerName + ". Restart DunderIA to reload the office runtime with the new configuration."}
+			return channelInitDoneMsg{notice: "Provider switched to " + providerName + ". Restart MaestrIA to reload the office runtime with the new configuration."}
 		}
 		if providerName == "codex" {
 			l, err := team.NewLauncher("")
@@ -5890,10 +5917,10 @@ func applyProviderSelection(providerName string) tea.Cmd {
 					return channelInitDoneMsg{err: err}
 				}
 			}
-			return channelInitDoneMsg{notice: "Provider switched to codex. Claude teammate panes were stopped. Restart DunderIA to launch the headless Codex office runtime."}
+			return channelInitDoneMsg{notice: "Provider switched to codex. Claude teammate panes were stopped. Restart MaestrIA to launch the headless Codex office runtime."}
 		}
 		if currentProvider == "codex" {
-			return channelInitDoneMsg{notice: "Provider switched to " + providerName + ". Restart DunderIA to reload the office runtime with the new configuration."}
+			return channelInitDoneMsg{notice: "Provider switched to " + providerName + ". Restart MaestrIA to reload the office runtime with the new configuration."}
 		}
 
 		l, err := team.NewLauncher("")
@@ -6010,15 +6037,15 @@ func runChannelView(threadsCollapsed bool, initialApp officeApp, skipSplash bool
 
 func reportChannelCrash(details string) {
 	_ = appendChannelCrashLog(details)
-	fmt.Fprintln(os.Stderr, "DunderIA channel crashed.")
+	fmt.Fprintln(os.Stderr, "MaestrIA channel crashed.")
 	fmt.Fprintln(os.Stderr, "Log:", channelCrashLogPath())
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "The rest of the team is still running.")
 	if strings.TrimSpace(os.Getenv("WUPHF_HEADLESS_PROVIDER")) != "" {
-		fmt.Fprintln(os.Stderr, "Restart DunderIA when ready to reconnect to the headless office runtime.")
+		fmt.Fprintln(os.Stderr, "Restart MaestrIA when ready to reconnect to the headless office runtime.")
 	} else {
 		fmt.Fprintln(os.Stderr, "Use `tmux -L wuphf attach -t wuphf-team` to inspect panes,")
-		fmt.Fprintln(os.Stderr, "then restart DunderIA when ready.")
+		fmt.Fprintln(os.Stderr, "then restart MaestrIA when ready.")
 	}
 	select {}
 }

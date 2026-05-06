@@ -143,7 +143,7 @@ func LoadManifest() (Manifest, error) {
 // so onboarding answers flow into the company manifest.
 func backfillFromConfig(manifest Manifest) Manifest {
 	cfg, _ := config.Load()
-	if strings.TrimSpace(manifest.Name) == "" || manifest.Name == "The WUPHF Office" || manifest.Name == "The DunderIA Office" {
+	if strings.TrimSpace(manifest.Name) == "" || manifest.Name == "The WUPHF Office" || manifest.Name == "The DunderIA Office" || manifest.Name == "The MaestrIA Office" {
 		if name := strings.TrimSpace(cfg.CompanyName); name != "" {
 			manifest.Name = name
 		}
@@ -220,7 +220,7 @@ func DefaultManifest() Manifest {
 	}
 	blueprintID := normalizeSlug(cfg.ActiveBlueprint())
 	manifest := Manifest{
-		Name:        "The DunderIA Office",
+		Name:        "The MaestrIA Office",
 		Description: "Autonomous office runtime.",
 		Lead:        "ceo",
 		UpdatedAt:   now,
@@ -245,60 +245,39 @@ func DefaultManifest() Manifest {
 			System:         true,
 		},
 		{
-			Slug:           "pm",
-			Name:           "PM",
-			Role:           "Turns requests into scope, acceptance criteria, and sequenced work",
-			PermissionMode: "plan",
-			Expertise:      []string{"Scoping", "Backlog design", "Acceptance criteria"},
-		},
-		{
 			Slug:           "research-lead",
 			Name:           "Research Lead",
-			Role:           "Frames ambiguous problems, compares approaches, and shapes the first attack plan",
+			Role:           "Frames the problem, gathers proof, and shapes the first backlog",
 			PermissionMode: "plan",
-			Expertise:      []string{"Discovery", "Problem framing", "Technical investigation"},
+			Expertise:      []string{"Discovery", "Problem framing", "Backlog design"},
 		},
 		{
-			Slug:           "estagiario",
-			Name:           "Estagiario",
-			Role:           "Handles low-risk triage, context gathering, and operational prep work",
+			Slug:           "writer",
+			Name:           "Writer",
+			Role:           "Turns discoveries into briefs, plans, and durable working drafts",
 			PermissionMode: "auto",
-			Expertise:      []string{"Triage", "Reproduction", "Context gathering"},
+			Expertise:      []string{"Briefs", "Plans", "Drafting"},
 		},
 		{
-			Slug:           "backend",
-			Name:           "Backend",
-			Role:           "Owns APIs, data, integrations, jobs, and server-side architecture",
-			PermissionMode: "auto",
-			Expertise:      []string{"APIs", "Databases", "Integrations"},
-		},
-		{
-			Slug:           "frontend",
-			Name:           "Frontend",
-			Role:           "Owns UI, UX, accessibility, and client-side implementation quality",
-			PermissionMode: "auto",
-			Expertise:      []string{"UI", "UX", "Accessibility"},
-		},
-		{
-			Slug:           "builder",
-			Name:           "Builder",
-			Role:           "Closes cross-stack delivery, wiring, and end-to-end integration work",
-			PermissionMode: "auto",
-			Expertise:      []string{"Full stack delivery", "Integration", "Execution"},
-		},
-		{
-			Slug:           "reviewer",
-			Name:           "Reviewer",
-			Role:           "Owns review findings, regression risk, and acceptance validation",
+			Slug:           "operator",
+			Name:           "Operator",
+			Role:           "Owns delivery coordination, runbooks, and execution hygiene",
 			PermissionMode: "plan",
-			Expertise:      []string{"Code review", "Regression analysis", "Verification"},
+			Expertise:      []string{"Runbooks", "Execution hygiene", "Delivery coordination"},
 		},
 		{
-			Slug:           "game-master",
-			Name:           "Game Master",
-			Role:           "Owner-invoked escalation operator for critical takeovers and direct intervention",
-			PermissionMode: "all",
-			Expertise:      []string{"Escalation handling", "Cross-stack recovery", "Direct execution"},
+			Slug:           "growth-ops",
+			Name:           "Growth Ops",
+			Role:           "Owns review loops, adoption signals, and operating cadence",
+			PermissionMode: "plan",
+			Expertise:      []string{"Review cadence", "Feedback loops", "Operating metrics"},
+		},
+		{
+			Slug:           "monetization",
+			Name:           "Monetization",
+			Role:           "Defines offers, value capture, and commercial next steps",
+			PermissionMode: "auto",
+			Expertise:      []string{"Offers", "Value capture", "Commercial design"},
 		},
 	}
 	generalMembers := make([]string, 0, len(manifest.Members))
@@ -308,7 +287,7 @@ func DefaultManifest() Manifest {
 	manifest.Channels = []ChannelSpec{{
 		Slug:        "general",
 		Name:        "general",
-		Description: "Single default room for coordination, triage, planning, and execution.",
+		Description: "The default company-wide room for top-level coordination, announcements, and cross-functional discussion.",
 		Members:     generalMembers,
 	}}
 	return normalizeManifest(manifest)
@@ -335,7 +314,7 @@ func fromScratchDefaultManifest(now string) Manifest {
 		channelMembers = append(channelMembers, member.Slug)
 	}
 	return Manifest{
-		Name:        "DunderIA Office",
+		Name:        "MaestrIA Office",
 		Description: "Autonomous office runtime that starts from a directive instead of a saved blueprint.",
 		Lead:        "founder",
 		Members:     members,
@@ -351,7 +330,7 @@ func fromScratchDefaultManifest(now string) Manifest {
 
 func normalizeManifest(manifest Manifest) Manifest {
 	if strings.TrimSpace(manifest.Name) == "" {
-		manifest.Name = "The DunderIA Office"
+		manifest.Name = "The MaestrIA Office"
 	}
 	if strings.TrimSpace(manifest.Lead) == "" {
 		manifest.Lead = "ceo"

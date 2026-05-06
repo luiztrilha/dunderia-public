@@ -99,7 +99,7 @@ func (l *Launcher) recordHeadlessLiveness(slug string, active *headlessCodexActi
 	if l == nil || l.broker == nil || active == nil || strings.TrimSpace(slug) == "" || result.State == "" {
 		return
 	}
-	l.broker.UpdateAgentActivity(agentActivitySnapshot{
+	l.broker.RecordAgentLiveness(agentActivitySnapshot{
 		Slug:           slug,
 		Channel:        normalizeChannelSlug(active.Turn.Channel),
 		LivenessState:  string(result.State),

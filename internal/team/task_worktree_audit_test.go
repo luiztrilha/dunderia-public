@@ -13,6 +13,7 @@ func TestEnsureTaskWorktreeAuditJobRegistersRecurringJob(t *testing.T) {
 	isolateBrokerPersistenceEnv(t)
 
 	b := NewBroker()
+	b.tasks = []teamTask{{ID: "task-1", Title: "Needs managed worktree audit", Status: "open"}}
 	if err := b.EnsureTaskWorktreeAuditJob(); err != nil {
 		t.Fatalf("EnsureTaskWorktreeAuditJob: %v", err)
 	}
@@ -29,6 +30,32 @@ func TestEnsureTaskWorktreeAuditJobRegistersRecurringJob(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected task worktree audit job to be registered")
+	}
+}
+
+func TestEnsureTaskWorktreeAuditJobRespectsCanceledJob(t *testing.T) {
+	isolateBrokerPersistenceEnv(t)
+
+	b := NewBroker()
+	b.tasks = []teamTask{{ID: "task-1", Title: "Keep worktree audit canceled", Status: "open"}}
+	b.scheduler = []schedulerJob{{
+		Slug:       taskWorktreeAuditJobSlug,
+		Kind:       taskWorktreeAuditJobKind,
+		Label:      "Task worktree audit",
+		TargetType: taskWorktreeAuditTargetType,
+		TargetID:   "global",
+		Channel:    "general",
+		Status:     "canceled",
+	}}
+
+	if err := b.EnsureTaskWorktreeAuditJob(); err != nil {
+		t.Fatalf("EnsureTaskWorktreeAuditJob: %v", err)
+	}
+	if got := b.scheduler[0].Status; got != "canceled" {
+		t.Fatalf("expected canceled job to remain canceled, got %q", got)
+	}
+	if got := strings.TrimSpace(b.scheduler[0].NextRun); got != "" {
+		t.Fatalf("expected canceled job to have no next run, got %q", got)
 	}
 }
 

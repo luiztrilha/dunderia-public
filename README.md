@@ -1,7 +1,7 @@
-# DunderIA
+# MaestrIA
 
 <p align="center">
-  <img src="assets/hero.png" alt="DunderIA onboarding - Seu time de IA, visivel e trabalhando." width="720" />
+  <img src="assets/hero.png" alt="MaestrIA onboarding - Seu time de IA, visivel e trabalhando." width="720" />
 </p>
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/gjSySC3PzV)
@@ -11,7 +11,7 @@
 
 ### Runtime local-first de escritorio multiagente.
 
-O DunderIA te da um escritorio visivel para agentes de IA: modelo de canais compartilhados, broker local, runners novos a cada turno, ferramentas MCP com escopo por agente, worktrees Git isoladas e uma interface web onde voce acompanha o trabalho acontecendo em vez de esconder tudo atras de uma unica caixa de chat.
+A MaestrIA te da um escritorio visivel para agentes de IA: modelo de canais compartilhados, broker local, runners novos a cada turno, ferramentas MCP com escopo por agente, worktrees Git isoladas e uma interface web onde voce acompanha o trabalho acontecendo em vez de esconder tudo atras de uma unica caixa de chat.
 
 Um comando sobe o escritorio. CEO, PM, engenharia, design, marketing e receita podem trabalhar em aberto, assumir tarefas, responder em threads e repassar trabalho entre si.
 
@@ -79,7 +79,6 @@ Quando o cloud backup ja estiver configurado e acessivel, esse mesmo comando tam
 - Sessoes novas por turno em vez de um chat compartilhado que so cresce
 - Broker acordando agentes por push em vez de polling ocioso
 - Ferramentas MCP com escopo por agente
-- Roteamento conservador de modelos dentro da familia do provider ativo, com auditoria nos logs de progresso
 - Worktrees Git isoladas para execucao local em paralelo
 - Recibos de tarefa e comandos de recuperacao via historico do broker
 - Integracoes opcionais com Telegram e action providers externos
@@ -151,7 +150,7 @@ O modelo atual e local-first: o contexto duravel vive no estado do escritorio, n
 
 ## Blueprints e Presets de Time
 
-O DunderIA agora organiza o escritorio em torno de blueprints operacionais.
+A MaestrIA agora organiza o escritorio em torno de blueprints operacionais.
 
 - Blueprints operacionais de exemplo ficam em [`templates/operations`](templates/operations)
 - Blueprints de especialistas e colaboradores ficam em [`templates/employees`](templates/employees)
@@ -173,7 +172,7 @@ Execute `/connect` no escritorio, escolha Telegram, informe um bot token do [@Bo
 
 ### Acoes Externas
 
-O DunderIA expoe hoje dois caminhos para action providers:
+A MaestrIA expoe hoje dois caminhos para action providers:
 
 - `one`: acoes locais apoiadas por CLI
 - `composio`: conexoes de conta e OAuth hospedado
@@ -186,19 +185,9 @@ Voce configura isso dentro do escritorio:
 /config set composio_api_key <key>
 ```
 
-### Roteamento de Modelos
-
-O runtime escolhe automaticamente um perfil conservador por turno (`fast`, `balanced`, `deep` ou `premium`) sem trocar a familia do agente. Se o agente roda em Claude Code, usa modelos Claude; se roda em Codex, usa modelos Codex/OpenAI; se roda em Gemini ou Ollama, permanece nessa familia. Overrides explicitos por task ou agente continuam tendo prioridade.
-
-Cada decisao registra auditoria no log headless com provider, perfil, modelo e motivo. Para ambientes que precisam fixar nomes locais de modelo, use variaveis como `WUPHF_MODEL_ROUTE_CODEX_BALANCED`, `WUPHF_MODEL_ROUTE_CLAUDE_CODE_DEEP` e `WUPHF_MODEL_ROUTE_GEMINI_FAST`.
-
-### Desktop Mode
-
-Quando voce estiver na web, use **Estudio > Abrir desktop** para reabrir a mesma sessao no shell Electron local. O broker reaproveita a URL local atual, nao inicia outro escritorio e registra auditoria `external_tool_launched`.
-
 ### Open CoDesign
 
-Open CoDesign pode ser usado como companion opcional de prototipagem visual para o agente `designer` e para fluxos frontend. Ele nao e dependencia do runtime do DunderIA, nao instala nada automaticamente e nao deve receber acesso amplo ao workspace por padrao.
+Open CoDesign pode ser usado como companion opcional de prototipagem visual para o agente `designer` e para fluxos frontend. Ele nao e dependencia do runtime da MaestrIA, nao instala nada automaticamente e nao deve receber acesso amplo ao workspace por padrao.
 
 No Windows PowerShell:
 
@@ -208,8 +197,15 @@ No Windows PowerShell:
 
 O script detecta uma instalacao existente, prepara `temp\open-codesign` como pasta de handoff e abre o app. Se o app nao estiver instalado, ele mostra comandos de instalacao manual e sai sem alterar configuracoes ou credenciais.
 
+Na interface web, abra **Studio > Operador > Open CoDesign** e use **Abrir**. O botao chama o broker local, que faz a mesma verificacao segura e inicia apenas um executavel ja instalado.
+
+### Desktop mode
+
+Quando voce estiver na web, abra **Studio > Operador > Modo desktop** e use **Abrir desktop** para reabrir a mesma sessao no shell Electron local. O broker reaproveita a URL local atual, nao inicia outro escritorio, e registra auditoria `external_tool_launched`.
+
 ## Documentacao
 
+- [docs/MANUAL.md](docs/MANUAL.md) / [PDF](docs/MANUAL.pdf): manual vivo da aplicacao, com funcionamento, exemplos, fluxos, integracoes, operacao e regra de manutencao
 - [PUBLIC_RELEASE.md](PUBLIC_RELEASE.md): checklist para publicar uma versao publica sem vazar estado local ou privado
 - [ARCHITECTURE.md](ARCHITECTURE.md): arquitetura do runtime e mapa de arquivos
 - [RUNTIME_CONTRACT.md](RUNTIME_CONTRACT.md): contrato operacional para wake paths, tarefas, recovery, skills e uso/custo
@@ -226,4 +222,4 @@ O script detecta uma instalacao existente, prepara `temp\open-codesign` como pas
 
 ## Nome
 
-O nome publico do produto e **DunderIA**. O codinome tecnico historico **`wuphf`** ainda aparece no binario, no pacote npm, em caminhos de arquivo e em alguns imports internos por compatibilidade.
+O nome publico do produto e **MaestrIA**. O codinome tecnico historico **`wuphf`** ainda aparece no binario, no pacote npm, em caminhos de arquivo e em alguns imports internos por compatibilidade.

@@ -1,6 +1,6 @@
-# DunderIA Runtime Contract
+# MaestrIA Runtime Contract
 
-This document captures the operating rules the DunderIA broker, runners, tasks, and UI should preserve. It borrows useful control-plane ideas from Paperclip while keeping DunderIA's local-first model: single binary, local broker, fresh per-turn runners, scoped MCP, and isolated worktrees.
+This document captures the operating rules the MaestrIA broker, runners, tasks, and UI should preserve. It borrows useful control-plane ideas from Paperclip while keeping MaestrIA's local-first model: single binary, local broker, fresh per-turn runners, scoped MCP, and isolated worktrees.
 
 ## Source Of Truth
 
@@ -15,7 +15,7 @@ Do not use this document to justify mutating protected office topology. Agent ro
 
 ## Core Runtime Model
 
-DunderIA separates these concepts:
+MaestrIA separates these concepts:
 
 - **Structure:** channels, agents, tasks, threads, and worktrees.
 - **Ownership:** who is responsible for the next move.
@@ -26,7 +26,7 @@ The product should be able to answer: "what moves this forward next?" without re
 
 ## Wake Semantics
 
-DunderIA is push-driven. Idle agents should not poll.
+MaestrIA is push-driven. Idle agents should not poll.
 
 Valid wake paths:
 
@@ -86,7 +86,7 @@ After one failed continuity attempt, prefer `blocked` plus a visible comment/req
 
 ## Run Liveness
 
-A successful runner exit is not automatically useful progress. DunderIA classifies headless turns with these liveness states:
+A successful runner exit is not automatically useful progress. MaestrIA classifies headless turns with these liveness states:
 
 - `completed`: the task reached a durable terminal/review state or recorded external execution.
 - `advanced`: the task mutated, the workspace changed, or the task type allows narrative research/planning progress.
@@ -104,7 +104,7 @@ The latest liveness verdict should be visible in runtime observability surfaces.
 
 Usage is part of the runtime contract, not a nice-to-have.
 
-DunderIA should continue surfacing:
+MaestrIA should continue surfacing:
 
 - per-message or per-run token usage when available;
 - per-agent/session totals;
@@ -137,7 +137,7 @@ Runtime context should be scoped and intentional.
 
 ## Adapter And Integration Boundary
 
-DunderIA supports multiple providers and optional integrations. New provider or integration work should preserve these boundaries:
+MaestrIA supports multiple providers and optional integrations. New provider or integration work should preserve these boundaries:
 
 - core broker behavior remains provider-neutral;
 - provider-specific behavior lives behind provider/adapter modules;

@@ -15,7 +15,7 @@ This profile intentionally does not export everything byte-for-byte. It exports 
 - Private `.megamemory` database paths and disabled private MCP server entries.
 - Personal orientation files such as `MEMORY.md`, `USER.md`, `SOUL.md`, `IDENTITY.md`, `TOOLS.md`, heartbeat state, and workspace-specific standards indexes.
 - Full Claude plugin marketplace mirrors and generated upstream reference trees; keep those as upstream references, not installed starter-kit content.
-- Live DunderIA state: `company.json`, `broker-state.json`, onboarding state, saved workflows, task receipts, and channel history.
+- Live MaestrIA state: `company.json`, `broker-state.json`, onboarding state, saved workflows, task receipts, and channel history.
 - Cloud backup bootstrap files, ADC credentials, API keys, private keys, `.env*`, certificates, and local browser profiles.
 
 ## Exported Instead
@@ -29,8 +29,6 @@ This profile intentionally does not export everything byte-for-byte. It exports 
 - OpenCode GitNexus skills in `opencode/skills/`.
 - Prompt commands in `prompts/`.
 - Local rules in `rules/default.rules`.
-- Validated policies in `policies.validated.md`.
-- Public base topology in the runtime default manifest: `ceo`, `pm`, `research-lead`, `estagiario`, `backend`, `frontend`, `builder`, `reviewer`, and `game-master` in `#general`.
 
 ## Private Skill Note
 

@@ -10,17 +10,20 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 const (
-	telegramAPIBase          = "https://api.telegram.org"
 	telegramPollTimeout      = 30 // seconds for long-poll
 	telegramRequestTimeout   = 10 * time.Second
 	telegramMaxResponseBytes = 2 << 20
 )
 
-var telegramHTTPClient = &http.Client{Timeout: telegramRequestTimeout}
+var (
+	telegramAPIBase    = "https://api.telegram.org"
+	telegramHTTPClient = &http.Client{Timeout: telegramRequestTimeout}
+)
 
 // telegramUpdate represents a single update from the Telegram Bot API.
 type telegramUpdate struct {
@@ -55,6 +58,10 @@ type telegramAPIResponse struct {
 	Desc   string          `json:"description,omitempty"`
 }
 
+type telegramMessageResult struct {
+	MessageID int64 `json:"message_id"`
+}
+
 // TelegramTransport bridges Telegram chats with the office broker.
 // Each mapped Telegram chat corresponds to an office channel with a
 // "telegram" surface. Inbound Telegram messages are posted to the broker;
@@ -71,6 +78,7 @@ type TelegramTransport struct {
 	// If empty, display names are used verbatim as the "from" field.
 	UserMap map[string]string
 	client  *http.Client
+	mu      sync.Mutex
 }
 
 func telegramDebugEnabled() bool {
@@ -137,26 +145,47 @@ func telegramInboundSummary(msg *telegramMsg) string {
 // It reads TELEGRAM_BOT_TOKEN from the environment by default, but individual
 // channels can override via their Surface.BotTokenEnv field.
 func NewTelegramTransport(broker *Broker, botToken string) *TelegramTransport {
+	t := &TelegramTransport{
+		BotToken: botToken,
+		Broker:   broker,
+		ChatMap:  make(map[string]string),
+		UserMap:  make(map[string]string),
+		client:   &http.Client{Timeout: time.Duration(telegramPollTimeout+10) * time.Second},
+	}
+	t.refreshMappings()
+	return t
+}
+
+func (t *TelegramTransport) refreshMappings() {
+	if t == nil || t.Broker == nil {
+		return
+	}
 	chatMap := make(map[string]string)
 	dmChannel := ""
-	for _, ch := range broker.SurfaceChannels("telegram") {
+	for _, ch := range t.Broker.SurfaceChannels("telegram") {
 		if ch.Surface == nil {
 			continue
 		}
 		if ch.Surface.Mode == "private" || ch.Surface.RemoteID == "0" {
 			dmChannel = ch.Slug
+			if ch.Surface.RemoteID != "" && ch.Surface.RemoteID != "0" {
+				chatMap[ch.Surface.RemoteID] = ch.Slug
+			}
 		} else if ch.Surface.RemoteID != "" {
 			chatMap[ch.Surface.RemoteID] = ch.Slug
 		}
 	}
-	return &TelegramTransport{
-		BotToken:  botToken,
-		Broker:    broker,
-		ChatMap:   chatMap,
-		DMChannel: dmChannel,
-		UserMap:   make(map[string]string),
-		client:    &http.Client{Timeout: time.Duration(telegramPollTimeout+10) * time.Second},
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if dmChannel != "" {
+		for chatID, slug := range t.ChatMap {
+			if _, ok := chatMap[chatID]; !ok && slug == t.DMChannel {
+				chatMap[chatID] = dmChannel
+			}
+		}
 	}
+	t.ChatMap = chatMap
+	t.DMChannel = dmChannel
 }
 
 // Start begins the bidirectional bridge: polling Telegram for inbound messages
@@ -204,6 +233,7 @@ func (t *TelegramTransport) pollInbound(ctx context.Context) error {
 			}
 		}
 
+		t.refreshMappings()
 		for _, upd := range updates {
 			if upd.UpdateID >= offset {
 				offset = upd.UpdateID + 1
@@ -237,9 +267,16 @@ func (t *TelegramTransport) drainOutbound(ctx context.Context) error {
 		case <-time.After(2 * time.Second):
 		}
 
+		t.deleteResolvedHumanAttentionAlerts()
+		if _, err := t.Broker.EmitTelegramHumanAttentionAlerts(); err != nil {
+			fmt.Printf("[telegram] human attention alert error: %v\n", err)
+		}
+		t.refreshMappings()
+
 		// Rebuild reverse map each cycle (picks up dynamically added DM chats)
-		slugToChat := make(map[string]string, len(t.ChatMap))
-		for chatID, slug := range t.ChatMap {
+		chatMap, _ := t.mappingSnapshot()
+		slugToChat := make(map[string]string, len(chatMap))
+		for chatID, slug := range chatMap {
 			if chatID == "0" {
 				continue // skip the placeholder DM entry
 			}
@@ -291,7 +328,8 @@ func (t *TelegramTransport) typingLoop(ctx context.Context) {
 		}
 
 		// Send typing to all mapped Telegram chats
-		for chatIDStr := range t.ChatMap {
+		chatMap, _ := t.mappingSnapshot()
+		for chatIDStr := range chatMap {
 			chatID, err := strconv.ParseInt(chatIDStr, 10, 64)
 			if err != nil {
 				continue
@@ -304,6 +342,7 @@ func (t *TelegramTransport) typingLoop(ctx context.Context) {
 // HandleInbound processes an incoming Telegram message and posts it to the broker.
 func (t *TelegramTransport) HandleInbound(chatID int64, chatType string, from *telegramUser, text string) error {
 	chatIDStr := strconv.FormatInt(chatID, 10)
+	t.mu.Lock()
 	channel, ok := t.ChatMap[chatIDStr]
 	if !ok {
 		// Check if this is a private/DM message
@@ -312,19 +351,38 @@ func (t *TelegramTransport) HandleInbound(chatID int64, chatType string, from *t
 			// Store the chat ID so we can reply to this user
 			t.ChatMap[chatIDStr] = t.DMChannel
 		} else {
+			t.mu.Unlock()
 			return fmt.Errorf("unmapped telegram chat: %s", chatIDStr)
 		}
 	}
+	t.mu.Unlock()
 
 	fromName := t.resolveUser(from)
 	_, err := t.Broker.PostInboundSurfaceMessage(fromName, channel, text, "telegram")
 	return err
 }
 
+func (t *TelegramTransport) mappingSnapshot() (map[string]string, string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	chatMap := make(map[string]string, len(t.ChatMap))
+	for chatID, slug := range t.ChatMap {
+		chatMap[chatID] = slug
+	}
+	return chatMap, t.DMChannel
+}
+
 // SendToTelegram sends a broker message to the specified Telegram chat with HTML formatting.
 func (t *TelegramTransport) SendToTelegram(chatID string, msg channelMessage) error {
 	text := formatTelegramOutbound(msg)
-	return t.sendMessageHTML(chatID, text)
+	messageID, err := t.sendMessageHTML(chatID, text)
+	if err != nil {
+		return err
+	}
+	if msg.Source == "telegram_alert" && strings.TrimSpace(msg.EventID) != "" {
+		_ = t.Broker.RecordTelegramAlertDelivery(msg.EventID, chatID, messageID)
+	}
+	return nil
 }
 
 // resolveUser maps a Telegram user to an office member slug.
@@ -464,17 +522,17 @@ func (t *TelegramTransport) getUpdates(ctx context.Context, offset int64) ([]tel
 }
 
 // sendMessage calls the Telegram sendMessage endpoint (plain text).
-func (t *TelegramTransport) sendMessage(chatID, text string) error {
+func (t *TelegramTransport) sendMessage(chatID, text string) (int64, error) {
 	return t.sendMessageWithMode(chatID, text, "")
 }
 
 // sendMessageHTML calls the Telegram sendMessage endpoint with HTML parse mode.
-func (t *TelegramTransport) sendMessageHTML(chatID, text string) error {
+func (t *TelegramTransport) sendMessageHTML(chatID, text string) (int64, error) {
 	return t.sendMessageWithMode(chatID, text, "HTML")
 }
 
 // sendMessageWithMode calls the Telegram sendMessage endpoint with an optional parse_mode.
-func (t *TelegramTransport) sendMessageWithMode(chatID, text, parseMode string) error {
+func (t *TelegramTransport) sendMessageWithMode(chatID, text, parseMode string) (int64, error) {
 	url := fmt.Sprintf("%s/bot%s/sendMessage", telegramAPIBase, t.BotToken)
 
 	payload := map[string]string{
@@ -487,26 +545,74 @@ func (t *TelegramTransport) sendMessageWithMode(chatID, text, parseMode string) 
 
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	resp, err := t.client.Post(url, "application/json", bytes.NewReader(data))
 	if err != nil {
-		return fmt.Errorf("telegram send: %w", err)
+		return 0, fmt.Errorf("telegram send: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := readTelegramResponse(resp)
 	if err != nil {
-		return fmt.Errorf("telegram send read response: %w", err)
+		return 0, fmt.Errorf("telegram send read response: %w", err)
 	}
 
 	var apiResp telegramAPIResponse
 	if err := json.Unmarshal(body, &apiResp); err != nil {
-		return fmt.Errorf("telegram send decode: %w", err)
+		return 0, fmt.Errorf("telegram send decode: %w", err)
 	}
 	if !apiResp.OK {
-		return fmt.Errorf("telegram send error: %s", apiResp.Desc)
+		return 0, fmt.Errorf("telegram send error: %s", apiResp.Desc)
+	}
+	var result telegramMessageResult
+	if len(apiResp.Result) > 0 {
+		if err := json.Unmarshal(apiResp.Result, &result); err != nil {
+			return 0, fmt.Errorf("telegram send result decode: %w", err)
+		}
+	}
+	return result.MessageID, nil
+}
+
+func (t *TelegramTransport) deleteResolvedHumanAttentionAlerts() {
+	if t == nil || t.Broker == nil {
+		return
+	}
+	for _, delivery := range t.Broker.PendingTelegramAlertDeletions() {
+		if err := t.deleteMessage(delivery.ChatID, delivery.MessageID); err != nil {
+			fmt.Printf("[telegram] alert delete error: chat=%s message=%d err=%v\n", delivery.ChatID, delivery.MessageID, err)
+			continue
+		}
+		_ = t.Broker.MarkTelegramAlertDeleted(delivery.EventID)
+	}
+}
+
+func (t *TelegramTransport) deleteMessage(chatID string, messageID int64) error {
+	url := fmt.Sprintf("%s/bot%s/deleteMessage", telegramAPIBase, t.BotToken)
+	payload := map[string]any{
+		"chat_id":    chatID,
+		"message_id": messageID,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	resp, err := t.client.Post(url, "application/json", bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("telegram delete: %w", err)
+	}
+	defer resp.Body.Close()
+	body, err := readTelegramResponse(resp)
+	if err != nil {
+		return fmt.Errorf("telegram delete read response: %w", err)
+	}
+	var apiResp telegramAPIResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return fmt.Errorf("telegram delete decode: %w", err)
+	}
+	if !apiResp.OK {
+		return fmt.Errorf("telegram delete error: %s", apiResp.Desc)
 	}
 	return nil
 }

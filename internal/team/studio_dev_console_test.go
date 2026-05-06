@@ -289,6 +289,120 @@ func TestBuildStudioDevConsoleSnapshotAggregatesChannelAttention(t *testing.T) {
 	}
 }
 
+func TestStudioChannelSnapshotsIgnoreWrongChannelTaskReports(t *testing.T) {
+	now := time.Now().UTC()
+	state := studioDevConsoleState{
+		Channels: []teamChannel{
+			{Slug: "general", Name: "General", Members: []string{"ceo", "builder"}},
+			{Slug: "migracao-convenios", Name: "Migracao Convenios", Members: []string{"ceo", "builder"}},
+		},
+		Tasks: []teamTask{
+			{
+				ID:        "task-7809",
+				Channel:   "migracao-convenios",
+				Title:     "Align Convenios client",
+				Owner:     "builder",
+				Status:    "review",
+				CreatedAt: now.Add(-10 * time.Minute).Format(time.RFC3339),
+				UpdatedAt: now.Add(-2 * time.Minute).Format(time.RFC3339),
+			},
+		},
+		Messages: []channelMessage{
+			{
+				ID:        "msg-general",
+				From:      "builder",
+				Channel:   "general",
+				Content:   "General coordination update stays visible here.",
+				Timestamp: now.Add(-5 * time.Minute).Format(time.RFC3339),
+			},
+			{
+				ID:        "msg-wrong-channel",
+				From:      "builder",
+				Channel:   "general",
+				Title:     "Task 7809 review-ready",
+				Content:   "#task-7809 ficou em review-ready no branch agent/task-7809-convenios-client.",
+				Timestamp: now.Add(-1 * time.Minute).Format(time.RFC3339),
+			},
+		},
+	}
+
+	tasks := studioTaskSnapshotsFromTasks(state.Tasks)
+	channels := studioChannelSnapshotsFromState(state, tasks, nil, nil)
+	general := findStudioChannelBySlug(channels, "general")
+	if general == nil {
+		t.Fatalf("expected general channel snapshot, got %+v", channels)
+	}
+	if strings.Contains(general.LastSubstantivePreview, "task-7809") {
+		t.Fatalf("expected wrong-channel task report to be skipped, got %+v", general)
+	}
+	if !strings.Contains(general.LastSubstantivePreview, "General coordination update") {
+		t.Fatalf("expected fallback general update, got %+v", general)
+	}
+}
+
+func TestStudioChannelSnapshotSkipsGeneralMessageForWorkspaceRoutedTask(t *testing.T) {
+	now := time.Now().UTC()
+	repoPath := filepath.Join(t.TempDir(), "ConveniosWebBNBExterno")
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
+		t.Fatalf("create repo path: %v", err)
+	}
+	state := studioDevConsoleState{
+		Channels: []teamChannel{
+			{Slug: "general", Name: "General", Members: []string{"backend"}},
+			{
+				Slug:    "migracao-convenios",
+				Name:    "Migracao Convenios",
+				Members: []string{"backend"},
+				LinkedRepos: []linkedRepoRef{{
+					RepoPath: repoPath,
+					Primary:  true,
+				}},
+			},
+		},
+		Tasks: []teamTask{
+			{
+				ID:            "task-7971",
+				Channel:       "general",
+				Title:         "Corrigir HTTP 500 no login do smoke auth-convenente",
+				Owner:         "backend",
+				Status:        "in_progress",
+				WorkspacePath: repoPath,
+				CreatedAt:     now.Add(-10 * time.Minute).Format(time.RFC3339),
+				UpdatedAt:     now.Add(-2 * time.Minute).Format(time.RFC3339),
+			},
+		},
+		Messages: []channelMessage{
+			{
+				ID:        "msg-general",
+				From:      "builder",
+				Channel:   "general",
+				Content:   "General coordination update stays visible here.",
+				Timestamp: now.Add(-5 * time.Minute).Format(time.RFC3339),
+			},
+			{
+				ID:        "msg-wrong-workspace-channel",
+				From:      "backend",
+				Channel:   "general",
+				Content:   "#task-7971 smoke auth-convenente esta em andamento.",
+				Timestamp: now.Add(-1 * time.Minute).Format(time.RFC3339),
+			},
+		},
+	}
+
+	tasks := studioTaskSnapshotsFromTasks(state.Tasks)
+	channels := studioChannelSnapshotsFromState(state, tasks, nil, nil)
+	general := findStudioChannelBySlug(channels, "general")
+	if general == nil {
+		t.Fatalf("expected general channel snapshot, got %+v", channels)
+	}
+	if strings.Contains(general.LastSubstantivePreview, "task-7971") {
+		t.Fatalf("expected workspace-routed task report to be skipped, got %+v", general)
+	}
+	if !strings.Contains(general.LastSubstantivePreview, "General coordination update") {
+		t.Fatalf("expected fallback general update, got %+v", general)
+	}
+}
+
 func TestStudioChannelSnapshotsSortByAttentionBeforeTaskLoad(t *testing.T) {
 	now := time.Now().UTC()
 	state := studioDevConsoleState{

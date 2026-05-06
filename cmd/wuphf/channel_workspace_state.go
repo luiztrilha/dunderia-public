@@ -125,7 +125,7 @@ func deriveWorkspaceReadiness(state workspaceUIState, doctor *channelDoctorRepor
 			Level:    workspaceReadinessPreview,
 			Headline: "Offline preview",
 			Detail:   "The workspace is showing manifest-backed context, not the live office runtime.",
-			NextStep: "Launch DunderIA to attach the live office, or run /doctor to inspect runtime readiness.",
+			NextStep: "Launch MaestrIA to attach the live office, or run /doctor to inspect runtime readiness.",
 		}
 	}
 	if state.Memory.SelectedKind == config.MemoryBackendNone {
@@ -374,8 +374,8 @@ func (m channelModel) buildOfficeIntroLines(contentWidth int) []renderedLine {
 		{Text: renderDateSeparator(contentWidth, "Office overview")},
 		{Text: ""},
 	}
-	title := subtlePill("office", "#F8FAFC", "#1264A3") + " " + lipgloss.NewStyle().Bold(true).Render("The DunderIA Office")
-	body := "Welcome to the DunderIA office. Live company-building coordination across channels, direct sessions, tasks, and decisions."
+	title := subtlePill("office", "#F8FAFC", "#1264A3") + " " + lipgloss.NewStyle().Bold(true).Render("The MaestrIA Office")
+	body := "Welcome to the MaestrIA office. Live company-building coordination across channels, direct sessions, tasks, and decisions."
 	extra := []string{
 		fmt.Sprintf("%d teammates · %d running tasks · %d open requests", state.PeerCount, state.RunningTasks, state.OpenRequests),
 	}

@@ -1,6 +1,6 @@
 # Public Release Guide
 
-Use this checklist before publishing a public DunderIA build or fork.
+Use this checklist before publishing a public MaestrIA build or fork.
 
 The goal is to ship the validated operating profile, not a copy of a private office. Keep the public release focused on reusable docs, templates, real skills, prompts, rules, and sanitized configuration.
 
@@ -44,7 +44,7 @@ templates/starter-kit/
 
 Recommended public onboarding flow:
 
-1. User installs DunderIA.
+1. User installs MaestrIA.
 2. User runs `wuphf init`.
 3. User reviews `templates/starter-kit/EXCLUSIONS.md`.
 4. User installs the validated profile with `templates/starter-kit/install-profile.ps1`.
@@ -81,4 +81,4 @@ If the web dependencies are not installed, document that the web test command wa
 
 ## Migration Notes
 
-DunderIA still uses the historical `wuphf` binary/package name in several places. That is expected for compatibility. Public docs should call the product DunderIA and treat `wuphf` as the CLI name unless the fork intentionally renames the technical surface.
+MaestrIA still uses the historical `wuphf` binary/package name in several places. That is expected for compatibility. Public docs should call the product MaestrIA and treat `wuphf` as the CLI name unless the fork intentionally renames the technical surface.

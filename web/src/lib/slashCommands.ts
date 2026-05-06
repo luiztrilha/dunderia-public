@@ -17,6 +17,7 @@ export interface SlashCommandDeps {
   onReset?: () => void
   resetRequiresConfirm?: boolean
   helpMode?: 'composer' | 'palette'
+  helpCommands?: string[]
 }
 
 export function dispatchSlashCommand(input: string, deps: SlashCommandDeps): boolean {
@@ -31,14 +32,16 @@ export function dispatchSlashCommand(input: string, deps: SlashCommandDeps): boo
         .then(() => {
           deps.clearActiveThread?.()
           deps.onChannelCleared?.()
-          dispatchChannelMessagesRefresh(deps.currentChannel)
+          dispatchChannelMessagesRefresh(deps.currentChannel, { forceFull: true })
           showNotice(t('messages.commands.cleared'), 'info')
         })
         .catch((e: Error) => showNotice(t('messages.commands.resetFailed', { error: e.message }), 'error'))
       return true
     case '/help':
       showNotice(
-        deps.helpMode === 'palette' ? t('search.palette.help') : t('messages.commands.helpList'),
+        deps.helpCommands?.length
+          ? t(deps.helpMode === 'palette' ? 'search.palette.helpDynamic' : 'messages.commands.helpListDynamic', { commands: deps.helpCommands.join(' ') })
+          : deps.helpMode === 'palette' ? t('search.palette.help') : t('messages.commands.helpList'),
         'info',
       )
       return true

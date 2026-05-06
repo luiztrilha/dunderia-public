@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/nex-crm/wuphf/internal/agent"
@@ -117,6 +118,93 @@ func TestHandleTeamSkillRunBumpsUsageAndLogsInvocation(t *testing.T) {
 	}
 	if got := result2.Skills[0].UsageCount; got != 2 {
 		t.Fatalf("expected usage_count=2 after two invocations, got %d", got)
+	}
+}
+
+func TestHandleTeamSkillListAndViewAreReadOnly(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	b := team.NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+
+	b.SeedDefaultSkills([]agent.PackSkillSpec{
+		{
+			Name:        "investigate",
+			Title:       "Investigate a Bug",
+			Description: "Systematic debugging with root cause analysis.",
+			Trigger:     "When a bug or error is reported",
+			Tags:        []string{"engineering", "debugging"},
+			Content:     "Step 1: Reproduce. Step 2: Isolate. Step 3: Root cause. Step 4: Fix.",
+		},
+		{
+			Name:        "daily-digest",
+			Title:       "Daily Digest",
+			Description: "Summarize the day.",
+			Trigger:     "When the human asks for a daily summary",
+			Tags:        []string{"ops"},
+			Content:     "Collect, summarize, publish.",
+		},
+	})
+
+	listResult, _, err := handleTeamSkillList(context.Background(), nil, TeamSkillListArgs{
+		Query:   "debugging",
+		MySlug:  "eng",
+		Channel: "general",
+	})
+	if err != nil {
+		t.Fatalf("skill list: %v", err)
+	}
+	listText := textFromResult(t, listResult)
+	if !strings.Contains(listText, "investigate") || strings.Contains(listText, "daily-digest") {
+		t.Fatalf("expected compact filtered skill list, got %s", listText)
+	}
+	if strings.Contains(listText, "Step 1: Reproduce") {
+		t.Fatalf("team_skill_list should not include full skill content: %s", listText)
+	}
+
+	viewResult, _, err := handleTeamSkillView(context.Background(), nil, TeamSkillViewArgs{
+		SkillName: "investigate",
+		MySlug:    "eng",
+		Channel:   "general",
+	})
+	if err != nil {
+		t.Fatalf("skill view: %v", err)
+	}
+	viewText := textFromResult(t, viewResult)
+	if !strings.Contains(viewText, "Step 1: Reproduce") || !strings.Contains(viewText, "read-only inspection") {
+		t.Fatalf("expected full read-only skill content and guidance, got %s", viewText)
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, "http://"+b.Addr()+"/skills?channel=general", nil)
+	req.Header.Set("Authorization", "Bearer "+b.Token())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("get skills: %v", err)
+	}
+	defer resp.Body.Close()
+	var skills struct {
+		Skills []struct {
+			Name       string `json:"name"`
+			UsageCount int    `json:"usage_count"`
+		} `json:"skills"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&skills); err != nil {
+		t.Fatalf("decode skills: %v", err)
+	}
+	for _, skill := range skills.Skills {
+		if skill.UsageCount != 0 {
+			t.Fatalf("list/view should not bump usage count, got %+v", skills.Skills)
+		}
+	}
+	for _, msg := range b.Messages() {
+		if msg.Kind == "skill_invocation" {
+			t.Fatalf("list/view should not append skill_invocation messages, got %+v", b.Messages())
+		}
 	}
 }
 

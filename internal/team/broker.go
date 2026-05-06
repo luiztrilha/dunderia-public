@@ -55,6 +55,7 @@ var studioPackageGenerator = provider.RunCodexOneShot
 
 var externalRetryAfterPattern = regexp.MustCompile(`(?i)retry after ([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.+-]+Z?)`)
 var brokerTextMentionPattern = regexp.MustCompile(`(^|[^A-Za-z0-9._-])@([a-z0-9][a-z0-9-]*)`)
+var brokerTaskReferencePattern = regexp.MustCompile(`(?i)\btask-[0-9]+\b`)
 var runBrokerCloudBackupAsync = func(fn func()) { go fn() }
 var sleepBrokerCloudBackup = time.Sleep
 
@@ -287,7 +288,7 @@ func schedulerJobSemanticKey(job schedulerJob) string {
 		firstNonEmpty(job.Channel, "_"),
 		firstNonEmpty(job.Provider, "_"),
 		firstNonEmpty(job.WorkflowKey, "_"),
-		firstNonEmpty(job.SkillName, "_"),
+		firstNonEmpty(strings.Join(schedulerJobSkillNames(job), ","), "_"),
 	}, "|")
 }
 
@@ -422,69 +423,102 @@ type humanInterview struct {
 	RecommendationTaskID      string            `json:"recommendation_task_id,omitempty"`
 	RecommendationRequestedAt string            `json:"recommendation_requested_at,omitempty"`
 	Answered                  *interviewAnswer  `json:"answered,omitempty"`
+	ReadAt                    string            `json:"read_at,omitempty"`
+	ArchivedAt                string            `json:"archived_at,omitempty"`
 }
 
 type teamTask struct {
-	ID                     string                       `json:"id"`
-	Channel                string                       `json:"channel,omitempty"`
-	ExecutionKey           string                       `json:"execution_key,omitempty"`
-	Title                  string                       `json:"title"`
-	Details                string                       `json:"details,omitempty"`
-	Owner                  string                       `json:"owner,omitempty"`
-	Status                 string                       `json:"status"`
-	CreatedBy              string                       `json:"created_by"`
-	ThreadID               string                       `json:"thread_id,omitempty"`
-	TaskType               string                       `json:"task_type,omitempty"`
-	PipelineID             string                       `json:"pipeline_id,omitempty"`
-	PipelineStage          string                       `json:"pipeline_stage,omitempty"`
-	ExecutionMode          string                       `json:"execution_mode,omitempty"`
-	RuntimeProvider        string                       `json:"runtime_provider,omitempty"`
-	RuntimeModel           string                       `json:"runtime_model,omitempty"`
-	ReasoningEffort        string                       `json:"reasoning_effort,omitempty"`
-	ReviewState            string                       `json:"review_state,omitempty"`
-	SourceSignalID         string                       `json:"source_signal_id,omitempty"`
-	SourceDecisionID       string                       `json:"source_decision_id,omitempty"`
-	WorkspacePath          string                       `json:"workspace_path,omitempty"`
-	WorktreePath           string                       `json:"worktree_path,omitempty"`
-	WorktreeBranch         string                       `json:"worktree_branch,omitempty"`
-	DependsOn              []string                     `json:"depends_on,omitempty"`
-	Blocked                bool                         `json:"blocked,omitempty"`
-	AckedAt                string                       `json:"acked_at,omitempty"`
-	DueAt                  string                       `json:"due_at,omitempty"`
-	FollowUpAt             string                       `json:"follow_up_at,omitempty"`
-	ReminderAt             string                       `json:"reminder_at,omitempty"`
-	RecheckAt              string                       `json:"recheck_at,omitempty"`
-	CreatedAt              string                       `json:"created_at"`
-	UpdatedAt              string                       `json:"updated_at"`
-	HandoffStatus          string                       `json:"handoff_status,omitempty"`
-	HandoffAcceptedAt      string                       `json:"handoff_accepted_at,omitempty"`
-	BlockerRequestIDs      []string                     `json:"blocker_request_ids,omitempty"`
-	ReviewFindings         []taskReviewFinding          `json:"review_findings,omitempty"`
-	ReviewFindingHistory   []taskReviewFindingBatch     `json:"review_finding_history,omitempty"`
-	LastHandoff            *taskHandoffRecord           `json:"last_handoff,omitempty"`
-	Reconciliation         *taskReconciliationState     `json:"reconciliation,omitempty"`
-	PublicationPolicy      *taskGitHubPublicationPolicy `json:"publication_policy,omitempty"`
-	DerivedFrom            *taskDerivedDemandRef        `json:"derived_from,omitempty"`
-	RepoContext            *taskGitHubRepoContext       `json:"repo_context,omitempty"`
-	IssuePublication       *taskGitHubPublication       `json:"issue_publication,omitempty"`
-	PRPublication          *taskGitHubPublication       `json:"pr_publication,omitempty"`
-	AwaitingHuman          bool                         `json:"awaiting_human,omitempty"`
-	AwaitingHumanSince     string                       `json:"awaiting_human_since,omitempty"`
-	AwaitingHumanReason    string                       `json:"awaiting_human_reason,omitempty"`
-	AwaitingHumanRequestID string                       `json:"awaiting_human_request_id,omitempty"`
-	AwaitingHumanSource    string                       `json:"awaiting_human_source,omitempty"`
-	RecommendedResponder   string                       `json:"recommended_responder,omitempty"`
-	RecommendationStatus   string                       `json:"recommendation_status,omitempty"`
-	RecommendationSummary  string                       `json:"recommendation_summary,omitempty"`
-	RecommendationTaskID   string                       `json:"recommendation_task_id,omitempty"`
-	SourceMessageID        string                       `json:"source_message_id,omitempty"`
-	SourceRequestID        string                       `json:"source_request_id,omitempty"`
-	SourceTaskID           string                       `json:"source_task_id,omitempty"`
-	DeliveryID             string                       `json:"delivery_id,omitempty"`
-	ProgressPercent        int                          `json:"progress_percent,omitempty"`
-	ProgressBasis          string                       `json:"progress_basis,omitempty"`
-	HumanOptions           []interviewOption            `json:"human_options,omitempty"`
-	HumanRecommendedID     string                       `json:"human_recommended_id,omitempty"`
+	ID                          string                       `json:"id"`
+	Channel                     string                       `json:"channel,omitempty"`
+	ExecutionKey                string                       `json:"execution_key,omitempty"`
+	Title                       string                       `json:"title"`
+	Details                     string                       `json:"details,omitempty"`
+	Owner                       string                       `json:"owner,omitempty"`
+	Status                      string                       `json:"status"`
+	CreatedBy                   string                       `json:"created_by"`
+	ThreadID                    string                       `json:"thread_id,omitempty"`
+	TaskType                    string                       `json:"task_type,omitempty"`
+	PipelineID                  string                       `json:"pipeline_id,omitempty"`
+	PipelineStage               string                       `json:"pipeline_stage,omitempty"`
+	ExecutionMode               string                       `json:"execution_mode,omitempty"`
+	RuntimeProvider             string                       `json:"runtime_provider,omitempty"`
+	RuntimeModel                string                       `json:"runtime_model,omitempty"`
+	ReasoningEffort             string                       `json:"reasoning_effort,omitempty"`
+	ReviewState                 string                       `json:"review_state,omitempty"`
+	Outcome                     string                       `json:"outcome,omitempty"`
+	OutcomeStatus               string                       `json:"outcome_status,omitempty"`
+	OutcomeEvidence             string                       `json:"outcome_evidence,omitempty"`
+	OutcomeVerifiedAt           string                       `json:"outcome_verified_at,omitempty"`
+	CompletionEvidenceRequired  bool                         `json:"completion_evidence_required,omitempty"`
+	CompletionEvidenceSatisfied bool                         `json:"completion_evidence_satisfied"`
+	CompletionBlocker           string                       `json:"completion_blocker,omitempty"`
+	GoalPath                    []string                     `json:"goal_path,omitempty"`
+	GoalSummary                 string                       `json:"goal_summary,omitempty"`
+	QueueKey                    string                       `json:"queue_key,omitempty"`
+	QueueLabel                  string                       `json:"queue_label,omitempty"`
+	QueueReason                 string                       `json:"queue_reason,omitempty"`
+	QueuePriority               string                       `json:"queue_priority,omitempty"`
+	QueueSLAAt                  string                       `json:"queue_sla_at,omitempty"`
+	Artifacts                   []taskArtifact               `json:"artifacts,omitempty"`
+	PlanRevisions               []taskPlanRevision           `json:"plan_revisions,omitempty"`
+	PlanRequired                bool                         `json:"plan_required,omitempty"`
+	PlanStatus                  string                       `json:"plan_status,omitempty"`
+	PlanBlocker                 string                       `json:"plan_blocker,omitempty"`
+	LatestPlanSummary           string                       `json:"latest_plan_summary,omitempty"`
+	LearningCandidate           *taskLearningCandidate       `json:"learning_candidate,omitempty"`
+	ExecutionLock               *taskExecutionLock           `json:"execution_lock,omitempty"`
+	Limits                      taskExecutionLimits          `json:"limits,omitempty"`
+	Feedback                    []taskFeedback               `json:"feedback,omitempty"`
+	Evals                       []taskEvalSignal             `json:"evals,omitempty"`
+	ReadAt                      string                       `json:"read_at,omitempty"`
+	ArchivedAt                  string                       `json:"archived_at,omitempty"`
+	SourceSignalID              string                       `json:"source_signal_id,omitempty"`
+	SourceDecisionID            string                       `json:"source_decision_id,omitempty"`
+	WorkspacePath               string                       `json:"workspace_path,omitempty"`
+	WorktreePath                string                       `json:"worktree_path,omitempty"`
+	WorktreeBranch              string                       `json:"worktree_branch,omitempty"`
+	DependsOn                   []string                     `json:"depends_on,omitempty"`
+	Blocked                     bool                         `json:"blocked,omitempty"`
+	AckedAt                     string                       `json:"acked_at,omitempty"`
+	DueAt                       string                       `json:"due_at,omitempty"`
+	FollowUpAt                  string                       `json:"follow_up_at,omitempty"`
+	ReminderAt                  string                       `json:"reminder_at,omitempty"`
+	RecheckAt                   string                       `json:"recheck_at,omitempty"`
+	CreatedAt                   string                       `json:"created_at"`
+	UpdatedAt                   string                       `json:"updated_at"`
+	HandoffStatus               string                       `json:"handoff_status,omitempty"`
+	HandoffAcceptedAt           string                       `json:"handoff_accepted_at,omitempty"`
+	BlockerRequestIDs           []string                     `json:"blocker_request_ids,omitempty"`
+	ReviewFindings              []taskReviewFinding          `json:"review_findings,omitempty"`
+	ReviewFindingHistory        []taskReviewFindingBatch     `json:"review_finding_history,omitempty"`
+	LastHandoff                 *taskHandoffRecord           `json:"last_handoff,omitempty"`
+	Reconciliation              *taskReconciliationState     `json:"reconciliation,omitempty"`
+	PublicationPolicy           *taskGitHubPublicationPolicy `json:"publication_policy,omitempty"`
+	DerivedFrom                 *taskDerivedDemandRef        `json:"derived_from,omitempty"`
+	RepoContext                 *taskGitHubRepoContext       `json:"repo_context,omitempty"`
+	IssuePublication            *taskGitHubPublication       `json:"issue_publication,omitempty"`
+	PRPublication               *taskGitHubPublication       `json:"pr_publication,omitempty"`
+	AwaitingHuman               bool                         `json:"awaiting_human,omitempty"`
+	AwaitingHumanSince          string                       `json:"awaiting_human_since,omitempty"`
+	AwaitingHumanReason         string                       `json:"awaiting_human_reason,omitempty"`
+	AwaitingHumanRequestID      string                       `json:"awaiting_human_request_id,omitempty"`
+	AwaitingHumanSource         string                       `json:"awaiting_human_source,omitempty"`
+	RecommendedResponder        string                       `json:"recommended_responder,omitempty"`
+	RecommendationStatus        string                       `json:"recommendation_status,omitempty"`
+	RecommendationSummary       string                       `json:"recommendation_summary,omitempty"`
+	RecommendationTaskID        string                       `json:"recommendation_task_id,omitempty"`
+	SourceMessageID             string                       `json:"source_message_id,omitempty"`
+	SourceRequestID             string                       `json:"source_request_id,omitempty"`
+	SourceTaskID                string                       `json:"source_task_id,omitempty"`
+	DeliveryID                  string                       `json:"delivery_id,omitempty"`
+	ProgressPercent             int                          `json:"progress_percent,omitempty"`
+	ProgressBasis               string                       `json:"progress_basis,omitempty"`
+	HumanOptions                []interviewOption            `json:"human_options,omitempty"`
+	HumanRecommendedID          string                       `json:"human_recommended_id,omitempty"`
+	LivenessState               string                       `json:"liveness_state,omitempty"`
+	LivenessReason              string                       `json:"liveness_reason,omitempty"`
+	LivenessAt                  string                       `json:"liveness_at,omitempty"`
+	LivenessHistory             []livenessEvent              `json:"liveness_history,omitempty"`
 }
 
 type channelSurface struct {
@@ -1005,16 +1039,20 @@ type officeMember struct {
 }
 
 type officeActionLog struct {
-	ID         string   `json:"id"`
-	Kind       string   `json:"kind"`
-	Source     string   `json:"source,omitempty"`
-	Channel    string   `json:"channel,omitempty"`
-	Actor      string   `json:"actor,omitempty"`
-	Summary    string   `json:"summary"`
-	RelatedID  string   `json:"related_id,omitempty"`
-	SignalIDs  []string `json:"signal_ids,omitempty"`
-	DecisionID string   `json:"decision_id,omitempty"`
-	CreatedAt  string   `json:"created_at"`
+	ID                 string   `json:"id"`
+	Kind               string   `json:"kind"`
+	Source             string   `json:"source,omitempty"`
+	Channel            string   `json:"channel,omitempty"`
+	Actor              string   `json:"actor,omitempty"`
+	Summary            string   `json:"summary"`
+	RelatedID          string   `json:"related_id,omitempty"`
+	SignalIDs          []string `json:"signal_ids,omitempty"`
+	DecisionID         string   `json:"decision_id,omitempty"`
+	RequiresApproval   bool     `json:"requires_approval,omitempty"`
+	ApprovalReason     string   `json:"approval_reason,omitempty"`
+	ApprovalRequestID  string   `json:"approval_request_id,omitempty"`
+	GovernanceSeverity string   `json:"governance_severity,omitempty"`
+	CreatedAt          string   `json:"created_at"`
 }
 
 type agentActivitySnapshot struct {
@@ -1078,22 +1116,32 @@ type watchdogAlert struct {
 }
 
 type schedulerJob struct {
-	Slug            string `json:"slug"`
-	Kind            string `json:"kind,omitempty"`
-	Label           string `json:"label"`
-	TargetType      string `json:"target_type,omitempty"`
-	TargetID        string `json:"target_id,omitempty"`
-	Channel         string `json:"channel,omitempty"`
-	Provider        string `json:"provider,omitempty"`
-	ScheduleExpr    string `json:"schedule_expr,omitempty"`
-	WorkflowKey     string `json:"workflow_key,omitempty"`
-	SkillName       string `json:"skill_name,omitempty"`
-	IntervalMinutes int    `json:"interval_minutes"`
-	DueAt           string `json:"due_at,omitempty"`
-	NextRun         string `json:"next_run,omitempty"`
-	LastRun         string `json:"last_run,omitempty"`
-	Status          string `json:"status,omitempty"`
-	Payload         string `json:"payload,omitempty"`
+	Slug              string   `json:"slug"`
+	Kind              string   `json:"kind,omitempty"`
+	Label             string   `json:"label"`
+	TargetType        string   `json:"target_type,omitempty"`
+	TargetID          string   `json:"target_id,omitempty"`
+	Channel           string   `json:"channel,omitempty"`
+	Provider          string   `json:"provider,omitempty"`
+	ScheduleExpr      string   `json:"schedule_expr,omitempty"`
+	WorkflowKey       string   `json:"workflow_key,omitempty"`
+	SkillName         string   `json:"skill_name,omitempty"`
+	SkillNames        []string `json:"skill_names,omitempty"`
+	IntervalMinutes   int      `json:"interval_minutes"`
+	DueAt             string   `json:"due_at,omitempty"`
+	NextRun           string   `json:"next_run,omitempty"`
+	LastRun           string   `json:"last_run,omitempty"`
+	RunCount          int      `json:"run_count,omitempty"`
+	ConcurrencyPolicy string   `json:"concurrency_policy,omitempty"`
+	CatchUpPolicy     string   `json:"catch_up_policy,omitempty"`
+	MaxParallel       int      `json:"max_parallel,omitempty"`
+	RunningCount      int      `json:"running_count,omitempty"`
+	LastStartedAt     string   `json:"last_started_at,omitempty"`
+	LastFinishedAt    string   `json:"last_finished_at,omitempty"`
+	LastStatus        string   `json:"last_status,omitempty"`
+	LastSummary       string   `json:"last_summary,omitempty"`
+	Status            string   `json:"status,omitempty"`
+	Payload           string   `json:"payload,omitempty"`
 }
 
 type teamSkill struct {
@@ -1101,8 +1149,19 @@ type teamSkill struct {
 	Name                string   `json:"name"`
 	Title               string   `json:"title"`
 	Description         string   `json:"description,omitempty"`
-	Source              string   `json:"source,omitempty"`
 	Content             string   `json:"content"`
+	PluginID            string   `json:"plugin_id,omitempty"`
+	PluginKind          string   `json:"plugin_kind,omitempty"`
+	Capabilities        []string `json:"capabilities,omitempty"`
+	HealthStatus        string   `json:"health_status,omitempty"`
+	HealthSummary       string   `json:"health_summary,omitempty"`
+	SourceType          string   `json:"source_type,omitempty"`
+	SourceRef           string   `json:"source_ref,omitempty"`
+	SourceHash          string   `json:"source_hash,omitempty"`
+	InstalledAt         string   `json:"installed_at,omitempty"`
+	LastScannedAt       string   `json:"last_scanned_at,omitempty"`
+	ScanStatus          string   `json:"scan_status,omitempty"`
+	ScanSummary         string   `json:"scan_summary,omitempty"`
 	CreatedBy           string   `json:"created_by"`
 	Channel             string   `json:"channel,omitempty"`
 	Tags                []string `json:"tags,omitempty"`
@@ -1123,31 +1182,34 @@ type teamSkill struct {
 }
 
 type brokerState struct {
-	ChannelStore         json.RawMessage              `json:"channel_store,omitempty"`
-	Messages             []channelMessage             `json:"messages"`
-	MessageIndexSnapshot *brokerMessageIndexSnapshot  `json:"message_index_snapshot,omitempty"`
-	Members              []officeMember               `json:"members,omitempty"`
-	Channels             []teamChannel                `json:"channels,omitempty"`
-	SessionMode          string                       `json:"session_mode,omitempty"`
-	OneOnOneAgent        string                       `json:"one_on_one_agent,omitempty"`
-	FocusMode            bool                         `json:"focus_mode,omitempty"`
-	Tasks                []teamTask                   `json:"tasks,omitempty"`
-	Requests             []humanInterview             `json:"requests,omitempty"`
-	Actions              []officeActionLog            `json:"actions,omitempty"`
-	Signals              []officeSignalRecord         `json:"signals,omitempty"`
-	Decisions            []officeDecisionRecord       `json:"decisions,omitempty"`
-	Watchdogs            []watchdogAlert              `json:"watchdogs,omitempty"`
-	Scheduler            []schedulerJob               `json:"scheduler,omitempty"`
-	Skills               []teamSkill                  `json:"skills,omitempty"`
-	ExecutionNodes       []executionNode              `json:"execution_nodes,omitempty"`
-	SharedMemory         map[string]map[string]string `json:"shared_memory,omitempty"`
-	Counter              int                          `json:"counter"`
-	NotificationSince    string                       `json:"notification_since,omitempty"`
-	InsightsSince        string                       `json:"insights_since,omitempty"`
-	PendingInterview     *humanInterview              `json:"pending_interview,omitempty"`
-	Usage                teamUsageState               `json:"usage,omitempty"`
-	Policies             []officePolicy               `json:"policies,omitempty"`
-	ObservabilityHistory []brokerObservabilitySample  `json:"observability_history,omitempty"`
+	ChannelStore         json.RawMessage                  `json:"channel_store,omitempty"`
+	Messages             []channelMessage                 `json:"messages"`
+	MessageIndexSnapshot *brokerMessageIndexSnapshot      `json:"message_index_snapshot,omitempty"`
+	Members              []officeMember                   `json:"members,omitempty"`
+	Channels             []teamChannel                    `json:"channels,omitempty"`
+	SessionMode          string                           `json:"session_mode,omitempty"`
+	OneOnOneAgent        string                           `json:"one_on_one_agent,omitempty"`
+	FocusMode            bool                             `json:"focus_mode,omitempty"`
+	Tasks                []teamTask                       `json:"tasks,omitempty"`
+	Requests             []humanInterview                 `json:"requests,omitempty"`
+	Actions              []officeActionLog                `json:"actions,omitempty"`
+	Signals              []officeSignalRecord             `json:"signals,omitempty"`
+	Decisions            []officeDecisionRecord           `json:"decisions,omitempty"`
+	Watchdogs            []watchdogAlert                  `json:"watchdogs,omitempty"`
+	Scheduler            []schedulerJob                   `json:"scheduler,omitempty"`
+	Skills               []teamSkill                      `json:"skills,omitempty"`
+	Adapters             []officeAdapter                  `json:"adapters,omitempty"`
+	OrgProposals         []orgProposal                    `json:"org_proposals,omitempty"`
+	ExecutionNodes       []executionNode                  `json:"execution_nodes,omitempty"`
+	SharedMemory         map[string]map[string]string     `json:"shared_memory,omitempty"`
+	Counter              int                              `json:"counter"`
+	NotificationSince    string                           `json:"notification_since,omitempty"`
+	InsightsSince        string                           `json:"insights_since,omitempty"`
+	PendingInterview     *humanInterview                  `json:"pending_interview,omitempty"`
+	Usage                teamUsageState                   `json:"usage,omitempty"`
+	Policies             []officePolicy                   `json:"policies,omitempty"`
+	ObservabilityHistory []brokerObservabilitySample      `json:"observability_history,omitempty"`
+	TelegramAlerts       map[string]telegramAlertDelivery `json:"telegram_alerts,omitempty"`
 }
 
 type usageTotals struct {
@@ -1199,6 +1261,8 @@ type Broker struct {
 	watchdogs                  []watchdogAlert
 	scheduler                  []schedulerJob
 	skills                     []teamSkill
+	adapters                   []officeAdapter
+	orgProposals               []orgProposal
 	executionNodes             []executionNode
 	executionNodeSeq           int64
 	sharedMemory               map[string]map[string]string // namespace → key → value
@@ -1211,6 +1275,7 @@ type Broker struct {
 	pendingInterview           *humanInterview
 	usage                      teamUsageState
 	externalDelivered          map[string]struct{} // message IDs already queued for external delivery
+	telegramAlertDeliveries    map[string]telegramAlertDelivery
 	messageSubscribers         map[int]chan channelMessage
 	actionSubscribers          map[int]chan officeActionLog
 	activity                   map[string]agentActivitySnapshot
@@ -1547,13 +1612,13 @@ func (b *Broker) syncTaskWorktreeLocked(task *teamTask) error {
 				return fmt.Errorf("external workspace path required")
 			}
 		}
-		if !taskWorktreeSourceLooksUsable(workspacePath) {
+		if !taskExternalWorkspacePathLooksUsable(workspacePath) {
 			if fallbackPath := b.recoverTaskWorkspaceFromChannelLocked(task, workspacePath); fallbackPath != "" {
 				task.WorkspacePath = fallbackPath
 				b.appendTaskDetailsWithRecovery(task, fmt.Sprintf("Recovered workspace path for external mode from linked repo: %s (previous path not usable: %s)", fallbackPath, workspacePath))
 				workspacePath = fallbackPath
 			} else {
-				return fmt.Errorf("external workspace path %q is not a usable git workspace", workspacePath)
+				return fmt.Errorf("external workspace path %q is not a usable directory", workspacePath)
 			}
 		}
 		if strings.TrimSpace(task.WorktreePath) == "" && strings.TrimSpace(task.WorktreeBranch) == "" {
@@ -2727,9 +2792,69 @@ func (b *Broker) UpdateAgentActivity(update agentActivitySnapshot) {
 	if update.LivenessAt != "" {
 		current.LivenessAt = update.LivenessAt
 	}
+	taskBudgetChanged := b.applyActivityToTaskBudgetLocked(current)
 	b.activity[key] = current
 	b.publishActivityLocked(current)
+	if taskBudgetChanged {
+		_ = b.saveLocked()
+	}
 	b.mu.Unlock()
+}
+
+func (b *Broker) RecordAgentLiveness(update agentActivitySnapshot) {
+	if b == nil {
+		return
+	}
+	update.Slug = normalizeAgentLaneSlug(update.Slug)
+	update.Channel = normalizeChannelSlug(update.Channel)
+	update.LivenessState = strings.TrimSpace(update.LivenessState)
+	update.LivenessReason = strings.TrimSpace(update.LivenessReason)
+	update.LivenessTaskID = strings.TrimSpace(update.LivenessTaskID)
+	if update.Slug == "" || update.LivenessState == "" {
+		return
+	}
+	if update.LivenessAt == "" {
+		update.LivenessAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	b.UpdateAgentActivity(update)
+	if update.LivenessTaskID == "" {
+		return
+	}
+	summary := update.LivenessState
+	if update.LivenessReason != "" {
+		summary += ": " + update.LivenessReason
+	}
+	_ = b.RecordAction("liveness_recorded", "runtime", update.Channel, update.Slug, summary, update.LivenessTaskID, nil, "")
+}
+
+func (b *Broker) applyActivityToTaskBudgetLocked(activity agentActivitySnapshot) bool {
+	taskID := strings.TrimSpace(activity.LivenessTaskID)
+	if b == nil || taskID == "" || activity.TotalMs <= 0 {
+		return false
+	}
+	for i := range b.tasks {
+		task := &b.tasks[i]
+		if strings.TrimSpace(task.ID) != taskID {
+			continue
+		}
+		if activity.TotalMs <= task.Limits.RuntimeMsUsed {
+			return false
+		}
+		previousState := strings.TrimSpace(task.Limits.LimitState)
+		task.Limits.RuntimeMsUsed = activity.TotalMs
+		normalizeTaskLimits(task)
+		evaluateTaskSignals(task, activity.LastTime)
+		if taskLimitExhausted(task) {
+			task.Blocked = true
+			task.Status = "blocked"
+		}
+		task.UpdatedAt = firstNonEmpty(strings.TrimSpace(activity.LastTime), time.Now().UTC().Format(time.RFC3339))
+		if previousState != task.Limits.LimitState && task.Limits.LimitState == "exhausted" {
+			b.appendActionLocked("task_budget_exhausted", "office", normalizeChannelSlug(task.Channel), strings.TrimSpace(task.Owner), truncateSummary(task.Title+" ["+task.Limits.LastLimitReason+"]", 140), task.ID)
+		}
+		return true
+	}
+	return false
 }
 
 // Token returns the shared secret that agents must include in requests.
@@ -2786,6 +2911,47 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/members", b.requireAuth(b.handleMembers))
 	mux.HandleFunc("/tasks", b.requireAuth(b.handleTasks))
 	mux.HandleFunc("/tasks/ack", b.requireAuth(b.handleTaskAck))
+	mux.HandleFunc("/task-templates", b.requireAuth(b.handleTaskTemplates))
+	mux.HandleFunc("/templates/preview", b.requireAuth(b.handleTemplatePreview))
+	mux.HandleFunc("/planning/deep", b.requireAuth(b.handleDeepPlanning))
+	mux.HandleFunc("/knowledge", b.requireAuth(b.handleKnowledgeIndex))
+	mux.HandleFunc("/knowledge/wiki-lint", b.requireAuth(b.handleKnowledgeWikiLint))
+	mux.HandleFunc("/knowledge/wiki-promotion-preview", b.requireAuth(b.handleKnowledgeWikiPromotionPreview))
+	mux.HandleFunc("/knowledge/wiki-preview", b.requireAuth(b.handleKnowledgeWikiPreview))
+	mux.HandleFunc("/knowledge/wiki-editor-preview", b.requireAuth(b.handleWikiEditorPreview))
+	mux.HandleFunc("/commands/manifest", b.requireAuth(b.handleCommandManifest))
+	mux.HandleFunc("/commands/manifest-drift", b.requireAuth(b.handleCommandManifestDrift))
+	mux.HandleFunc("/budget/context-preview", b.requireAuth(b.handleBudgetContextPreview))
+	mux.HandleFunc("/browser/inspection-handoff-preview", b.requireAuth(b.handleBrowserInspectionHandoffPreview))
+	mux.HandleFunc("/files/context-handoff-preview", b.requireAuth(b.handleFileContextHandoffPreview))
+	mux.HandleFunc("/learning/candidates/diff-preview", b.requireAuth(b.handleLearningCandidateDiffPreview))
+	mux.HandleFunc("/learning/candidates", b.requireAuth(b.handleLearningCandidates))
+	mux.HandleFunc("/memory/curation-preview", b.requireAuth(b.handleMemoryCurationPreview))
+	mux.HandleFunc("/recall/search-preview", b.requireAuth(b.handleRecallSearchPreview))
+	mux.HandleFunc("/work-queues", b.requireAuth(b.handleWorkQueues))
+	mux.HandleFunc("/review/checklist", b.requireAuth(b.handleReviewChecklist))
+	mux.HandleFunc("/resume-pack", b.requireAuth(b.handleResumePack))
+	mux.HandleFunc("/governance/history", b.requireAuth(b.handleGovernanceHistory))
+	mux.HandleFunc("/governance/replay", b.requireAuth(b.handleGovernanceReplay))
+	mux.HandleFunc("/governance/rollback-packages", b.requireAuth(b.handleGovernanceRollbackPackages))
+	mux.HandleFunc("/companies/control-plane-preview", b.requireAuth(b.handleCompanyControlPlanePreview))
+	mux.HandleFunc("/operator/overview", b.requireAuth(b.handleOperatorOverview))
+	mux.HandleFunc("/operator/alerts", b.requireAuth(b.handleOperatorAlerts))
+	mux.HandleFunc("/operator/triage", b.requireAuth(b.handleOperationalTriage))
+	mux.HandleFunc("/operator/noise-cleanup-preview", b.requireAuth(b.handleNoiseCleanupPreview))
+	mux.HandleFunc("/operator/runbook", b.requireAuth(b.handleOperatorRunbook))
+	mux.HandleFunc("/operator/apply-preview", b.requireAuth(b.handleApplyPreview))
+	mux.HandleFunc("/release/readiness", b.requireAuth(b.handleReleaseReadiness))
+	mux.HandleFunc("/release/artifact", b.requireAuth(b.handleReleaseArtifact))
+	mux.HandleFunc("/evals/behavior", b.requireAuth(b.handleBehaviorEvals))
+	mux.HandleFunc("/intake/queues", b.requireAuth(b.handleIntakeQueues))
+	mux.HandleFunc("/plugins/runtime", b.requireAuth(b.handlePluginRuntime))
+	mux.HandleFunc("/plugins/sandbox-preview", b.requireAuth(b.handlePluginSandboxPreview))
+	mux.HandleFunc("/marketplace/manifest-preview", b.requireAuth(b.handleMarketplaceManifestPreview))
+	mux.HandleFunc("/agent-sessions", b.requireAuth(b.handleAgentSessions))
+	mux.HandleFunc("/execution-trace", b.requireAuth(b.handleExecutionTrace))
+	mux.HandleFunc("/workspaces", b.requireAuth(b.handleWorkspacesInventory))
+	mux.HandleFunc("/outcomes", b.requireAuth(b.handleOutcomes))
 	mux.HandleFunc("/deliveries", b.requireAuth(b.handleDeliveries))
 	mux.HandleFunc("/agent-logs", b.requireAuth(b.handleAgentLogs))
 	mux.HandleFunc("/task-plan", b.requireAuth(b.handleTaskPlan))
@@ -2794,9 +2960,22 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/studio/dev-console/action", b.requireAuth(b.handleStudioDevConsoleAction))
 	mux.HandleFunc("/studio/generate-package", b.requireAuth(b.handleStudioGeneratePackage))
 	mux.HandleFunc("/studio/bootstrap-package", b.requireAuth(b.handleOperationBootstrapPackage))
+	mux.HandleFunc("/studio/project-overview-preview", b.requireAuth(b.handleProjectOverviewWidgetsPreview))
+	mux.HandleFunc("/integrations/desktop/preview", b.requireAuth(b.handleDesktopIDEPreview))
 	mux.HandleFunc("/integrations/desktop/launch", b.requireAuth(b.handleDesktopLaunch))
 	mux.HandleFunc("/integrations/open-codesign/status", b.requireAuth(b.handleOpenCoDesignStatus))
 	mux.HandleFunc("/integrations/open-codesign/launch", b.requireAuth(b.handleOpenCoDesignLaunch))
+	mux.HandleFunc("/runtime/doctor", b.requireAuth(b.handleRuntimeDoctor))
+	mux.HandleFunc("/runtime/smoke", b.requireAuth(b.handleRuntimeSmoke))
+	mux.HandleFunc("/runtime/restart-advice", b.requireAuth(b.handleRuntimeRestartAdvice))
+	mux.HandleFunc("/runtime/worktree-preview", b.requireAuth(b.handleRuntimeWorktreePreview))
+	mux.HandleFunc("/runtime/execution-environments-preview", b.requireAuth(b.handleExecutionEnvironmentsPreview))
+	mux.HandleFunc("/runtime/remote-sandbox-preview", b.requireAuth(b.handleRemoteSandboxPreview))
+	mux.HandleFunc("/providers/compatibility-preview", b.requireAuth(b.handleProviderCompatibilityPreview))
+	mux.HandleFunc("/security/secret-audit", b.requireAuth(b.handleSecretAudit))
+	mux.HandleFunc("/backup/policy", b.requireAuth(b.handleBackupPolicy))
+	mux.HandleFunc("/humans/session", b.requireAuth(b.handleHumanSession))
+	mux.HandleFunc("/humans/permissions-preview", b.requireAuth(b.handleHumanPermissionsPreview))
 	mux.HandleFunc("/operations/bootstrap-package", b.requireAuth(b.handleOperationBootstrapPackage))
 	mux.HandleFunc("/studio/run-workflow", b.requireAuth(b.handleStudioRunWorkflow))
 	mux.HandleFunc("/requests", b.requireAuth(b.handleRequests))
@@ -2812,9 +2991,23 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/decisions", b.requireAuth(b.handleDecisions))
 	mux.HandleFunc("/watchdogs", b.requireAuth(b.handleWatchdogs))
 	mux.HandleFunc("/actions", b.requireAuth(b.handleActions))
+	mux.HandleFunc("/activity", b.requireAuth(b.handleActivity))
 	mux.HandleFunc("/scheduler", b.requireAuth(b.handleScheduler))
+	mux.HandleFunc("/scheduler/skill-preview", b.requireAuth(b.handleSchedulerSkillPreview))
+	mux.HandleFunc("/scheduler/revisions-preview", b.requireAuth(b.handleSchedulerRevisionsPreview))
+	mux.HandleFunc("/toolsets/profile-preview", b.requireAuth(b.handleToolsetProfilePreview))
+	mux.HandleFunc("/skills/trust", b.requireAuth(b.handleSkillTrust))
+	mux.HandleFunc("/skills/metadata-preview", b.requireAuth(b.handleSkillMetadataPreview))
+	mux.HandleFunc("/skills/provenance-preview", b.requireAuth(b.handleSkillProvenancePreview))
+	mux.HandleFunc("/skills/capability-upgrade-preview", b.requireAuth(b.handleSkillCapabilityUpgradePreview))
 	mux.HandleFunc("/skills", b.requireAuth(b.handleSkills))
 	mux.HandleFunc("/skills/", b.requireAuth(b.handleSkillsSubpath))
+	mux.HandleFunc("/adapters/actions", b.requireAuth(b.handleAdapterActions))
+	mux.HandleFunc("/adapters/config-checks", b.requireAuth(b.handleAdapterConfigChecks))
+	mux.HandleFunc("/adapters/checks", b.requireAuth(b.handleAdapterChecks))
+	mux.HandleFunc("/adapters", b.requireAuth(b.handleAdapters))
+	mux.HandleFunc("/org-proposals", b.requireAuth(b.handleOrgProposals))
+	mux.HandleFunc("/ceo/convert", b.requireAuth(b.handleCEOConversationConvert))
 	mux.HandleFunc("/github/webhook", b.handleGitHubWebhook)
 	mux.HandleFunc("/telegram/groups", b.requireAuth(b.handleTelegramGroups))
 	mux.HandleFunc("/bridges", b.requireAuth(b.handleBridge))
@@ -3288,12 +3481,21 @@ func (b *Broker) ServeWebUI(port int) {
 			"broker_url": brokerURL,
 		})
 	})
-	mux.Handle("/", fileServer)
+	mux.Handle("/", webUIStaticHandler(fileServer))
 	go func() {
 		if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), mux); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("broker web UI proxy: listen on :%d: %v", port, err)
 		}
 	}()
+}
+
+func webUIStaticHandler(fileServer http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			setNoStoreCacheHeaders(w.Header())
+		}
+		fileServer.ServeHTTP(w, r)
+	})
 }
 
 func (b *Broker) webUIProxyHandler(brokerURL, stripPrefix string) http.Handler {
@@ -3337,9 +3539,7 @@ func (b *Broker) webUIProxyHandler(brokerURL, stripPrefix string) http.Handler {
 			}
 		}
 		if proxiedResponseShouldDisableCache(requestPath, resp.Header.Get("Content-Type")) {
-			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
-			w.Header().Set("Pragma", "no-cache")
-			w.Header().Set("Expires", "0")
+			setNoStoreCacheHeaders(w.Header())
 		}
 		w.WriteHeader(resp.StatusCode)
 
@@ -3362,6 +3562,12 @@ func (b *Broker) webUIProxyHandler(brokerURL, stripPrefix string) http.Handler {
 		}
 		_, _ = io.Copy(w, resp.Body)
 	})
+}
+
+func setNoStoreCacheHeaders(header http.Header) {
+	header.Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	header.Set("Pragma", "no-cache")
+	header.Set("Expires", "0")
 }
 
 func proxiedResponseShouldDisableCache(targetPath string, contentType string) bool {
@@ -3862,6 +4068,7 @@ func (b *Broker) Reset() {
 	agent := b.oneOnOneAgent
 	channels := append([]teamChannel(nil), b.channels...)
 	members := append([]officeMember(nil), b.members...)
+	policies := append([]officePolicy(nil), b.policies...)
 	b.replaceMessagesLocked(nil)
 	b.members = members
 	b.channels = channels
@@ -3873,8 +4080,10 @@ func (b *Broker) Reset() {
 	b.signals = nil
 	b.decisions = nil
 	b.watchdogs = nil
-	b.policies = nil
+	b.policies = policies
 	b.scheduler = nil
+	b.adapters = nil
+	b.orgProposals = nil
 	b.pendingInterview = nil
 	b.activity = make(map[string]agentActivitySnapshot)
 	b.counter = 0
@@ -4131,6 +4340,8 @@ func (b *Broker) applyLoadedStateLocked(state brokerState) error {
 	b.policies = state.Policies
 	b.scheduler = state.Scheduler
 	b.skills = state.Skills
+	b.adapters = state.Adapters
+	b.orgProposals = state.OrgProposals
 	b.executionNodes = state.ExecutionNodes
 	b.sharedMemory = state.SharedMemory
 	b.counter = state.Counter
@@ -4138,6 +4349,7 @@ func (b *Broker) applyLoadedStateLocked(state brokerState) error {
 	b.insightsSince = state.InsightsSince
 	b.pendingInterview = state.PendingInterview
 	b.usage = state.Usage
+	b.telegramAlertDeliveries = cloneTelegramAlertDeliveries(state.TelegramAlerts)
 	if b.usage.Agents == nil {
 		b.usage.Agents = make(map[string]usageTotals)
 	}
@@ -4179,6 +4391,8 @@ func brokerStateActivityScore(state brokerState) int {
 	score += len(state.Signals) * 4
 	score += len(state.Decisions) * 4
 	score += len(state.Skills) * 2
+	score += len(state.Adapters) * 2
+	score += len(state.OrgProposals) * 3
 	score += len(state.Policies)
 	for _, ns := range state.SharedMemory {
 		score += len(ns)
@@ -4220,6 +4434,8 @@ func (b *Broker) stateLocked() brokerState {
 		Policies:             b.policies,
 		Scheduler:            b.scheduler,
 		Skills:               b.skills,
+		Adapters:             b.adapters,
+		OrgProposals:         b.orgProposals,
 		ExecutionNodes:       b.executionNodes,
 		SharedMemory:         b.sharedMemory,
 		Counter:              b.counter,
@@ -4232,6 +4448,7 @@ func (b *Broker) stateLocked() brokerState {
 			return usage
 		}(),
 		ObservabilityHistory: observabilityHistory,
+		TelegramAlerts:       cloneTelegramAlertDeliveries(b.telegramAlertDeliveries),
 	}
 }
 
@@ -5099,11 +5316,14 @@ func (b *Broker) normalizeLoadedStateLocked() {
 	for i := range b.scheduler {
 		b.scheduler[i] = normalizeSchedulerJob(b.scheduler[i])
 	}
+	b.normalizeAdaptersLocked()
+	b.normalizeOrgProposalsLocked()
 	b.suppressActiveFollowUpTasksWhenAuditCanceledLocked(time.Now().UTC().Format(time.RFC3339))
 	for i := range b.tasks {
 		if strings.TrimSpace(b.tasks[i].Channel) == "" {
 			b.tasks[i].Channel = "general"
 		}
+		b.tasks[i].ExecutionLock = normalizeTaskExecutionLock(b.tasks[i].ExecutionLock, time.Now().UTC())
 		normalizeTaskPlan(&b.tasks[i])
 		b.ensureTaskOwnerChannelMembershipLocked(b.tasks[i].Channel, b.tasks[i].Owner)
 		b.queueTaskBehindActiveOwnerLaneLocked(&b.tasks[i])
@@ -6054,6 +6274,24 @@ func firstBlockingRequest(requests []humanInterview) *humanInterview {
 	return nil
 }
 
+func firstBlockingRequestForChannel(requests []humanInterview, channel string) *humanInterview {
+	channel = normalizeChannelSlug(channel)
+	if channel == "" {
+		channel = "general"
+	}
+	for i := range requests {
+		reqChannel := normalizeChannelSlug(requests[i].Channel)
+		if reqChannel == "" {
+			reqChannel = "general"
+		}
+		if reqChannel == channel && requestIsActive(requests[i]) && requests[i].Blocking {
+			req := requests[i]
+			return &req
+		}
+	}
+	return nil
+}
+
 func normalizeRequestKind(kind string) string {
 	kind = strings.TrimSpace(strings.ToLower(kind))
 	if kind == "" {
@@ -6106,6 +6344,49 @@ func defaultTeamChannelDescription(slug, name string) string {
 		label = humanizeSlug(slug)
 	}
 	return label + " focused work. Use this channel for discussion, decisions, and execution specific to that stream."
+}
+
+func manifestSurfaceSpecFromChannelSurface(surface *channelSurface) *company.ChannelSurfaceSpec {
+	if surface == nil {
+		return nil
+	}
+	return &company.ChannelSurfaceSpec{
+		Provider:    strings.TrimSpace(surface.Provider),
+		RemoteID:    strings.TrimSpace(surface.RemoteID),
+		RemoteTitle: strings.TrimSpace(surface.RemoteTitle),
+		Mode:        strings.TrimSpace(surface.Mode),
+		BotTokenEnv: strings.TrimSpace(surface.BotTokenEnv),
+	}
+}
+
+func manifestChannelSpecFromTeamChannel(ch teamChannel) company.ChannelSpec {
+	return company.ChannelSpec{
+		Slug:        normalizeChannelSlug(ch.Slug),
+		Name:        strings.TrimSpace(ch.Name),
+		Description: strings.TrimSpace(ch.Description),
+		Members:     uniqueSlugs(ch.Members),
+		Disabled:    uniqueSlugs(ch.Disabled),
+		Surface:     manifestSurfaceSpecFromChannelSurface(ch.Surface),
+	}
+}
+
+func persistManifestChannel(ch teamChannel) error {
+	spec := manifestChannelSpecFromTeamChannel(ch)
+	if spec.Slug == "" || IsDMSlug(spec.Slug) {
+		return nil
+	}
+	manifest, err := company.LoadManifest()
+	if err != nil {
+		return err
+	}
+	for i := range manifest.Channels {
+		if normalizeChannelSlug(manifest.Channels[i].Slug) == spec.Slug {
+			manifest.Channels[i] = spec
+			return company.SaveManifest(manifest)
+		}
+	}
+	manifest.Channels = append(manifest.Channels, spec)
+	return company.SaveManifest(manifest)
 }
 
 func (b *Broker) canAccessChannelLocked(slug, channel string) bool {
@@ -6427,6 +6708,12 @@ func normalizeSchedulerJob(job schedulerJob) schedulerJob {
 	job.ScheduleExpr = strings.TrimSpace(job.ScheduleExpr)
 	job.WorkflowKey = strings.TrimSpace(job.WorkflowKey)
 	job.SkillName = strings.TrimSpace(job.SkillName)
+	job.SkillNames = schedulerJobSkillNames(job)
+	if job.SkillName == "" && len(job.SkillNames) > 0 {
+		job.SkillName = job.SkillNames[0]
+	}
+	job.ConcurrencyPolicy = normalizeSchedulerConcurrencyPolicy(job.ConcurrencyPolicy)
+	job.CatchUpPolicy = normalizeSchedulerCatchUpPolicy(job.CatchUpPolicy)
 	if job.Channel == "" {
 		job.Channel = "general"
 	}
@@ -6442,6 +6729,17 @@ func normalizeSchedulerJob(job schedulerJob) schedulerJob {
 	if job.IntervalMinutes < 0 {
 		job.IntervalMinutes = 0
 	}
+	if job.MaxParallel < 0 {
+		job.MaxParallel = 0
+	}
+	if job.MaxParallel == 0 && job.ConcurrencyPolicy == "skip_if_running" {
+		job.MaxParallel = 1
+	}
+	if job.RunningCount < 0 {
+		job.RunningCount = 0
+	}
+	job.LastStartedAt = strings.TrimSpace(job.LastStartedAt)
+	job.LastFinishedAt = strings.TrimSpace(job.LastFinishedAt)
 	if job.DueAt == "" && job.NextRun != "" {
 		job.DueAt = job.NextRun
 	}
@@ -6449,6 +6747,30 @@ func normalizeSchedulerJob(job schedulerJob) schedulerJob {
 		job.NextRun = job.DueAt
 	}
 	return job
+}
+
+func normalizeSchedulerConcurrencyPolicy(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, " ", "_")
+	value = strings.ReplaceAll(value, "-", "_")
+	switch value {
+	case "allow_parallel", "skip_if_running", "enqueue":
+		return value
+	default:
+		return "skip_if_running"
+	}
+}
+
+func normalizeSchedulerCatchUpPolicy(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, " ", "_")
+	value = strings.ReplaceAll(value, "-", "_")
+	switch value {
+	case "skip_missed", "run_once", "replay":
+		return value
+	default:
+		return "run_once"
+	}
 }
 
 func schedulerJobMatches(existing, candidate schedulerJob) bool {
@@ -6473,6 +6795,16 @@ func schedulerJobMatches(existing, candidate schedulerJob) bool {
 func schedulerJobDue(job schedulerJob, now time.Time) bool {
 	if schedulerStatusIsTerminal(job.Status) {
 		return false
+	}
+	job = normalizeSchedulerJob(job)
+	if job.ConcurrencyPolicy == "skip_if_running" {
+		maxParallel := job.MaxParallel
+		if maxParallel <= 0 {
+			maxParallel = 1
+		}
+		if job.RunningCount >= maxParallel {
+			return false
+		}
 	}
 	if job.DueAt != "" {
 		if due, err := time.Parse(time.RFC3339, job.DueAt); err == nil && !due.After(now) {
@@ -6503,6 +6835,9 @@ func (b *Broker) completeSchedulerJobsLocked(targetType, targetID, channel strin
 		job.DueAt = ""
 		job.NextRun = ""
 		job.LastRun = time.Now().UTC().Format(time.RFC3339)
+		job.RunCount++
+		job.LastStatus = "done"
+		job.LastSummary = "Completed by target resolution"
 	}
 }
 
@@ -7877,6 +8212,25 @@ func (b *Broker) recordStudioWorkflowExecution(channel, actor, skillName, workfl
 			title = skill.Title
 		}
 	}
+	for i := range b.scheduler {
+		job := &b.scheduler[i]
+		if strings.TrimSpace(workflowKey) == "" || strings.TrimSpace(job.WorkflowKey) != strings.TrimSpace(workflowKey) {
+			continue
+		}
+		if normalizeChannelSlug(job.Channel) != "" && normalizeChannelSlug(job.Channel) != normalizeChannelSlug(channel) {
+			continue
+		}
+		job.LastRun = when.UTC().Format(time.RFC3339)
+		job.RunCount++
+		job.LastStatus = strings.TrimSpace(status)
+		job.LastSummary = truncateSummary(fmt.Sprintf("Workflow %s executed via %s", workflowKey, providerName), 140)
+		if job.IntervalMinutes > 0 {
+			next := when.UTC().Add(time.Duration(job.IntervalMinutes) * time.Minute).Format(time.RFC3339)
+			job.NextRun = next
+			job.DueAt = next
+			job.Status = "scheduled"
+		}
+	}
 	if strings.TrimSpace(title) == "" {
 		title = workflowKey
 	}
@@ -9072,6 +9426,10 @@ func (b *Broker) handleChannels(w http.ResponseWriter, r *http.Request) {
 			if ch.Description == "" {
 				ch.Description = defaultTeamChannelDescription(ch.Slug, ch.Name)
 			}
+			if err := persistManifestChannel(ch); err != nil {
+				http.Error(w, "failed to persist company manifest", http.StatusInternalServerError)
+				return
+			}
 			b.channels = append(b.channels, ch)
 			b.upsertPublicChannelInStoreLocked(ch)
 			if err := b.saveLocked(); err != nil {
@@ -9536,6 +9894,7 @@ func (b *Broker) recordUsageLocked(event usageEvent) {
 	applyUsageEvent(&total, event)
 	b.usage.Total = total
 	b.attachUsageToRecentMessagesLocked(event)
+	b.applyUsageToTaskBudgetLocked(event)
 }
 
 func applyUsageEvent(dst *usageTotals, event usageEvent) {
@@ -9607,6 +9966,76 @@ func (b *Broker) attachUsageToRecentMessagesLocked(event usageEvent) {
 			break
 		}
 		msg.Usage = cloneMessageUsage(usage)
+	}
+}
+
+func usageCostCents(costUSD float64) int {
+	if costUSD <= 0 {
+		return 0
+	}
+	return int(costUSD*100 + 0.5)
+}
+
+func (b *Broker) taskIDForAgentUsageLocked(slug string) string {
+	slug = normalizeAgentLaneSlug(slug)
+	if slug == "" {
+		return ""
+	}
+	newestAt := ""
+	taskID := ""
+	for _, activity := range b.activity {
+		if normalizeAgentLaneSlug(activity.Slug) != slug {
+			continue
+		}
+		if strings.TrimSpace(activity.LivenessTaskID) == "" {
+			continue
+		}
+		if taskID == "" || strings.TrimSpace(activity.LastTime) > newestAt {
+			taskID = strings.TrimSpace(activity.LivenessTaskID)
+			newestAt = strings.TrimSpace(activity.LastTime)
+		}
+	}
+	if taskID != "" {
+		return taskID
+	}
+	for i := range b.tasks {
+		task := &b.tasks[i]
+		if !strings.EqualFold(strings.TrimSpace(task.Owner), slug) {
+			continue
+		}
+		if normalizeTaskStatus(task.Status) == "in_progress" || normalizeTaskStatus(task.Status) == "review" {
+			return strings.TrimSpace(task.ID)
+		}
+	}
+	return ""
+}
+
+func (b *Broker) applyUsageToTaskBudgetLocked(event usageEvent) {
+	cents := usageCostCents(event.CostUsd)
+	if b == nil || cents <= 0 {
+		return
+	}
+	taskID := b.taskIDForAgentUsageLocked(event.AgentSlug)
+	if taskID == "" {
+		return
+	}
+	for i := range b.tasks {
+		task := &b.tasks[i]
+		if strings.TrimSpace(task.ID) != taskID {
+			continue
+		}
+		previousState := strings.TrimSpace(task.Limits.LimitState)
+		task.Limits.CostCentsUsed += cents
+		normalizeTaskLimits(task)
+		evaluateTaskSignals(task, time.Now().UTC().Format(time.RFC3339))
+		if taskLimitExhausted(task) {
+			task.Blocked = true
+			task.Status = "blocked"
+		}
+		if previousState != task.Limits.LimitState && task.Limits.LimitState == "exhausted" {
+			b.appendActionLocked("task_budget_exhausted", "office", normalizeChannelSlug(task.Channel), strings.TrimSpace(task.Owner), truncateSummary(task.Title+" ["+task.Limits.LastLimitReason+"]", 140), task.ID)
+		}
+		return
 	}
 }
 
@@ -9736,17 +10165,17 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	b.mu.Lock()
-	if firstBlockingRequest(b.requests) != nil {
+	channel := normalizeChannelSlug(body.Channel)
+	if channel == "" {
+		channel = "general"
+	}
+	if firstBlockingRequestForChannel(b.requests, channel) != nil {
 		b.mu.Unlock()
 		http.Error(w, "request pending; answer required before chat resumes", http.StatusConflict)
 		return
 	}
 
 	b.counter++
-	channel := normalizeChannelSlug(body.Channel)
-	if channel == "" {
-		channel = "general"
-	}
 	// Auto-create DM conversations on first message (like Slack's conversations.open)
 	if b.findChannelLocked(channel) == nil {
 		if IsDMSlug(channel) {
@@ -9772,6 +10201,13 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		b.mu.Unlock()
 		http.Error(w, "non-substantive agent chatter is not allowed in channel messages; publish only the substantive result", http.StatusConflict)
 		return
+	}
+	if !isHumanLikeActor(body.From) && !isSystemActor(body.From) {
+		if taskID, taskChannel, ok := b.referencedTaskChannelMismatchLocked(channel, strings.Join([]string{body.Title, body.Content}, "\n")); ok {
+			b.mu.Unlock()
+			http.Error(w, fmt.Sprintf("message references %s from #%s; post in that channel instead of #%s", taskID, taskChannel, channel), http.StatusConflict)
+			return
+		}
 	}
 	if err := b.validateTaskStateClaimLocked(channel, body.Content); err != nil {
 		b.mu.Unlock()
@@ -10044,6 +10480,9 @@ func (b *Broker) handleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 			nextMessages = append(nextMessages, existing)
 		}
 		b.replaceMessagesLocked(nextMessages)
+		for _, id := range deletedIDs {
+			b.deleteSyntheticChannelMessageLocked(channel, id)
+		}
 		b.appendActionLocked("message_thread_deleted", "office", channel, "you", "Deleted thread", threadID)
 		total := len(b.messages)
 		if err := b.saveLocked(); err != nil {
@@ -10076,6 +10515,7 @@ func (b *Broker) handleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	nextMessages = append(nextMessages, b.messages[index+1:]...)
 	b.pruneClosedExecutionNodesReferencingMessagesLocked(map[string]struct{}{messageID: {}})
 	b.replaceMessagesLocked(nextMessages)
+	b.deleteSyntheticChannelMessageLocked(channel, messageID)
 	b.appendActionLocked("message_deleted", "office", channel, "you", "Deleted message", messageID)
 	total := len(b.messages)
 	if err := b.saveLocked(); err != nil {
@@ -10131,7 +10571,16 @@ func (b *Broker) deleteSyntheticChannelMessageLocked(channel, messageID string) 
 		}
 		key := "msg:" + messageID
 		if _, ok := entries[key]; !ok {
-			continue
+			for candidateKey := range entries {
+				if syntheticMessageIDFromChannelMemoryKey(candidateChannel, candidateKey) == messageID {
+					key = candidateKey
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				continue
+			}
 		}
 		delete(entries, key)
 		if len(entries) == 0 {
@@ -10502,6 +10951,7 @@ func (b *Broker) PostMessage(from, channel, content string, tagged []string, rep
 		return channelMessage{}, fmt.Errorf("channel access denied")
 	}
 	replyTo = strings.TrimSpace(replyTo)
+	content = stripHeadlessReplyRouteMarkers(content)
 	if !isHumanLikeActor(from) && !isSystemActor(from) && messageContentLooksLikeDisallowedAgentChannelContent(content) {
 		return channelMessage{}, fmt.Errorf("non-substantive agent chatter is not allowed in channel messages; publish only the substantive result")
 	}
@@ -10662,6 +11112,92 @@ func inferTaggedSlugsFromContent(content string) []string {
 		}
 	}
 	return uniqueSlugs(out)
+}
+
+func extractReferencedTaskIDs(content string) []string {
+	matches := brokerTaskReferencePattern.FindAllString(strings.TrimSpace(content), -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(matches))
+	out := make([]string, 0, len(matches))
+	for _, match := range matches {
+		id := strings.ToLower(strings.TrimSpace(match))
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
+}
+
+func (b *Broker) referencedTaskChannelMismatchLocked(channel, content string) (string, string, bool) {
+	channel = normalizeChannelSlug(channel)
+	if channel == "" {
+		channel = "general"
+	}
+	for _, taskID := range extractReferencedTaskIDs(content) {
+		task := b.findTaskByIDLocked(taskID)
+		if task == nil {
+			continue
+		}
+		taskChannel := b.effectiveTaskChannelLocked(task)
+		if taskChannel == "" {
+			taskChannel = "general"
+		}
+		if taskChannel != channel {
+			return taskID, taskChannel, true
+		}
+	}
+	return "", "", false
+}
+
+func (b *Broker) effectiveTaskChannelLocked(task *teamTask) string {
+	if task == nil {
+		return ""
+	}
+	channel := normalizeChannelSlug(task.Channel)
+	if channel == "" {
+		channel = "general"
+	}
+	if channel != "general" {
+		return channel
+	}
+	if linkedChannel := b.linkedRepoChannelForWorkspaceLocked(task.WorkspacePath); linkedChannel != "" {
+		return linkedChannel
+	}
+	return channel
+}
+
+func (b *Broker) linkedRepoChannelForWorkspaceLocked(workspacePath string) string {
+	workspacePath = strings.TrimSpace(workspacePath)
+	if b == nil || workspacePath == "" {
+		return ""
+	}
+	best := ""
+	for i := range b.channels {
+		ch := &b.channels[i]
+		slug := normalizeChannelSlug(ch.Slug)
+		if slug == "" || slug == "general" || ch.isDM() {
+			continue
+		}
+		for _, repo := range ch.LinkedRepos {
+			if !sameCleanPath(repo.RepoPath, workspacePath) {
+				continue
+			}
+			if repo.Primary {
+				return slug
+			}
+			if best == "" {
+				best = slug
+			}
+		}
+	}
+	return best
 }
 
 func (b *Broker) PostAutomationMessage(from, channel, title, content, eventID, source, sourceLabel string, tagged []string, replyTo string) (channelMessage, bool, error) {
@@ -10868,8 +11404,15 @@ func (b *Broker) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 		messages = synthetic
 	}
 	// Copy to avoid race
-	result := make([]channelMessage, len(messages))
-	copy(result, messages)
+	result := make([]channelMessage, 0, len(messages))
+	for _, msg := range messages {
+		if !isHumanLikeActor(msg.From) && !isSystemActor(msg.From) {
+			if _, _, mismatch := b.referencedTaskChannelMismatchLocked(channel, strings.Join([]string{msg.Title, msg.Content}, "\n")); mismatch {
+				continue
+			}
+		}
+		result = append(result, msg)
+	}
 	executionNodes := make([]executionNode, 0, len(b.executionNodes))
 	threadRootID = firstNonEmpty(threadRootID, b.threadRootFromMessageIDLocked(threadID), threadID)
 	for i := range result {
@@ -11843,6 +12386,7 @@ func (b *Broker) handleGetTasks(w http.ResponseWriter, r *http.Request) {
 		channel = "general"
 	}
 	includeDone := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_done")), "true")
+	includeArchived := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_archived")), "true")
 	lite := parseSearchBool(r.URL.Query().Get("lite"))
 	if strings.TrimSpace(r.URL.Query().Get("lite")) == "" && !includeDone && statusFilter == "" {
 		lite = true
@@ -11856,14 +12400,30 @@ func (b *Broker) handleGetTasks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "channel access denied", http.StatusForbidden)
 		return
 	}
+	snapshot := b.operatorViewSnapshotLocked()
+	b.mu.RUnlock()
+
 	var result []teamTask
 	if lite {
-		result = b.buildOperatorTasksLiteLocked(channel, allChannels, includeDone, statusFilter, mySlug)
+		result = snapshot.buildOperatorTasksLiteLocked(channel, allChannels, includeDone, statusFilter, mySlug)
 	} else {
-		result = b.buildOperatorTasksLocked(channel, allChannels, includeDone, statusFilter, mySlug)
+		result = snapshot.buildOperatorTasksLocked(channel, allChannels, includeDone, statusFilter, mySlug)
 	}
-	b.mu.RUnlock()
 	result = coalesceTaskView(result)
+	goalCtx := currentTaskGoalContext()
+	for i := range result {
+		applyTaskOperatorContract(&result[i], goalCtx)
+	}
+	if !includeArchived {
+		filtered := result[:0]
+		for _, task := range result {
+			if strings.TrimSpace(task.ArchivedAt) != "" {
+				continue
+			}
+			filtered = append(filtered, task)
+		}
+		result = filtered
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"channel": channel, "tasks": result})
@@ -11874,29 +12434,58 @@ func (b *Broker) handleGetTasks(w http.ResponseWriter, r *http.Request) {
 
 func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Action           string   `json:"action"`
-		Channel          string   `json:"channel"`
-		ID               string   `json:"id"`
-		ExecutionKey     string   `json:"execution_key"`
-		Title            string   `json:"title"`
-		Details          string   `json:"details"`
-		Owner            string   `json:"owner"`
-		CreatedBy        string   `json:"created_by"`
-		ThreadID         string   `json:"thread_id"`
-		TaskType         string   `json:"task_type"`
-		PipelineID       string   `json:"pipeline_id"`
-		ExecutionMode    string   `json:"execution_mode"`
-		RuntimeProvider  string   `json:"runtime_provider"`
-		RuntimeModel     string   `json:"runtime_model"`
-		ReasoningEffort  string   `json:"reasoning_effort"`
-		ReviewState      string   `json:"review_state"`
-		SourceSignalID   string   `json:"source_signal_id"`
-		SourceDecisionID string   `json:"source_decision_id"`
-		WorkspacePath    string   `json:"workspace_path"`
-		WorktreePath     string   `json:"worktree_path"`
-		WorktreeBranch   string   `json:"worktree_branch"`
-		DependsOn        []string `json:"depends_on"`
-		Actor            string   `json:"actor"`
+		Action             string              `json:"action"`
+		Channel            string              `json:"channel"`
+		ID                 string              `json:"id"`
+		ExecutionKey       string              `json:"execution_key"`
+		Title              string              `json:"title"`
+		Details            string              `json:"details"`
+		Owner              string              `json:"owner"`
+		CreatedBy          string              `json:"created_by"`
+		ThreadID           string              `json:"thread_id"`
+		TaskType           string              `json:"task_type"`
+		PipelineID         string              `json:"pipeline_id"`
+		ExecutionMode      string              `json:"execution_mode"`
+		RuntimeProvider    string              `json:"runtime_provider"`
+		RuntimeModel       string              `json:"runtime_model"`
+		ReasoningEffort    string              `json:"reasoning_effort"`
+		ReviewState        string              `json:"review_state"`
+		Outcome            string              `json:"outcome"`
+		OutcomeStatus      string              `json:"outcome_status"`
+		OutcomeEvidence    string              `json:"outcome_evidence"`
+		QueueKey           string              `json:"queue_key"`
+		Artifact           taskArtifact        `json:"artifact"`
+		ArtifactKind       string              `json:"artifact_kind"`
+		ArtifactResultRole string              `json:"artifact_result_role"`
+		ArtifactTitle      string              `json:"artifact_title"`
+		ArtifactSummary    string              `json:"artifact_summary"`
+		ArtifactPath       string              `json:"artifact_path"`
+		ArtifactURL        string              `json:"artifact_url"`
+		ArtifactPreviewURL string              `json:"artifact_preview_url"`
+		ArtifactState      string              `json:"artifact_state"`
+		PlanRevision       taskPlanRevision    `json:"plan_revision"`
+		PlanContent        string              `json:"plan_content"`
+		PlanSummary        string              `json:"plan_summary"`
+		PlanStatus         string              `json:"plan_status"`
+		LearningKind       string              `json:"learning_kind"`
+		LearningTitle      string              `json:"learning_title"`
+		LearningSummary    string              `json:"learning_summary"`
+		RunID              string              `json:"run_id"`
+		LockTTLSeconds     int                 `json:"lock_ttl_seconds"`
+		Limits             taskExecutionLimits `json:"limits"`
+		MaxAttempts        int                 `json:"max_attempts"`
+		MaxRuntimeMinutes  int                 `json:"max_runtime_minutes"`
+		MaxCostCents       int                 `json:"max_cost_cents"`
+		Feedback           taskFeedback        `json:"feedback"`
+		FeedbackRating     string              `json:"feedback_rating"`
+		FeedbackComment    string              `json:"feedback_comment"`
+		SourceSignalID     string              `json:"source_signal_id"`
+		SourceDecisionID   string              `json:"source_decision_id"`
+		WorkspacePath      string              `json:"workspace_path"`
+		WorktreePath       string              `json:"worktree_path"`
+		WorktreeBranch     string              `json:"worktree_branch"`
+		DependsOn          []string            `json:"depends_on"`
+		Actor              string              `json:"actor"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -11908,6 +12497,16 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 	channel := normalizeChannelSlug(body.Channel)
 	if channel == "" {
 		channel = "general"
+	}
+	requestedLimits := body.Limits
+	if body.MaxAttempts > 0 {
+		requestedLimits.MaxAttempts = body.MaxAttempts
+	}
+	if body.MaxRuntimeMinutes > 0 {
+		requestedLimits.MaxRuntimeMinutes = body.MaxRuntimeMinutes
+	}
+	if body.MaxCostCents > 0 {
+		requestedLimits.MaxCostCents = body.MaxCostCents
 	}
 
 	b.mu.Lock()
@@ -11993,6 +12592,13 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			if reviewState := strings.TrimSpace(body.ReviewState); reviewState != "" {
 				existing.ReviewState = reviewState
 			}
+			applyTaskOutcomeInput(existing, body.Outcome, body.OutcomeStatus, body.OutcomeEvidence, body.QueueKey, now)
+			if requestedLimits.MaxAttempts > 0 || requestedLimits.MaxRuntimeMinutes > 0 || requestedLimits.MaxCostCents > 0 {
+				requestedLimits.AttemptsUsed = existing.Limits.AttemptsUsed
+				requestedLimits.RuntimeMsUsed = existing.Limits.RuntimeMsUsed
+				requestedLimits.CostCentsUsed = existing.Limits.CostCentsUsed
+				applyTaskLimits(existing, requestedLimits)
+			}
 			if sourceSignalID := strings.TrimSpace(body.SourceSignalID); sourceSignalID != "" {
 				existing.SourceSignalID = sourceSignalID
 			}
@@ -12012,6 +12618,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				existing.ThreadID = strings.TrimSpace(body.ThreadID)
 			}
 			existing.DependsOn = append([]string(nil), item.ResolvedDepIDs...)
+			normalizeTaskOutcomeAndQueue(existing)
 			b.ensureTaskOwnerChannelMembershipLocked(channel, existing.Owner)
 			existing.UpdatedAt = now
 			b.scheduleTaskLifecycleLocked(existing)
@@ -12058,6 +12665,11 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			RuntimeModel:     item.RuntimeModel,
 			ReasoningEffort:  item.ReasoningEffort,
 			ReviewState:      firstNonEmpty(strings.TrimSpace(body.ReviewState), item.ReviewState),
+			Outcome:          strings.TrimSpace(body.Outcome),
+			OutcomeStatus:    normalizeTaskOutcomeStatus(body.OutcomeStatus),
+			OutcomeEvidence:  strings.TrimSpace(body.OutcomeEvidence),
+			QueueKey:         normalizeTaskQueueKey(body.QueueKey),
+			Limits:           requestedLimits,
 			SourceSignalID:   strings.TrimSpace(body.SourceSignalID),
 			SourceDecisionID: strings.TrimSpace(body.SourceDecisionID),
 			WorkspacePath:    item.WorkspacePath,
@@ -12072,6 +12684,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		} else if task.Owner != "" {
 			task.Status = "in_progress"
 		}
+		normalizeTaskPlan(&task)
 		b.ensureTaskOwnerChannelMembershipLocked(channel, task.Owner)
 		b.queueTaskBehindActiveOwnerLaneLocked(&task)
 		if err := rejectTheaterTaskForLiveBusiness(&task); err != nil {
@@ -12103,6 +12716,33 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	requestedID := strings.TrimSpace(body.ID)
+	if strings.HasPrefix(requestedID, "human-request-") && (action == "mark_read" || action == "archive_inbox") {
+		requestID := strings.TrimPrefix(requestedID, "human-request-")
+		for i := range b.requests {
+			if strings.TrimSpace(b.requests[i].ID) != requestID {
+				continue
+			}
+			if action == "mark_read" {
+				b.requests[i].ReadAt = now
+			}
+			if action == "archive_inbox" {
+				b.requests[i].ReadAt = firstNonEmpty(strings.TrimSpace(b.requests[i].ReadAt), now)
+				b.requests[i].ArchivedAt = now
+			}
+			b.requests[i].UpdatedAt = now
+			b.appendActionLocked("request_"+action, "office", normalizeChannelSlug(b.requests[i].Channel), strings.TrimSpace(body.CreatedBy), truncateSummary(b.requests[i].Title+" ["+action+"]", 140), b.requests[i].ID)
+			if err := b.saveLocked(); err != nil {
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			viewTask := b.humanActionTaskFromRequestLocked(b.requests[i])
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": viewTask})
+			return
+		}
+		http.Error(w, "request not found", http.StatusNotFound)
+		return
+	}
 	for i := range b.tasks {
 		if b.tasks[i].ID != requestedID {
 			continue
@@ -12110,10 +12750,290 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		task := &b.tasks[i]
 		taskChannel := normalizeChannelSlug(task.Channel)
 		previousStatus := task.Status
+		if action == "mark_read" || action == "archive_inbox" {
+			if action == "mark_read" {
+				task.ReadAt = now
+			}
+			if action == "archive_inbox" {
+				task.ReadAt = firstNonEmpty(strings.TrimSpace(task.ReadAt), now)
+				task.ArchivedAt = now
+			}
+			task.UpdatedAt = now
+			b.appendActionLocked("task_"+action, "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" ["+action+"]", 140), task.ID)
+			if err := b.saveLocked(); err != nil {
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": *task})
+			return
+		}
+		if action == "acquire_execution_lock" || action == "heartbeat_execution_lock" || action == "release_execution_lock" {
+			actor := strings.TrimSpace(firstNonEmpty(body.Actor, body.CreatedBy))
+			if actor == "" {
+				http.Error(w, "actor or created_by required", http.StatusBadRequest)
+				return
+			}
+			runID := strings.TrimSpace(body.RunID)
+			if runID == "" {
+				runID = fmt.Sprintf("run-%s-%d", task.ID, time.Now().UTC().UnixNano())
+			}
+			ttl := time.Duration(body.LockTTLSeconds) * time.Second
+			if ttl <= 0 {
+				ttl = 15 * time.Minute
+			}
+			currentLock := normalizeTaskExecutionLock(task.ExecutionLock, time.Now().UTC())
+			if action == "acquire_execution_lock" {
+				if taskExecutionLockIsActive(currentLock, time.Now().UTC()) && (currentLock.RunID != runID || currentLock.Owner != actor) {
+					http.Error(w, "task execution lock already held", http.StatusConflict)
+					return
+				}
+				task.ExecutionLock = &taskExecutionLock{
+					RunID:       runID,
+					Owner:       actor,
+					Status:      "active",
+					AcquiredAt:  now,
+					HeartbeatAt: now,
+					ExpiresAt:   time.Now().UTC().Add(ttl).Format(time.RFC3339),
+				}
+				task.UpdatedAt = now
+				b.appendActionLocked("task_execution_lock_acquired", "office", taskChannel, actor, truncateSummary(task.Title+" [execution lock]", 140), task.ID)
+			} else {
+				if !taskExecutionLockIsActive(currentLock, time.Now().UTC()) {
+					http.Error(w, "task execution lock is not active", http.StatusConflict)
+					return
+				}
+				if currentLock.RunID != runID {
+					http.Error(w, "run_id does not own task execution lock", http.StatusConflict)
+					return
+				}
+				if action == "heartbeat_execution_lock" {
+					currentLock.HeartbeatAt = now
+					currentLock.ExpiresAt = time.Now().UTC().Add(ttl).Format(time.RFC3339)
+					task.ExecutionLock = currentLock
+					task.UpdatedAt = now
+					b.appendActionLocked("task_execution_lock_heartbeat", "office", taskChannel, actor, truncateSummary(task.Title+" [execution heartbeat]", 140), task.ID)
+				} else {
+					currentLock.Status = "released"
+					currentLock.HeartbeatAt = now
+					currentLock.ExpiresAt = ""
+					task.ExecutionLock = currentLock
+					task.UpdatedAt = now
+					b.appendActionLocked("task_execution_lock_released", "office", taskChannel, actor, truncateSummary(task.Title+" [execution lock released]", 140), task.ID)
+				}
+			}
+			if err := b.saveLocked(); err != nil {
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": *task, "execution_lock": task.ExecutionLock})
+			return
+		}
+		if action == "update_limits" {
+			limits := body.Limits
+			if body.MaxAttempts > 0 {
+				limits.MaxAttempts = body.MaxAttempts
+			}
+			if body.MaxRuntimeMinutes > 0 {
+				limits.MaxRuntimeMinutes = body.MaxRuntimeMinutes
+			}
+			if body.MaxCostCents > 0 {
+				limits.MaxCostCents = body.MaxCostCents
+			}
+			limits.AttemptsUsed = task.Limits.AttemptsUsed
+			limits.RuntimeMsUsed = task.Limits.RuntimeMsUsed
+			limits.CostCentsUsed = task.Limits.CostCentsUsed
+			applyTaskLimits(task, limits)
+			task.UpdatedAt = now
+			b.appendActionLocked("task_limits_updated", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" [limits]", 140), task.ID)
+			if err := b.saveLocked(); err != nil {
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": *task})
+			return
+		}
+		if action == "record_attempt" {
+			task.Limits.AttemptsUsed++
+			task.Limits.LastAttemptAt = now
+			normalizeTaskLimits(task)
+			if taskLimitExhausted(task) {
+				task.Blocked = true
+				task.Status = "blocked"
+			}
+			task.UpdatedAt = now
+			b.appendActionLocked("task_attempt_recorded", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" [attempt "+itoa(task.Limits.AttemptsUsed)+"]", 140), task.ID)
+			if err := b.saveLocked(); err != nil {
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": *task})
+			return
+		}
+		if action == "add_feedback" {
+			feedbackInput := body.Feedback
+			feedbackInput.Rating = firstNonEmpty(body.FeedbackRating, feedbackInput.Rating)
+			feedbackInput.Comment = firstNonEmpty(body.FeedbackComment, feedbackInput.Comment)
+			feedback, err := normalizeTaskFeedback(feedbackInput, strings.TrimSpace(body.CreatedBy), now, func() string {
+				b.counter++
+				return fmt.Sprintf("feedback-%d", b.counter)
+			})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			appendTaskFeedback(task, feedback)
+			task.UpdatedAt = now
+			b.appendActionLocked("task_feedback_added", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" [feedback "+feedback.Rating+"]", 140), task.ID)
+			if err := b.saveLocked(); err != nil {
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": *task, "feedback": feedback})
+			return
+		}
+		if action == "add_artifact" {
+			if strings.TrimSpace(body.CreatedBy) == "" {
+				http.Error(w, "created_by required", http.StatusBadRequest)
+				return
+			}
+			artifactInput := body.Artifact
+			artifactInput.Kind = firstNonEmpty(body.ArtifactKind, artifactInput.Kind)
+			artifactInput.ResultRole = firstNonEmpty(body.ArtifactResultRole, artifactInput.ResultRole)
+			artifactInput.Title = firstNonEmpty(body.ArtifactTitle, artifactInput.Title)
+			artifactInput.Summary = firstNonEmpty(body.ArtifactSummary, artifactInput.Summary)
+			artifactInput.Path = firstNonEmpty(body.ArtifactPath, artifactInput.Path)
+			artifactInput.URL = firstNonEmpty(body.ArtifactURL, artifactInput.URL)
+			artifactInput.PreviewURL = firstNonEmpty(body.ArtifactPreviewURL, artifactInput.PreviewURL)
+			artifactInput.State = firstNonEmpty(body.ArtifactState, artifactInput.State)
+			artifact, err := normalizeTaskArtifact(artifactInput, strings.TrimSpace(body.CreatedBy), now, func() string {
+				b.counter++
+				return fmt.Sprintf("artifact-%d", b.counter)
+			})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			appendTaskArtifact(task, artifact)
+			if strings.TrimSpace(task.OutcomeEvidence) == "" {
+				task.OutcomeEvidence = strings.TrimSpace(firstNonEmpty(artifact.URL, artifact.Path, artifact.Summary))
+				task.OutcomeVerifiedAt = now
+				if strings.TrimSpace(task.OutcomeStatus) == "" || task.OutcomeStatus == "pending" || task.OutcomeStatus == "needs_evidence" {
+					task.OutcomeStatus = "verified"
+				}
+			}
+			normalizeTaskOutcomeAndQueue(task)
+			task.UpdatedAt = now
+			b.appendActionLocked("task_artifact_added", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" [artifact]", 140), task.ID)
+			if err := b.saveLocked(); err != nil {
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": *task, "artifact": artifact})
+			return
+		}
+		if action == "save_plan_revision" {
+			if strings.TrimSpace(body.CreatedBy) == "" {
+				http.Error(w, "created_by required", http.StatusBadRequest)
+				return
+			}
+			revisionInput := body.PlanRevision
+			revisionInput.Content = firstNonEmpty(body.PlanContent, revisionInput.Content)
+			revisionInput.Summary = firstNonEmpty(body.PlanSummary, revisionInput.Summary)
+			revisionInput.Status = firstNonEmpty(body.PlanStatus, revisionInput.Status)
+			revision, err := normalizeTaskPlanRevision(revisionInput, strings.TrimSpace(body.CreatedBy), now, len(task.PlanRevisions), func() string {
+				b.counter++
+				return fmt.Sprintf("planrev-%d", b.counter)
+			})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			appendTaskPlanRevision(task, revision)
+			task.UpdatedAt = now
+			b.appendActionLocked("task_plan_revised", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" [plan v"+itoa(revision.Version)+"]", 140), task.ID)
+			if err := b.saveLocked(); err != nil {
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": *task, "plan_revision": revision})
+			return
+		}
+		if action == "approve_plan" {
+			if strings.TrimSpace(body.CreatedBy) == "" {
+				http.Error(w, "created_by required", http.StatusBadRequest)
+				return
+			}
+			latest := latestTaskPlanRevision(task)
+			if latest == nil {
+				http.Error(w, "plan revision required", http.StatusConflict)
+				return
+			}
+			latest.Status = "approved"
+			latest.ApprovedBy = strings.TrimSpace(body.CreatedBy)
+			latest.ApprovedAt = now
+			task.UpdatedAt = now
+			b.appendActionLocked("task_plan_approved", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" [plan approved]", 140), task.ID)
+			if err := b.saveLocked(); err != nil {
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": *task, "plan_revision": *latest})
+			return
+		}
+		if action == "promote_learning" {
+			if strings.TrimSpace(body.CreatedBy) == "" {
+				http.Error(w, "created_by required", http.StatusBadRequest)
+				return
+			}
+			skill, duplicate, err := b.promoteTaskLearningLocked(task, strings.TrimSpace(body.CreatedBy), body.LearningKind, body.LearningTitle, body.LearningSummary, now)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusConflict)
+				return
+			}
+			if err := b.saveLocked(); err != nil {
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": *task, "skill": skill, "duplicate": duplicate})
+			return
+		}
+		if action == "update_outcome" {
+			if strings.TrimSpace(body.CreatedBy) == "" {
+				http.Error(w, "created_by required", http.StatusBadRequest)
+				return
+			}
+			applyTaskOutcomeInput(task, body.Outcome, body.OutcomeStatus, body.OutcomeEvidence, body.QueueKey, now)
+			normalizeTaskOutcomeAndQueue(task)
+			task.UpdatedAt = now
+			b.appendActionLocked("task_outcome_updated", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" [outcome]", 140), task.ID)
+			if err := b.saveLocked(); err != nil {
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": *task})
+			return
+		}
 		handoff, err := b.validateTaskMutationContractLocked(task, action, strings.TrimSpace(body.CreatedBy), body.Details)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
+		}
+		if taskLimitExhausted(task) {
+			switch action {
+			case "claim", "assign", "reassign":
+				http.Error(w, "task execution limit exhausted", http.StatusConflict)
+				return
+			}
 		}
 		if _, ok := taskTransitionRuleForAction(action); !ok {
 			http.Error(w, "unknown action", http.StatusBadRequest)
@@ -12134,6 +13054,22 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		if action == "block" {
 			if err := rejectFalseLocalWorktreeBlock(task, body.Details); err != nil {
 				http.Error(w, err.Error(), http.StatusConflict)
+				return
+			}
+		}
+		if action == "complete" {
+			probe := *task
+			applyTaskOutcomeInput(&probe, body.Outcome, body.OutcomeStatus, body.OutcomeEvidence, body.QueueKey, now)
+			probe.Status = "done"
+			normalizeTaskPlan(&probe)
+			applyTaskCompletionContract(&probe)
+			if probe.CompletionEvidenceRequired && !probe.CompletionEvidenceSatisfied {
+				b.appendActionLocked("task_completion_blocked", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" [missing evidence]", 140), task.ID)
+				if err := b.saveLocked(); err != nil {
+					http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+					return
+				}
+				http.Error(w, probe.CompletionBlocker, http.StatusConflict)
 				return
 			}
 		}
@@ -12203,6 +13139,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		if sourceDecisionID := strings.TrimSpace(body.SourceDecisionID); sourceDecisionID != "" {
 			task.SourceDecisionID = sourceDecisionID
 		}
+		applyTaskOutcomeInput(task, body.Outcome, body.OutcomeStatus, body.OutcomeEvidence, body.QueueKey, now)
 		if handoff != nil && taskActionResubmitsForReview(action) && taskHasBlockingReviewFindings(task) {
 			resolveOpenTaskReviewFindingsLocked(task, strings.TrimSpace(body.CreatedBy), now)
 		}
@@ -12248,12 +13185,16 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		if task.Status == "open" {
 			task.ReviewState = ""
 		}
+		normalizeTaskOutcomeAndQueue(task)
 		if err := b.syncTaskWorktreeLocked(task); err != nil {
 			http.Error(w, "failed to manage task worktree", http.StatusInternalServerError)
 			return
 		}
 		b.linkTaskWorkspaceToChannelLocked(taskChannel, task)
 		issueQueued, prQueued := b.maybeQueueTaskGitHubPublicationLocked(task, previousStatus, action, handoff)
+		if action == "complete" {
+			b.appendActionLocked("task_completed", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" [done]", 140), task.ID)
+		}
 		b.appendActionLocked("task_updated", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" ["+task.Status+"]", 140), task.ID)
 		if reassignTriggered {
 			b.postTaskReassignNotificationsLocked(strings.TrimSpace(body.CreatedBy), task, reassignPrevOwner)
@@ -13509,11 +14450,16 @@ func semanticTaskLaneKeyForMatch(match taskReuseMatch) string {
 
 func coalesceTaskView(tasks []teamTask) []teamTask {
 	if len(tasks) < 2 {
-		return append([]teamTask(nil), tasks...)
+		out := append([]teamTask(nil), tasks...)
+		for i := range out {
+			normalizeTaskPlan(&out[i])
+		}
+		return out
 	}
 	out := make([]teamTask, 0, len(tasks))
 	seen := make(map[string]int)
 	for _, task := range tasks {
+		normalizeTaskPlan(&task)
 		key := taskCoalesceKey(&task)
 		if key == "" {
 			out = append(out, task)
@@ -14604,6 +15550,104 @@ func formatMessageUsageSuffix(usage *messageUsage) string {
 	return fmt.Sprintf(" [%d tok]", total)
 }
 
+func normalizeLearningKind(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, " ", "_")
+	value = strings.ReplaceAll(value, "-", "_")
+	switch value {
+	case "playbook", "decision", "runbook", "pattern":
+		return value
+	default:
+		return "playbook"
+	}
+}
+
+func (b *Broker) promoteTaskLearningLocked(task *teamTask, actor, kind, title, summary, now string) (teamSkill, bool, error) {
+	skill, err := buildTaskLearningSkill(task, actor, kind, title, summary, now)
+	if err != nil {
+		return teamSkill{}, false, err
+	}
+	if existing := b.findSkillByNameLocked(skill.Name); existing != nil {
+		return *existing, true, nil
+	}
+	b.skills = append(b.skills, skill)
+	b.appendActionLocked("task_learning_promoted", "office", skillMutationChannel(skill.Channel), strings.TrimSpace(actor), truncateSummary(skill.Title+" [learning]", 140), task.ID)
+	b.appendActionLocked("skill_capability_registered", "office", skillMutationChannel(skill.Channel), strings.TrimSpace(actor), truncateSummary(skill.Title+" [learning skill]", 140), skill.ID)
+	return skill, false, nil
+}
+
+func buildTaskLearningSkill(task *teamTask, actor, kind, title, summary, now string) (teamSkill, error) {
+	if task == nil {
+		return teamSkill{}, fmt.Errorf("task required")
+	}
+	if normalizeTaskStatus(task.Status) != "done" {
+		return teamSkill{}, fmt.Errorf("task must be done before promoting learning")
+	}
+	if strings.TrimSpace(task.OutcomeEvidence) == "" && len(task.Artifacts) == 0 && latestTaskPlanRevision(task) == nil {
+		return teamSkill{}, fmt.Errorf("learning requires outcome evidence, an artifact, or a plan revision")
+	}
+	skillName := "learned-" + strings.TrimSpace(task.ID)
+
+	learningKind := normalizeLearningKind(kind)
+	learningTitle := strings.TrimSpace(firstNonEmpty(title, task.Outcome, task.Title))
+	learningSummary := strings.TrimSpace(firstNonEmpty(summary, task.OutcomeEvidence, task.Details, task.Title))
+	planContent := ""
+	if latest := latestTaskPlanRevision(task); latest != nil {
+		planContent = strings.TrimSpace(latest.Content)
+	}
+	artifactLines := make([]string, 0, len(task.Artifacts))
+	for _, artifact := range task.Artifacts {
+		if line := strings.TrimSpace(firstNonEmpty(artifact.Title, artifact.Path, artifact.URL, artifact.Summary)); line != "" {
+			artifactLines = append(artifactLines, "- "+line)
+		}
+	}
+	content := strings.TrimSpace(fmt.Sprintf(`# %s
+
+Source task: %s
+Kind: %s
+
+## Outcome
+%s
+
+## Evidence
+%s
+
+## Reusable Procedure
+%s
+
+## Artifacts
+%s
+`, learningTitle, strings.TrimSpace(task.ID), learningKind, strings.TrimSpace(firstNonEmpty(task.Outcome, task.Title)), strings.TrimSpace(firstNonEmpty(task.OutcomeEvidence, learningSummary)), firstNonEmpty(planContent, learningSummary), strings.Join(compactStringList(artifactLines), "\n")))
+	if content == "" {
+		return teamSkill{}, fmt.Errorf("learning content required")
+	}
+	skill := teamSkill{
+		ID:            fmt.Sprintf("skill-%s", skillSlug(skillName)),
+		Name:          skillName,
+		Title:         truncateSummary(learningTitle, 120),
+		Description:   truncateSummary(learningSummary, 180),
+		Content:       content,
+		PluginID:      "dunderia-learning",
+		PluginKind:    "skill",
+		Capabilities:  []string{"skill.invoke", "knowledge.reuse"},
+		HealthStatus:  "ready",
+		HealthSummary: "Promoted from completed task evidence.",
+		SourceType:    "task_learning",
+		SourceRef:     strings.TrimSpace(task.ID),
+		InstalledAt:   now,
+		CreatedBy:     strings.TrimSpace(actor),
+		Channel:       normalizeChannelSlug(task.Channel),
+		Tags:          []string{"learning", learningKind, strings.TrimSpace(task.ID)},
+		Trigger:       "manual",
+		UsageCount:    0,
+		Status:        "active",
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	applySkillProvenanceScan(&skill, now)
+	return skill, nil
+}
+
 // --------------- Skills ---------------
 
 func (b *Broker) handleTelegramGroups(w http.ResponseWriter, r *http.Request) {
@@ -14638,6 +15682,12 @@ func (b *Broker) handleSkills(w http.ResponseWriter, r *http.Request) {
 
 func (b *Broker) handleSkillsSubpath(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/skills/")
+	if strings.HasSuffix(path, "/files-preview") {
+		skillName := strings.TrimSuffix(path, "/files-preview")
+		skillName = strings.TrimSuffix(skillName, "/")
+		b.handleSkillFilesPreview(w, r, skillName)
+		return
+	}
 	if strings.HasSuffix(path, "/invoke") {
 		b.handleInvokeSkill(w, r)
 		return
@@ -14650,6 +15700,67 @@ func skillSlug(name string) string {
 	s = strings.ReplaceAll(s, " ", "-")
 	s = strings.ReplaceAll(s, "_", "-")
 	return s
+}
+
+func normalizeSkillPluginKind(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, " ", "_")
+	value = strings.ReplaceAll(value, "-", "_")
+	switch value {
+	case "connector", "workspace", "automation", "ui", "skill", "adapter":
+		return value
+	default:
+		return ""
+	}
+}
+
+func normalizeSkillHealthStatus(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "ready", "warning", "error", "disabled", "unknown":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return ""
+	}
+}
+
+func normalizeSkillCapabilities(values []string) []string {
+	caps := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		value = strings.ReplaceAll(value, " ", ".")
+		value = strings.ReplaceAll(value, "_", ".")
+		if value == "" {
+			continue
+		}
+		caps = append(caps, value)
+	}
+	return uniqueStrings(caps)
+}
+
+func stringSliceContains(values []string, needle string) bool {
+	needle = strings.TrimSpace(needle)
+	if needle == "" {
+		return false
+	}
+	for _, value := range values {
+		if strings.TrimSpace(value) == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func skillCanInvoke(sk teamSkill) bool {
+	if len(sk.Capabilities) == 0 {
+		return true
+	}
+	for _, capability := range normalizeSkillCapabilities(sk.Capabilities) {
+		switch capability {
+		case "agent.invoke", "agent.tools.invoke", "workflow.invoke", "skill.invoke":
+			return true
+		}
+	}
+	return false
 }
 
 func (b *Broker) findSkillByNameLocked(name string) *teamSkill {
@@ -14677,6 +15788,8 @@ func (b *Broker) findSkillByWorkflowKeyLocked(key string) *teamSkill {
 
 func (b *Broker) handleGetSkills(w http.ResponseWriter, r *http.Request) {
 	channelFilter := normalizeChannelSlug(r.URL.Query().Get("channel"))
+	capabilityFilter := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("capability")))
+	pluginFilter := strings.TrimSpace(r.URL.Query().Get("plugin_id"))
 
 	b.mu.Lock()
 	result := make([]teamSkill, 0, len(b.skills))
@@ -14685,6 +15798,12 @@ func (b *Broker) handleGetSkills(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if !skillVisibleInChannel(sk.Channel, channelFilter) {
+			continue
+		}
+		if capabilityFilter != "" && !stringSliceContains(normalizeSkillCapabilities(sk.Capabilities), capabilityFilter) {
+			continue
+		}
+		if pluginFilter != "" && strings.TrimSpace(sk.PluginID) != pluginFilter {
 			continue
 		}
 		result = append(result, sk)
@@ -14702,6 +15821,11 @@ func (b *Broker) handlePostSkill(w http.ResponseWriter, r *http.Request) {
 		Title               string   `json:"title"`
 		Description         string   `json:"description"`
 		Content             string   `json:"content"`
+		PluginID            string   `json:"plugin_id"`
+		PluginKind          string   `json:"plugin_kind"`
+		Capabilities        []string `json:"capabilities"`
+		HealthStatus        string   `json:"health_status"`
+		HealthSummary       string   `json:"health_summary"`
 		CreatedBy           string   `json:"created_by"`
 		Channel             string   `json:"channel"`
 		Tags                []string `json:"tags"`
@@ -14713,6 +15837,13 @@ func (b *Broker) handlePostSkill(w http.ResponseWriter, r *http.Request) {
 		RelayID             string   `json:"relay_id"`
 		RelayPlatform       string   `json:"relay_platform"`
 		RelayEventTypes     []string `json:"relay_event_types"`
+		SourceType          string   `json:"source_type"`
+		SourceRef           string   `json:"source_ref"`
+		SourceHash          string   `json:"source_hash"`
+		InstalledAt         string   `json:"installed_at"`
+		LastScannedAt       string   `json:"last_scanned_at"`
+		ScanStatus          string   `json:"scan_status"`
+		ScanSummary         string   `json:"scan_summary"`
 		LastExecutionAt     string   `json:"last_execution_at"`
 		LastExecutionStatus string   `json:"last_execution_status"`
 		RequestID           string   `json:"request_id"`
@@ -14775,6 +15906,11 @@ func (b *Broker) handlePostSkill(w http.ResponseWriter, r *http.Request) {
 		Title:               title,
 		Description:         strings.TrimSpace(body.Description),
 		Content:             strings.TrimSpace(body.Content),
+		PluginID:            strings.TrimSpace(body.PluginID),
+		PluginKind:          normalizeSkillPluginKind(body.PluginKind),
+		Capabilities:        normalizeSkillCapabilities(body.Capabilities),
+		HealthStatus:        normalizeSkillHealthStatus(firstNonEmpty(body.HealthStatus, "ready")),
+		HealthSummary:       strings.TrimSpace(body.HealthSummary),
 		CreatedBy:           strings.TrimSpace(body.CreatedBy),
 		Channel:             channel,
 		Tags:                body.Tags,
@@ -14786,6 +15922,13 @@ func (b *Broker) handlePostSkill(w http.ResponseWriter, r *http.Request) {
 		RelayID:             strings.TrimSpace(body.RelayID),
 		RelayPlatform:       strings.TrimSpace(body.RelayPlatform),
 		RelayEventTypes:     append([]string(nil), body.RelayEventTypes...),
+		SourceType:          normalizeSkillSourceType(firstNonEmpty(body.SourceType, skillDefaultSourceType(status))),
+		SourceRef:           strings.TrimSpace(firstNonEmpty(body.SourceRef, "skill:"+skillSlug(body.Name))),
+		SourceHash:          strings.TrimSpace(body.SourceHash),
+		InstalledAt:         strings.TrimSpace(firstNonEmpty(body.InstalledAt, now)),
+		LastScannedAt:       strings.TrimSpace(body.LastScannedAt),
+		ScanStatus:          normalizeSkillScanStatus(body.ScanStatus),
+		ScanSummary:         strings.TrimSpace(body.ScanSummary),
 		LastExecutionAt:     strings.TrimSpace(body.LastExecutionAt),
 		LastExecutionStatus: strings.TrimSpace(body.LastExecutionStatus),
 		UsageCount:          0,
@@ -14793,6 +15936,7 @@ func (b *Broker) handlePostSkill(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:           now,
 		UpdatedAt:           now,
 	}
+	applySkillProvenanceScan(&sk, now)
 	b.skills = append(b.skills, sk)
 
 	eventChannel := skillMutationChannel(channel)
@@ -14806,6 +15950,9 @@ func (b *Broker) handlePostSkill(w http.ResponseWriter, r *http.Request) {
 		Timestamp: now,
 	})
 	b.appendActionLocked(msgKind, "office", eventChannel, sk.CreatedBy, truncateSummary(sk.Title, 140), sk.ID)
+	if sk.PluginID != "" || len(sk.Capabilities) > 0 {
+		b.appendActionLocked("skill_capability_registered", "office", eventChannel, sk.CreatedBy, truncateSummary(sk.Title+" [capabilities]", 140), sk.ID)
+	}
 
 	payload := map[string]any{
 		"persisted": true,
@@ -14833,6 +15980,11 @@ func (b *Broker) handlePutSkill(w http.ResponseWriter, r *http.Request) {
 		Title               string   `json:"title"`
 		Description         string   `json:"description"`
 		Content             string   `json:"content"`
+		PluginID            string   `json:"plugin_id"`
+		PluginKind          string   `json:"plugin_kind"`
+		Capabilities        []string `json:"capabilities"`
+		HealthStatus        string   `json:"health_status"`
+		HealthSummary       string   `json:"health_summary"`
 		Channel             string   `json:"channel"`
 		Tags                []string `json:"tags"`
 		Trigger             string   `json:"trigger"`
@@ -14844,6 +15996,13 @@ func (b *Broker) handlePutSkill(w http.ResponseWriter, r *http.Request) {
 		RelayID             string   `json:"relay_id"`
 		RelayPlatform       string   `json:"relay_platform"`
 		RelayEventTypes     []string `json:"relay_event_types"`
+		SourceType          string   `json:"source_type"`
+		SourceRef           string   `json:"source_ref"`
+		SourceHash          string   `json:"source_hash"`
+		InstalledAt         string   `json:"installed_at"`
+		LastScannedAt       string   `json:"last_scanned_at"`
+		ScanStatus          string   `json:"scan_status"`
+		ScanSummary         string   `json:"scan_summary"`
 		LastExecutionAt     string   `json:"last_execution_at"`
 		LastExecutionStatus string   `json:"last_execution_status"`
 		RequestID           string   `json:"request_id"`
@@ -14886,6 +16045,25 @@ func (b *Broker) handlePutSkill(w http.ResponseWriter, r *http.Request) {
 	}
 	if c := strings.TrimSpace(body.Content); c != "" {
 		sk.Content = c
+		sk.SourceHash = ""
+		sk.LastScannedAt = ""
+		sk.ScanStatus = ""
+		sk.ScanSummary = ""
+	}
+	if pluginID := strings.TrimSpace(body.PluginID); pluginID != "" {
+		sk.PluginID = pluginID
+	}
+	if pluginKind := normalizeSkillPluginKind(body.PluginKind); pluginKind != "" {
+		sk.PluginKind = pluginKind
+	}
+	if body.Capabilities != nil {
+		sk.Capabilities = normalizeSkillCapabilities(body.Capabilities)
+	}
+	if healthStatus := normalizeSkillHealthStatus(body.HealthStatus); healthStatus != "" {
+		sk.HealthStatus = healthStatus
+	}
+	if healthSummary := strings.TrimSpace(body.HealthSummary); healthSummary != "" {
+		sk.HealthSummary = healthSummary
 	}
 	if ch := normalizeChannelSlug(body.Channel); ch != "" {
 		sk.Channel = ch
@@ -14917,6 +16095,27 @@ func (b *Broker) handlePutSkill(w http.ResponseWriter, r *http.Request) {
 	if body.RelayEventTypes != nil {
 		sk.RelayEventTypes = append([]string(nil), body.RelayEventTypes...)
 	}
+	if sourceType := normalizeSkillSourceType(body.SourceType); sourceType != "" {
+		sk.SourceType = sourceType
+	}
+	if sourceRef := strings.TrimSpace(body.SourceRef); sourceRef != "" {
+		sk.SourceRef = sourceRef
+	}
+	if sourceHash := strings.TrimSpace(body.SourceHash); sourceHash != "" {
+		sk.SourceHash = sourceHash
+	}
+	if installedAt := strings.TrimSpace(body.InstalledAt); installedAt != "" {
+		sk.InstalledAt = installedAt
+	}
+	if scannedAt := strings.TrimSpace(body.LastScannedAt); scannedAt != "" {
+		sk.LastScannedAt = scannedAt
+	}
+	if scanStatus := normalizeSkillScanStatus(body.ScanStatus); scanStatus != "" {
+		sk.ScanStatus = scanStatus
+	}
+	if scanSummary := strings.TrimSpace(body.ScanSummary); scanSummary != "" {
+		sk.ScanSummary = scanSummary
+	}
 	if ts := strings.TrimSpace(body.LastExecutionAt); ts != "" {
 		sk.LastExecutionAt = ts
 	}
@@ -14926,6 +16125,7 @@ func (b *Broker) handlePutSkill(w http.ResponseWriter, r *http.Request) {
 	if s := strings.TrimSpace(body.Status); s != "" {
 		sk.Status = s
 	}
+	applySkillProvenanceScan(sk, now)
 	sk.UpdatedAt = now
 
 	channel := skillMutationChannel(sk.Channel)
@@ -15076,13 +16276,18 @@ func (b *Broker) handleInvokeSkill(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "skill not found", http.StatusNotFound)
 		return
 	}
+	if !skillCanInvoke(*sk) {
+		b.mu.Unlock()
+		http.Error(w, "skill capabilities do not allow invocation", http.StatusConflict)
+		return
+	}
 
 	sk.UsageCount++
 	sk.UpdatedAt = now
 
 	channel := normalizeChannelSlug(body.Channel)
 	if channel == "" {
-		channel = skillMutationChannel(sk.Channel)
+		channel = normalizeChannelSlug(sk.Channel)
 	}
 	if channel == "" {
 		channel = "general"
@@ -15222,6 +16427,9 @@ func (b *Broker) parseSkillProposalLocked(msg channelMessage) {
 			Title:       title,
 			Description: description,
 			Content:     instructions,
+			SourceType:  "proposal",
+			SourceRef:   strings.TrimSpace(msg.ID),
+			InstalledAt: now,
 			CreatedBy:   msg.From,
 			Channel:     channel,
 			Tags:        tags,
@@ -15231,6 +16439,7 @@ func (b *Broker) parseSkillProposalLocked(msg channelMessage) {
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		}
+		applySkillProvenanceScan(&skill, now)
 		b.skills = append(b.skills, skill)
 
 		// Announce the proposal.
@@ -15298,14 +16507,17 @@ func (b *Broker) SeedDefaultSkills(specs []agent.PackSkillSpec) {
 			Title:       title,
 			Description: strings.TrimSpace(spec.Description),
 			Content:     strings.TrimSpace(spec.Content),
+			SourceType:  "starter_pack",
+			SourceRef:   "default-skill:" + skillSlug(name),
+			InstalledAt: now,
 			CreatedBy:   "system",
-			Channel:     globalSkillChannel,
 			Tags:        append([]string(nil), spec.Tags...),
 			Trigger:     strings.TrimSpace(spec.Trigger),
 			Status:      "active",
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		}
+		applySkillProvenanceScan(&sk, now)
 		b.skills = append(b.skills, sk)
 	}
 	if err := b.saveLocked(); err != nil {

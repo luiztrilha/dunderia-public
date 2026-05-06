@@ -1375,6 +1375,79 @@ func TestHandleTeamBroadcastDefaultsToLatestTaggedChannelAndThread(t *testing.T)
 	}
 }
 
+func TestHandleHumanMessageRoutesReferencedTaskToTaskChannel(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	ctx := context.Background()
+
+	b := team.NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	ensureBrokerMembers(t, ctx, "builder")
+
+	if err := brokerPostJSON(ctx, "/channels", map[string]any{
+		"action":      "create",
+		"slug":        "migracao-convenios",
+		"name":        "Migracao Convenios",
+		"description": "Migration work",
+		"members":     []string{"builder"},
+		"created_by":  "ceo",
+	}, nil); err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := brokerPostJSON(ctx, "/messages", map[string]any{
+		"channel": "general",
+		"from":    "ceo",
+		"content": "Keep general focused.",
+		"tagged":  []string{"builder"},
+	}, nil); err != nil {
+		t.Fatalf("post general message: %v", err)
+	}
+	var created struct {
+		Task struct {
+			ID string `json:"id"`
+		} `json:"task"`
+	}
+	if err := brokerPostJSON(ctx, "/tasks", map[string]any{
+		"action":         "create",
+		"channel":        "migracao-convenios",
+		"title":          "Adequar ConveniosClient",
+		"owner":          "builder",
+		"created_by":     "ceo",
+		"execution_mode": "office",
+	}, &created); err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	if strings.TrimSpace(created.Task.ID) == "" {
+		t.Fatal("expected created task id")
+	}
+
+	result, _, err := handleHumanMessage(ctx, nil, HumanMessageArgs{
+		MySlug:  "builder",
+		Title:   "Task update",
+		Content: "`#" + created.Task.ID + "` recebeu uma atualização de contexto.",
+	})
+	if err != nil {
+		t.Fatalf("handleHumanMessage: %v", err)
+	}
+	text := textFromResult(t, result)
+	if !strings.Contains(text, "in #migracao-convenios") {
+		t.Fatalf("expected task channel in %q", text)
+	}
+
+	var migrationMessages brokerMessagesResponse
+	if err := brokerGetJSON(ctx, "/messages?channel=migracao-convenios&viewer_slug=builder", &migrationMessages); err != nil {
+		t.Fatalf("get migration messages: %v", err)
+	}
+	if len(migrationMessages.Messages) == 0 || migrationMessages.Messages[len(migrationMessages.Messages)-1].Channel != "migracao-convenios" {
+		t.Fatalf("expected human message in migracao-convenios, got %+v", migrationMessages.Messages)
+	}
+}
+
 func TestHandleTeamBroadcastRejectsAgentRootChannelMessage(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	ctx := context.Background()

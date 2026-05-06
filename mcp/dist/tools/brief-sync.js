@@ -111,7 +111,7 @@ export function registerBriefSyncTools(server, client) {
         return { content: [{ type: "text", text: summary }] };
     });
     server.tool("read_brief", "Read a brief from the local .nex/briefs/ folder. Falls back to API if not synced locally. Faster than API calls for local agents.", {
-        title: z.string().describe("Brief title or partial match (e.g., 'lenny', 'airExampleBank', 'b2b sales')"),
+        title: z.string().describe("Brief title or partial match (e.g., 'lenny', 'airbnb', 'b2b sales')"),
     }, { readOnlyHint: true }, async ({ title }) => {
         ensureDirs();
         const state = loadSyncState();

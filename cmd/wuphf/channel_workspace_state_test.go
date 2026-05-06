@@ -16,7 +16,7 @@ func TestBuildOfficeIntroLinesUsesWorkspaceState(t *testing.T) {
 	lines := m.buildOfficeIntroLines(96)
 	plain := stripANSI(joinRenderedLines(lines))
 
-	if !strings.Contains(plain, "Welcome to the DunderIA office.") {
+	if !strings.Contains(plain, "Welcome to the MaestrIA office.") {
 		t.Fatalf("expected office welcome copy, got %q", plain)
 	}
 	if !strings.Contains(plain, "Local-only runtime") {
@@ -37,7 +37,7 @@ func TestBuildOfficeIntroLinesShowsOfflinePreviewGuidance(t *testing.T) {
 	if !strings.Contains(plain, "Offline preview") {
 		t.Fatalf("expected offline preview messaging, got %q", plain)
 	}
-	if !strings.Contains(plain, "Launch DunderIA to attach the live office, or run /doctor to inspect runtime readiness.") {
+	if !strings.Contains(plain, "Launch MaestrIA to attach the live office, or run /doctor to inspect runtime readiness.") {
 		t.Fatalf("expected doctor guidance, got %q", plain)
 	}
 }

@@ -776,6 +776,60 @@ func (b *Broker) upsertCEOConversationFollowUpTaskLocked(candidate ceoConversati
 		b.appendActionLocked("task_updated", "watchdog", channel, "watchdog", truncateSummary(existing.Title+" ["+existing.Status+"]", 140), existing.ID)
 		return true
 	}
+	if existing := b.findActiveCEOConversationFollowUpByThreadLocked(channel, candidate.ThreadID); existing != nil {
+		changed := false
+		if strings.TrimSpace(existing.ExecutionKey) != strings.TrimSpace(candidate.ExecutionKey) {
+			existing.ExecutionKey = strings.TrimSpace(candidate.ExecutionKey)
+			changed = true
+		}
+		if strings.TrimSpace(existing.Title) != strings.TrimSpace(candidate.Title) {
+			existing.Title = strings.TrimSpace(candidate.Title)
+			changed = true
+		}
+		if strings.TrimSpace(existing.Details) != strings.TrimSpace(candidate.Details) {
+			existing.Details = strings.TrimSpace(candidate.Details)
+			changed = true
+		}
+		if strings.TrimSpace(existing.Owner) != "ceo" {
+			existing.Owner = "ceo"
+			changed = true
+		}
+		if strings.TrimSpace(existing.ThreadID) != strings.TrimSpace(candidate.ThreadID) {
+			existing.ThreadID = strings.TrimSpace(candidate.ThreadID)
+			changed = true
+		}
+		if strings.TrimSpace(existing.TaskType) != "follow_up" {
+			existing.TaskType = "follow_up"
+			changed = true
+		}
+		if strings.TrimSpace(existing.PipelineID) != "follow_up" {
+			existing.PipelineID = "follow_up"
+			changed = true
+		}
+		if strings.TrimSpace(existing.ExecutionMode) != "office" {
+			existing.ExecutionMode = "office"
+			changed = true
+		}
+		if strings.TrimSpace(existing.ReviewState) != "not_required" {
+			existing.ReviewState = "not_required"
+			changed = true
+		}
+		if strings.TrimSpace(existing.Status) != "in_progress" || existing.Blocked {
+			existing.Status = "in_progress"
+			existing.Blocked = false
+			changed = true
+		}
+		if !changed {
+			return false
+		}
+		existing.UpdatedAt = now
+		b.ensureTaskOwnerChannelMembershipLocked(channel, existing.Owner)
+		b.queueTaskBehindActiveOwnerLaneLocked(existing)
+		normalizeTaskPlan(existing)
+		b.scheduleTaskLifecycleLocked(existing)
+		b.appendActionLocked("task_updated", "watchdog", channel, "watchdog", truncateSummary(existing.Title+" [coalesced follow-up]", 140), existing.ID)
+		return true
+	}
 
 	task := teamTask{
 		ID:            fmt.Sprintf("task-%d", b.counter+1),
@@ -802,4 +856,32 @@ func (b *Broker) upsertCEOConversationFollowUpTaskLocked(candidate ceoConversati
 	b.tasks = append(b.tasks, task)
 	b.appendActionLocked("task_created", "watchdog", channel, "watchdog", truncateSummary(task.Title, 140), task.ID)
 	return true
+}
+
+func (b *Broker) findActiveCEOConversationFollowUpByThreadLocked(channel, threadID string) *teamTask {
+	channel = normalizeChannelSlug(channel)
+	threadID = strings.TrimSpace(threadID)
+	if channel == "" || threadID == "" {
+		return nil
+	}
+	threadRoot := firstNonEmpty(b.threadRootFromMessageIDLocked(threadID), threadID)
+	var best *teamTask
+	for i := range b.tasks {
+		task := &b.tasks[i]
+		if normalizeChannelSlug(task.Channel) != channel || taskIsTerminal(task) {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(task.TaskType), "follow_up") && !strings.HasPrefix(strings.TrimSpace(task.ExecutionKey), ceoConversationFollowUpTaskPrefix+"|") {
+			continue
+		}
+		taskThread := strings.TrimSpace(task.ThreadID)
+		taskRoot := firstNonEmpty(b.threadRootFromMessageIDLocked(taskThread), taskThread)
+		if taskRoot != threadRoot {
+			continue
+		}
+		if best == nil || studioTimestampAfter(task.UpdatedAt, best.UpdatedAt) {
+			best = task
+		}
+	}
+	return best
 }

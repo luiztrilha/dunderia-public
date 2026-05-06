@@ -445,8 +445,9 @@
 .interview-bar-blocking .interview-bar-question {
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(225, 29, 72, 0.2);
-  background: color-mix(in srgb, #fff1f2 72%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--red) 24%, var(--border));
+  border-left: 3px solid color-mix(in srgb, var(--red) 72%, var(--yellow));
+  background: color-mix(in srgb, var(--red) 8%, var(--bg-card));
   font-size: 16px;
 }
 .interview-bar-context { font-size: 12px; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap; padding: 8px 10px; background: var(--bg); border-radius: var(--radius-sm); border-left: 2px solid var(--border); }
@@ -545,9 +546,9 @@
     var(--bg);
 }
 .composer-inner-blocked {
-  border-color: rgba(225, 29, 72, 0.34);
+  border-color: color-mix(in srgb, var(--red) 34%, var(--border));
   background:
-    linear-gradient(180deg, color-mix(in srgb, #ffe4e6 72%, transparent), transparent 92%),
+    linear-gradient(180deg, color-mix(in srgb, var(--red) 8%, transparent), transparent 92%),
     var(--bg);
 }
 .composer-blocker {
@@ -556,9 +557,9 @@
   gap: 8px;
   margin: 0 0 8px;
   padding: 9px 12px;
-  border: 1px solid rgba(225, 29, 72, 0.22);
+  border: 1px solid color-mix(in srgb, var(--red) 22%, var(--border));
   border-radius: 10px;
-  background: color-mix(in srgb, #fff1f2 80%, var(--bg-card));
+  background: color-mix(in srgb, var(--red) 8%, var(--bg-card));
   color: var(--text);
 }
 .composer-blocker-label {
@@ -575,7 +576,7 @@
 .composer-blocker-copy {
   font-size: 12px;
   font-weight: 700;
-  color: #be123c;
+  color: color-mix(in srgb, var(--red) 78%, var(--text));
 }
 .composer-inner:focus-within {
   border-color: var(--accent);
@@ -863,12 +864,14 @@
 }
 
 .interview-card {
-  width: min(680px, 100%);
+  width: min(600px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 22px 24px;
-  border-radius: 14px;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--bg-card);
   box-shadow: 0 28px 84px rgba(0,0,0,0.3);
@@ -882,9 +885,9 @@
 }
 
 .interview-card-blocking {
-  border-color: rgba(225, 29, 72, 0.42);
+  border-color: color-mix(in srgb, var(--red) 38%, var(--border));
   background:
-    linear-gradient(180deg, color-mix(in srgb, #ffe4e6 76%, transparent), transparent 88%),
+    linear-gradient(180deg, color-mix(in srgb, var(--red) 7%, transparent), transparent 88%),
     var(--bg-card);
 }
 
@@ -915,48 +918,59 @@
 
 .interview-title {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 850;
+  line-height: 1.25;
   color: var(--text);
 }
 
 .interview-blocking-copy {
-  margin: -8px 0 0;
+  margin: -2px 0 0;
   font-size: 13px;
   font-weight: 750;
-  color: #be123c;
+  color: color-mix(in srgb, var(--red) 80%, var(--text));
 }
 
 .interview-question {
   margin: 0;
   padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(225, 29, 72, 0.22);
-  background: color-mix(in srgb, #fff1f2 76%, var(--bg-card));
-  font-size: 18px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--red) 24%, var(--border));
+  border-left: 3px solid color-mix(in srgb, var(--red) 72%, var(--yellow));
+  background: color-mix(in srgb, var(--red) 8%, var(--bg-card));
+  font-size: 16px;
   font-weight: 760;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 
 .interview-context {
   margin: 0;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   line-height: 1.55;
   color: var(--text-secondary);
   white-space: pre-wrap;
-  padding: 10px 12px;
+  padding: 11px 12px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--bg) 90%, var(--bg-card));
+  background: color-mix(in srgb, var(--bg) 72%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
   border-left: 3px solid color-mix(in srgb, var(--accent) 42%, var(--border));
 }
 
-.interview-card-blocking .interview-context { border-left-color: rgba(225, 29, 72, 0.78); }
+.interview-card-blocking .interview-context { border-left-color: color-mix(in srgb, var(--red) 72%, var(--yellow)); }
 
 .interview-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+.interview-actions .btn {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.25;
 }
 .interview-actions-end { justify-content: flex-end; }
 .interview-text {

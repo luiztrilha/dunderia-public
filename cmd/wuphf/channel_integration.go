@@ -246,7 +246,7 @@ func connectTelegramGroup(token string, group team.TelegramGroup) tea.Cmd {
 		// Send confirmation message to the Telegram group
 		if group.ChatID != 0 {
 			_ = team.SendTelegramMessage(token, group.ChatID,
-				"Connected to the DunderIA office. Messages here will be visible to the team.")
+				"Connected to the MaestrIA office. Messages here will be visible to the team.")
 		}
 
 		// Clear broker state so next restart picks up the manifest with surfaces

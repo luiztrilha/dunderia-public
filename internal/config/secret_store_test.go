@@ -140,7 +140,7 @@ func TestMigrateConfigSecretsToStoreCanClearPlaintext(t *testing.T) {
 	if err := Save(Config{
 		ComposioAPIKey: "composio-secret",
 		BraveAPIKey:    "brave-secret",
-		CompanyName:    "DunderIA",
+		CompanyName:    "MaestrIA",
 	}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestMigrateConfigSecretsToStoreCanClearPlaintext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
-	if cfg.ComposioAPIKey != "" || cfg.BraveAPIKey != "" || cfg.CompanyName != "DunderIA" {
+	if cfg.ComposioAPIKey != "" || cfg.BraveAPIKey != "" || cfg.CompanyName != "MaestrIA" {
 		t.Fatalf("unexpected config after clear: %+v", cfg)
 	}
 	value, ok, err := store.Get("brave_api_key")

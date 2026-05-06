@@ -1,6 +1,6 @@
-# DunderIA Desktop
+# MaestrIA Desktop
 
-Electron shell for DunderIA tools that need embedded Chromium, especially Browser Lab.
+Electron shell for MaestrIA tools that need embedded Chromium, especially Browser Lab.
 It also keeps a small tray menu available for opening the app, reloading the web
 view, and jumping straight to Runtime Doctor.
 

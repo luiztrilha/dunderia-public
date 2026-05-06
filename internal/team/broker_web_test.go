@@ -126,3 +126,42 @@ func TestWebUIProxyHandlerDisablesCacheForAPIResponses(t *testing.T) {
 		t.Fatalf("expected api proxy response expires 0, got %q", got)
 	}
 }
+
+func TestWebUIStaticHandlerDisablesCacheForIndex(t *testing.T) {
+	handler := webUIStaticHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, `<!doctype html>`)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Cache-Control"); got != "no-store, no-cache, must-revalidate" {
+		t.Fatalf("expected static index response to disable cache, got %q", got)
+	}
+	if got := rec.Header().Get("Pragma"); got != "no-cache" {
+		t.Fatalf("expected static index response pragma no-cache, got %q", got)
+	}
+	if got := rec.Header().Get("Expires"); got != "0" {
+		t.Fatalf("expected static index response expires 0, got %q", got)
+	}
+}
+
+func TestWebUIStaticHandlerKeepsAssetCacheHeadersUntouched(t *testing.T) {
+	handler := webUIStaticHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = io.WriteString(w, `body{}`)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/assets/app.css", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("Cache-Control"); got != "" {
+		t.Fatalf("expected asset cache headers to be untouched, got %q", got)
+	}
+}

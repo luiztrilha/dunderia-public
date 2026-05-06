@@ -1,11 +1,11 @@
-# DunderIA
+# MaestrIA
 
 ### Runtime local-first de escritorio multiagente.
 
-O DunderIA te da um escritorio visivel para agentes de IA: canais compartilhados, broker local, runners novos por turno, MCP com escopo por agente, worktrees Git isoladas e uma interface onde o trabalho fica exposto em vez de escondido atras de um unico chat.
+A MaestrIA te da um escritorio visivel para agentes de IA: canais compartilhados, broker local, runners novos por turno, MCP com escopo por agente, worktrees Git isoladas e uma interface onde o trabalho fica exposto em vez de escondido atras de um unico chat.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/luiztrilha/dunderia/main/assets/hero.png" alt="DunderIA onboarding - Seu time de IA, visivel e trabalhando." width="720" />
+  <img src="https://raw.githubusercontent.com/luiztrilha/dunderia/main/assets/hero.png" alt="MaestrIA onboarding - Seu time de IA, visivel e trabalhando." width="720" />
 </p>
 
 [![npm](https://img.shields.io/npm/v/wuphf?color=A87B4F)](https://www.npmjs.com/package/wuphf)
@@ -103,7 +103,7 @@ wuphf repair-channel-memory
 
 ## Memoria e Recuperacao
 
-O DunderIA atualmente opera com memoria organizacional apenas local:
+A MaestrIA atualmente opera com memoria organizacional apenas local:
 
 ```bash
 wuphf --memory-backend none
@@ -135,4 +135,4 @@ O contexto duravel fica em:
 - Code of Conduct: https://github.com/luiztrilha/dunderia/blob/main/CODE_OF_CONDUCT.md
 - Support: https://github.com/luiztrilha/dunderia/blob/main/SUPPORT.md
 
-O nome publico do produto e **DunderIA**. O codinome tecnico historico **`wuphf`** continua no binario e no pacote npm por compatibilidade.
+O nome publico do produto e **MaestrIA**. O codinome tecnico historico **`wuphf`** continua no binario e no pacote npm por compatibilidade.

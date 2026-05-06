@@ -35,5 +35,5 @@ func RegisterAllCommands(r *Registry) {
 	// System
 	r.Register(SlashCommand{Name: "help", Description: "Show all commands", Execute: cmdHelp})
 	r.Register(SlashCommand{Name: "clear", Description: "Clear messages", Execute: cmdClear})
-	r.Register(SlashCommand{Name: "quit", Description: "Exit DunderIA", Execute: cmdQuit})
+	r.Register(SlashCommand{Name: "quit", Description: "Exit MaestrIA", Execute: cmdQuit})
 }

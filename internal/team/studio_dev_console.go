@@ -64,16 +64,17 @@ type studioTaskCounts struct {
 }
 
 type studioEnvironmentSnapshot struct {
-	Status                string   `json:"status"`
-	BrokerReachable       bool     `json:"broker_reachable"`
-	APIReachable          bool     `json:"api_reachable"`
-	WebReachable          bool     `json:"web_reachable"`
-	MemoryBackendSelected string   `json:"memory_backend_selected,omitempty"`
-	MemoryBackendActive   string   `json:"memory_backend_active,omitempty"`
-	MemoryBackendReady    bool     `json:"memory_backend_ready"`
-	Degraded              bool     `json:"degraded"`
-	Signals               []string `json:"signals,omitempty"`
-	Build                 any      `json:"build,omitempty"`
+	Status                string                `json:"status"`
+	BrokerReachable       bool                  `json:"broker_reachable"`
+	APIReachable          bool                  `json:"api_reachable"`
+	WebReachable          bool                  `json:"web_reachable"`
+	MemoryBackendSelected string                `json:"memory_backend_selected,omitempty"`
+	MemoryBackendActive   string                `json:"memory_backend_active,omitempty"`
+	MemoryBackendReady    bool                  `json:"memory_backend_ready"`
+	Degraded              bool                  `json:"degraded"`
+	Signals               []string              `json:"signals,omitempty"`
+	Build                 any                   `json:"build,omitempty"`
+	RuntimeDoctor         runtimeDoctorSnapshot `json:"runtime_doctor,omitempty"`
 }
 
 type studioActiveContextSnapshot struct {
@@ -157,6 +158,15 @@ type studioTaskSnapshot struct {
 	Blocked                bool     `json:"blocked,omitempty"`
 	TaskType               string   `json:"task_type,omitempty"`
 	ExecutionMode          string   `json:"execution_mode,omitempty"`
+	Outcome                string   `json:"outcome,omitempty"`
+	OutcomeStatus          string   `json:"outcome_status,omitempty"`
+	OutcomeEvidence        string   `json:"outcome_evidence,omitempty"`
+	QueueKey               string   `json:"queue_key,omitempty"`
+	ArtifactCount          int      `json:"artifact_count,omitempty"`
+	PlanRevisionCount      int      `json:"plan_revision_count,omitempty"`
+	LatestPlanSummary      string   `json:"latest_plan_summary,omitempty"`
+	EvalCount              int      `json:"eval_count,omitempty"`
+	EvalSeverity           string   `json:"eval_severity,omitempty"`
 	WorkflowKey            string   `json:"workflow_key,omitempty"`
 	PipelineID             string   `json:"pipeline_id,omitempty"`
 	WorkspacePath          string   `json:"workspace_path,omitempty"`
@@ -290,6 +300,16 @@ func (b *Broker) handleStudioDevConsole(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(buildStudioDevConsoleSnapshot(b))
+}
+
+func (b *Broker) handleRuntimeDoctor(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	state := copyStudioDevConsoleState(b)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(buildRuntimeDoctorSnapshot(state))
 }
 
 func (b *Broker) handleStudioDevConsoleAction(w http.ResponseWriter, r *http.Request) {
@@ -448,11 +468,17 @@ func buildStudioOfficeHealthAndBootstrap(state studioDevConsoleState, blockers [
 func buildStudioEnvironmentSnapshot(state studioDevConsoleState, blockers []studioBlocker, health studioBrokerHealthSnapshot, bootstrap studioBootstrapSnapshot) studioEnvironmentSnapshot {
 	memoryStatus := ResolveMemoryBackendStatus()
 	signals := append([]string(nil), health.Signals...)
+	runtimeDoctor := buildRuntimeDoctorSnapshot(state)
 	if memoryStatus.ActiveKind == config.MemoryBackendNone {
 		signals = append(signals, "memory_backend_unavailable")
 	}
 	if len(state.WebUIOrigins) == 0 {
 		signals = append(signals, "web_ui_uninitialized")
+	}
+	if runtimeDoctor.Status == "blocked" {
+		signals = append(signals, "runtime_doctor_blocked")
+	} else if runtimeDoctor.Status == "degraded" {
+		signals = append(signals, "runtime_doctor_degraded")
 	}
 	env := studioEnvironmentSnapshot{
 		Status:                "ok",
@@ -464,6 +490,7 @@ func buildStudioEnvironmentSnapshot(state studioDevConsoleState, blockers []stud
 		MemoryBackendReady:    memoryStatus.ActiveKind != config.MemoryBackendNone,
 		Signals:               uniqueStudioStrings(signals),
 		Build:                 buildinfo.Current(),
+		RuntimeDoctor:         runtimeDoctor,
 	}
 	env.Degraded = len(env.Signals) > 0
 	if !bootstrap.Ready {
@@ -1274,7 +1301,13 @@ func studioTaskSnapshotsFromTasks(tasks []teamTask, activity ...agentActivitySna
 	livenessByTaskID := studioLatestLivenessByTaskID(activity)
 	out := make([]studioTaskSnapshot, 0, len(tasks))
 	for _, task := range tasks {
+		normalizeTaskPlan(&task)
 		liveness := livenessByTaskID[strings.TrimSpace(task.ID)]
+		latestPlan := latestTaskPlanRevision(&task)
+		latestPlanSummary := ""
+		if latestPlan != nil {
+			latestPlanSummary = strings.TrimSpace(latestPlan.Summary)
+		}
 		out = append(out, studioTaskSnapshot{
 			ID:                     strings.TrimSpace(task.ID),
 			Channel:                normalizeChannelSlug(task.Channel),
@@ -1284,6 +1317,15 @@ func studioTaskSnapshotsFromTasks(tasks []teamTask, activity ...agentActivitySna
 			Blocked:                task.Blocked,
 			TaskType:               strings.TrimSpace(task.TaskType),
 			ExecutionMode:          strings.TrimSpace(task.ExecutionMode),
+			Outcome:                strings.TrimSpace(task.Outcome),
+			OutcomeStatus:          strings.TrimSpace(task.OutcomeStatus),
+			OutcomeEvidence:        strings.TrimSpace(task.OutcomeEvidence),
+			QueueKey:               strings.TrimSpace(task.QueueKey),
+			ArtifactCount:          len(task.Artifacts),
+			PlanRevisionCount:      len(task.PlanRevisions),
+			LatestPlanSummary:      latestPlanSummary,
+			EvalCount:              len(task.Evals),
+			EvalSeverity:           maxTaskEvalSeverity(task.Evals),
 			WorkflowKey:            strings.TrimSpace(task.ExecutionKey),
 			PipelineID:             strings.TrimSpace(task.PipelineID),
 			WorkspacePath:          strings.TrimSpace(task.WorkspacePath),
@@ -1318,6 +1360,31 @@ func studioLatestLivenessByTaskID(activity []agentActivitySnapshot) map[string]a
 			continue
 		}
 		out[taskID] = snapshot
+	}
+	return out
+}
+
+func maxTaskEvalSeverity(evals []taskEvalSignal) string {
+	score := 0
+	out := ""
+	for _, eval := range evals {
+		switch normalizeTaskEvalSeverity(eval.Severity) {
+		case "error":
+			if score < 3 {
+				score = 3
+				out = "error"
+			}
+		case "warning":
+			if score < 2 {
+				score = 2
+				out = "warning"
+			}
+		case "info":
+			if score < 1 {
+				score = 1
+				out = "info"
+			}
+		}
 	}
 	return out
 }
@@ -1537,7 +1604,7 @@ func studioBlockerBacksActiveTask(blocker studioBlocker, taskByID map[string]tea
 	return !taskIsTerminal(&task)
 }
 
-func studioRecentSubstantiveMessagesByChannel(messages []channelMessage) map[string]studioMessageSnapshot {
+func studioRecentSubstantiveMessagesByChannel(messages []channelMessage, taskChannelByID map[string]string) map[string]studioMessageSnapshot {
 	out := make(map[string]studioMessageSnapshot)
 	for i := len(messages) - 1; i >= 0; i-- {
 		msg := messages[i]
@@ -1551,6 +1618,9 @@ func studioRecentSubstantiveMessagesByChannel(messages []channelMessage) map[str
 		if !studioMessageLooksSubstantive(msg) {
 			continue
 		}
+		if studioMessageReferencesTaskFromOtherChannel(channel, msg, taskChannelByID) {
+			continue
+		}
 		out[channel] = studioMessageSnapshot{
 			ID:        strings.TrimSpace(msg.ID),
 			Channel:   channel,
@@ -1562,6 +1632,61 @@ func studioRecentSubstantiveMessagesByChannel(messages []channelMessage) map[str
 		}
 	}
 	return out
+}
+
+func studioMessageReferencesTaskFromOtherChannel(channel string, msg channelMessage, taskChannelByID map[string]string) bool {
+	if len(taskChannelByID) == 0 {
+		return false
+	}
+	from := strings.ToLower(strings.TrimSpace(msg.From))
+	if from == "" || from == "human" || from == "system" {
+		return false
+	}
+	channel = normalizeChannelSlug(channel)
+	for _, taskID := range extractReferencedTaskIDs(strings.Join([]string{msg.Title, msg.Content}, "\n")) {
+		taskChannel := normalizeChannelSlug(taskChannelByID[taskID])
+		if taskChannel != "" && taskChannel != channel {
+			return true
+		}
+	}
+	return false
+}
+
+func studioEffectiveTaskChannel(task teamTask, channels []teamChannel) string {
+	channel := normalizeChannelSlug(task.Channel)
+	if channel == "" {
+		channel = "general"
+	}
+	if channel != "general" {
+		return channel
+	}
+	workspacePath := strings.TrimSpace(task.WorkspacePath)
+	if workspacePath == "" {
+		return channel
+	}
+	best := ""
+	for i := range channels {
+		ch := &channels[i]
+		slug := normalizeChannelSlug(ch.Slug)
+		if slug == "" || slug == "general" || ch.isDM() {
+			continue
+		}
+		for _, repo := range ch.LinkedRepos {
+			if !sameCleanPath(repo.RepoPath, workspacePath) {
+				continue
+			}
+			if repo.Primary {
+				return slug
+			}
+			if best == "" {
+				best = slug
+			}
+		}
+	}
+	if best != "" {
+		return best
+	}
+	return channel
 }
 
 func studioRecentDecisionsByChannel(decisions []officeDecisionRecord) map[string]officeDecisionRecord {
@@ -1592,8 +1717,11 @@ func studioChannelSnapshotsFromState(state studioDevConsoleState, tasks []studio
 	lastSubstantiveByChannel := make(map[string]studioMessageSnapshot)
 	lastDecisionByChannel := make(map[string]officeDecisionRecord)
 	taskByID := make(map[string]teamTask, len(state.Tasks))
+	taskChannelByID := make(map[string]string, len(state.Tasks))
 	for _, task := range state.Tasks {
-		taskByID[strings.TrimSpace(task.ID)] = task
+		taskID := strings.TrimSpace(task.ID)
+		taskByID[taskID] = task
+		taskChannelByID[taskID] = studioEffectiveTaskChannel(task, state.Channels)
 	}
 
 	for _, task := range tasks {
@@ -1643,7 +1771,7 @@ func studioChannelSnapshotsFromState(state studioDevConsoleState, tasks []studio
 		channel := normalizeChannelSlug(blocker.Channel)
 		blockersByChannel[channel] = append(blockersByChannel[channel], blocker.Kind)
 	}
-	for _, msg := range studioRecentSubstantiveMessagesByChannel(state.Messages) {
+	for _, msg := range studioRecentSubstantiveMessagesByChannel(state.Messages, taskChannelByID) {
 		lastSubstantiveByChannel[msg.Channel] = msg
 	}
 	for _, decision := range studioRecentDecisionsByChannel(state.Decisions) {

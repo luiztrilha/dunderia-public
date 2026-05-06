@@ -5,6 +5,7 @@
 /wuphf-oc-probe
 
 # Local artifacts
+/temp/
 /docs/*
 !/docs/specs/
 !/docs/specs/**
@@ -13,7 +14,11 @@
 !/docs/frontend-agent/
 !/docs/frontend-agent/**
 !/docs/local-runtime-profile.md
+!/docs/MANUAL.md
+!/docs/MANUAL.pdf
 !/docs/paperclip-absorption-plan.md
+!/docs/hermes-agent-absorption-plan.md
+!/docs/import-roadmap-hermes-wuphf-vibeyard-paperclip.md
 !/docs/REVOPS_TEST_PLAN.md
 /termwright-artifacts/
 /test-results/

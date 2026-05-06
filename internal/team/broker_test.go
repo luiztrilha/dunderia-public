@@ -22,6 +22,7 @@ import (
 	"github.com/nex-crm/wuphf/internal/agent"
 	"github.com/nex-crm/wuphf/internal/buildinfo"
 	"github.com/nex-crm/wuphf/internal/channel"
+	"github.com/nex-crm/wuphf/internal/company"
 	"github.com/nex-crm/wuphf/internal/config"
 	"github.com/nex-crm/wuphf/internal/provider"
 )
@@ -437,6 +438,39 @@ func TestBrokerResetPreservesConfiguredChannels(t *testing.T) {
 	}
 }
 
+func TestBrokerResetPreservesPolicies(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := isolateBrokerPersistenceEnv(t)
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	if _, err := b.RecordPolicy("human_directed", "Runtime cleanup must preserve active policies."); err != nil {
+		t.Fatalf("RecordPolicy: %v", err)
+	}
+	b.mu.Lock()
+	b.messages = []channelMessage{{ID: "msg-1", From: "ceo", Content: "clear me", Timestamp: "2026-05-04T10:00:00Z"}}
+	if err := b.saveLocked(); err != nil {
+		b.mu.Unlock()
+		t.Fatalf("saveLocked: %v", err)
+	}
+	b.mu.Unlock()
+
+	b.Reset()
+
+	reloaded := NewBroker()
+	if got := len(reloaded.Messages()); got != 0 {
+		t.Fatalf("expected reset to clear messages, got %d", got)
+	}
+	policies := reloaded.ListPolicies()
+	if len(policies) != 1 {
+		t.Fatalf("expected reset to preserve 1 policy, got %d", len(policies))
+	}
+	if policies[0].Rule != "Runtime cleanup must preserve active policies." {
+		t.Fatalf("unexpected policy after reset: %+v", policies[0])
+	}
+}
+
 func TestBrokerResetDMClearsEntireDMChannel(t *testing.T) {
 	oldPathFn := brokerStatePath
 	tmpDir := t.TempDir()
@@ -842,6 +876,242 @@ func TestBrokerMessageKindAndTitleRoundTrip(t *testing.T) {
 	}
 }
 
+func TestBrokerRejectsAgentMessageReferencingTaskFromAnotherChannel(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	b.mu.Lock()
+	ensureTestMemberAccess(b, "general", "builder", "Builder")
+	ensureTestMemberAccess(b, "migracao-convenios", "builder", "Builder")
+	b.tasks = append(b.tasks, teamTask{
+		ID:        "task-7809",
+		Channel:   "migracao-convenios",
+		Title:     "Adequar ConveniosClient",
+		Status:    "review",
+		Owner:     "builder",
+		CreatedAt: "2026-04-29T20:00:00Z",
+		UpdatedAt: "2026-04-29T20:00:00Z",
+	})
+	b.appendMessageLocked(channelMessage{
+		ID:        "msg-wrong-channel",
+		From:      "builder",
+		Channel:   "general",
+		Kind:      "human_report",
+		Title:     "Task 7809 review-ready",
+		Content:   "`#task-7809` ficou em review-ready.",
+		Timestamp: "2026-04-29T20:01:00Z",
+	})
+	b.appendMessageLocked(channelMessage{
+		ID:        "msg-general",
+		From:      "builder",
+		Channel:   "general",
+		Content:   "General channel update.",
+		Timestamp: "2026-04-29T20:02:00Z",
+	})
+	b.mu.Unlock()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	body, _ := json.Marshal(map[string]any{
+		"from":    "builder",
+		"channel": "general",
+		"kind":    "human_report",
+		"title":   "Task 7809 review-ready",
+		"content": "`#task-7809` ficou em review-ready.",
+	})
+	req, _ := http.NewRequest(http.MethodPost, base+"/messages", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+b.Token())
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post message failed: %v", err)
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409 for cross-channel task reference, got %d: %s", resp.StatusCode, raw)
+	}
+	if !strings.Contains(string(raw), "task-7809") || !strings.Contains(string(raw), "migracao-convenios") {
+		t.Fatalf("expected routing guidance, got %s", raw)
+	}
+
+	req, _ = http.NewRequest(http.MethodGet, base+"/messages?channel=general&limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+b.Token())
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("get messages failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200 listing messages, got %d: %s", resp.StatusCode, raw)
+	}
+	var listed struct {
+		Messages []channelMessage `json:"messages"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&listed); err != nil {
+		t.Fatalf("decode messages: %v", err)
+	}
+	if len(listed.Messages) != 1 || listed.Messages[0].ID != "msg-general" {
+		t.Fatalf("expected cross-channel task report hidden from general, got %+v", listed.Messages)
+	}
+}
+
+func TestBrokerTreatsGeneralTaskWithLinkedWorkspaceAsWorkspaceChannel(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	repoPath := filepath.Join(tmpDir, "ConveniosWebBNBExterno")
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
+		t.Fatalf("create repo path: %v", err)
+	}
+
+	b := NewBroker()
+	b.mu.Lock()
+	ensureTestMemberAccess(b, "general", "builder", "Builder")
+	ensureTestMemberAccess(b, "migracao-convenios", "builder", "Builder")
+	if ch := b.findChannelLocked("migracao-convenios"); ch != nil {
+		ch.LinkedRepos = []linkedRepoRef{{RepoPath: repoPath, Primary: true}}
+	}
+	b.tasks = append(b.tasks, teamTask{
+		ID:            "task-7971",
+		Channel:       "general",
+		Title:         "Corrigir HTTP 500 no login do smoke auth-convenente",
+		Status:        "in_progress",
+		Owner:         "builder",
+		WorkspacePath: repoPath,
+		CreatedAt:     "2026-04-29T20:00:00Z",
+		UpdatedAt:     "2026-04-29T20:00:00Z",
+	})
+	b.appendMessageLocked(channelMessage{
+		ID:        "msg-wrong-workspace-channel",
+		From:      "builder",
+		Channel:   "general",
+		Content:   "#task-7971 smoke auth-convenente esta em andamento.",
+		Timestamp: "2026-04-29T20:01:00Z",
+	})
+	b.appendMessageLocked(channelMessage{
+		ID:        "msg-general",
+		From:      "builder",
+		Channel:   "general",
+		Content:   "General channel update.",
+		Timestamp: "2026-04-29T20:02:00Z",
+	})
+	b.mu.Unlock()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	body, _ := json.Marshal(map[string]any{
+		"from":    "builder",
+		"channel": "general",
+		"content": "#task-7971 smoke auth-convenente esta em andamento.",
+	})
+	req, _ := http.NewRequest(http.MethodPost, base+"/messages", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+b.Token())
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post message failed: %v", err)
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409 for workspace-routed task reference, got %d: %s", resp.StatusCode, raw)
+	}
+	if !strings.Contains(string(raw), "task-7971") || !strings.Contains(string(raw), "migracao-convenios") {
+		t.Fatalf("expected workspace channel routing guidance, got %s", raw)
+	}
+
+	req, _ = http.NewRequest(http.MethodGet, base+"/messages?channel=general&limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+b.Token())
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("get messages failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200 listing messages, got %d: %s", resp.StatusCode, raw)
+	}
+	var listed struct {
+		Messages []channelMessage `json:"messages"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&listed); err != nil {
+		t.Fatalf("decode messages: %v", err)
+	}
+	if len(listed.Messages) != 1 || listed.Messages[0].ID != "msg-general" {
+		t.Fatalf("expected workspace task report hidden from general, got %+v", listed.Messages)
+	}
+}
+
+func TestBrokerBlockingRequestOnlyBlocksItsChannel(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	b.mu.Lock()
+	ensureTestMemberAccess(b, "general", "ceo", "CEO")
+	ensureTestMemberAccess(b, "migracao-convenios", "ceo", "CEO")
+	ensureTestMemberAccess(b, "migracao-convenios", "backend", "Backend")
+	b.requests = append(b.requests, humanInterview{
+		ID:        "request-1",
+		Status:    "pending",
+		From:      "backend",
+		Channel:   "migracao-convenios",
+		Title:     "Human interview",
+		Question:  "Como devo proceder?",
+		Blocking:  true,
+		Required:  true,
+		CreatedAt: "2026-04-29T20:00:00Z",
+		UpdatedAt: "2026-04-29T20:00:00Z",
+	})
+	b.mu.Unlock()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	postMessage := func(channel string) (int, string) {
+		t.Helper()
+		body, _ := json.Marshal(map[string]any{
+			"from":    "ceo",
+			"channel": channel,
+			"content": "Channel-scoped coordination update.",
+		})
+		req, _ := http.NewRequest(http.MethodPost, base+"/messages", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+b.Token())
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("post message to %s failed: %v", channel, err)
+		}
+		defer resp.Body.Close()
+		raw, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(raw)
+	}
+
+	if code, raw := postMessage("general"); code != http.StatusOK {
+		t.Fatalf("expected general to remain writable, got %d: %s", code, raw)
+	}
+	if code, raw := postMessage("migracao-convenios"); code != http.StatusConflict {
+		t.Fatalf("expected request channel to remain blocked, got %d: %s", code, raw)
+	}
+}
+
 func TestBrokerMessagesCanScopeToThread(t *testing.T) {
 	oldPathFn := brokerStatePath
 	tmpDir := t.TempDir()
@@ -894,6 +1164,30 @@ func TestBrokerMessagesCanScopeToThread(t *testing.T) {
 	}
 	if result.Messages[0].ID != root.ID || result.Messages[1].ID != reply.ID || result.Messages[2].ID != deepReply.ID {
 		t.Fatalf("unexpected thread messages: %+v", result.Messages)
+	}
+}
+
+func TestBrokerPostMessageStripsInternalReplyRouteMarker(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	ensureTestMemberAccess(b, "general", "ceo", "CEO")
+	root, err := b.PostMessage("you", "general", "@ceo answer this", []string{"ceo"}, "")
+	if err != nil {
+		t.Fatalf("post root: %v", err)
+	}
+	reply, err := b.PostMessage("ceo", "general", "[WUPHF_REPLY_ROUTE channel=\"general\" reply_to_id=\"other\"]\nActual answer.", nil, root.ID)
+	if err != nil {
+		t.Fatalf("post reply: %v", err)
+	}
+	if strings.Contains(reply.Content, "WUPHF_REPLY_ROUTE") {
+		t.Fatalf("expected route marker stripped, got %q", reply.Content)
+	}
+	if reply.Content != "Actual answer." {
+		t.Fatalf("unexpected content %q", reply.Content)
 	}
 }
 
@@ -1265,6 +1559,155 @@ func TestBrokerDeleteMessageRemovesSyntheticChannelMemoryMessage(t *testing.T) {
 	}
 	if len(messagesAfter.Messages) != 0 {
 		t.Fatalf("expected synthetic message to be removed, got %+v", messagesAfter.Messages)
+	}
+}
+
+func TestBrokerDeleteMessageRemovesSyntheticActionMemoryMessage(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	b.mu.Lock()
+	if b.sharedMemory == nil {
+		b.sharedMemory = make(map[string]map[string]string)
+	}
+	namespace := channelMemoryNamespace("general")
+	key := "action:task-1:task_created"
+	b.sharedMemory[namespace] = map[string]string{
+		key: encodePrivateMemoryNote(privateMemoryNote{
+			Title:     "Task created",
+			Content:   "@ceo Demo task",
+			Author:    "system",
+			CreatedAt: "2026-05-04T17:20:00Z",
+		}),
+	}
+	if err := b.saveLocked(); err != nil {
+		b.mu.Unlock()
+		t.Fatalf("save broker state: %v", err)
+	}
+	b.mu.Unlock()
+
+	messageID := syntheticMessageIDFromChannelMemoryKey("general", key)
+	base := fmt.Sprintf("http://%s", b.Addr())
+	deleteBody, _ := json.Marshal(map[string]string{
+		"id":      messageID,
+		"channel": "general",
+	})
+	deleteReq, _ := http.NewRequest(http.MethodDelete, base+"/messages", bytes.NewReader(deleteBody))
+	deleteReq.Header.Set("Authorization", "Bearer "+b.Token())
+	deleteReq.Header.Set("Content-Type", "application/json")
+	deleteResp, err := http.DefaultClient.Do(deleteReq)
+	if err != nil {
+		t.Fatalf("delete synthetic action message request failed: %v", err)
+	}
+	defer deleteResp.Body.Close()
+	if deleteResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(deleteResp.Body)
+		t.Fatalf("expected 200 deleting synthetic action message, got %d: %s", deleteResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+
+	messagesReq, _ := http.NewRequest(http.MethodGet, base+"/messages?channel=general&viewer_slug=human&limit=10", nil)
+	messagesReq.Header.Set("Authorization", "Bearer "+b.Token())
+	messagesResp, err := http.DefaultClient.Do(messagesReq)
+	if err != nil {
+		t.Fatalf("list messages after synthetic action delete: %v", err)
+	}
+	defer messagesResp.Body.Close()
+	var messagesAfter struct {
+		Messages []channelMessage `json:"messages"`
+	}
+	if err := json.NewDecoder(messagesResp.Body).Decode(&messagesAfter); err != nil {
+		t.Fatalf("decode messages after synthetic action delete: %v", err)
+	}
+	if len(messagesAfter.Messages) != 0 {
+		t.Fatalf("expected synthetic action message to be removed, got %+v", messagesAfter.Messages)
+	}
+}
+
+func TestBrokerDeleteRealMessageAlsoRemovesChannelMemoryCopy(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	msg := channelMessage{
+		ID:        "msg-real-delete",
+		From:      "ceo",
+		Channel:   "general",
+		Content:   "Delete this everywhere",
+		Timestamp: "2026-05-04T17:10:00Z",
+	}
+	b.mu.Lock()
+	b.appendMessageLocked(msg)
+	if b.sharedMemory == nil {
+		b.sharedMemory = make(map[string]map[string]string)
+	}
+	namespace := channelMemoryNamespace("general")
+	b.sharedMemory[namespace] = map[string]string{
+		"msg:" + msg.ID: encodePrivateMemoryNote(privateMemoryNote{
+			Title:     "Stored copy",
+			Content:   msg.Content,
+			Author:    "ceo",
+			CreatedAt: msg.Timestamp,
+		}),
+	}
+	if err := b.saveLocked(); err != nil {
+		b.mu.Unlock()
+		t.Fatalf("save broker state: %v", err)
+	}
+	b.mu.Unlock()
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	deleteBody, _ := json.Marshal(map[string]any{
+		"id":            msg.ID,
+		"channel":       "general",
+		"delete_thread": true,
+	})
+	deleteReq, _ := http.NewRequest(http.MethodDelete, base+"/messages", bytes.NewReader(deleteBody))
+	deleteReq.Header.Set("Authorization", "Bearer "+b.Token())
+	deleteReq.Header.Set("Content-Type", "application/json")
+	deleteResp, err := http.DefaultClient.Do(deleteReq)
+	if err != nil {
+		t.Fatalf("delete message request failed: %v", err)
+	}
+	defer deleteResp.Body.Close()
+	if deleteResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(deleteResp.Body)
+		t.Fatalf("expected 200 deleting message, got %d: %s", deleteResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+
+	messagesReq, _ := http.NewRequest(http.MethodGet, base+"/messages?channel=general&viewer_slug=human&limit=10", nil)
+	messagesReq.Header.Set("Authorization", "Bearer "+b.Token())
+	messagesResp, err := http.DefaultClient.Do(messagesReq)
+	if err != nil {
+		t.Fatalf("list messages after delete: %v", err)
+	}
+	defer messagesResp.Body.Close()
+	if messagesResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(messagesResp.Body)
+		t.Fatalf("expected 200 listing messages after delete, got %d: %s", messagesResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var messagesAfter struct {
+		Messages []channelMessage `json:"messages"`
+	}
+	if err := json.NewDecoder(messagesResp.Body).Decode(&messagesAfter); err != nil {
+		t.Fatalf("decode messages after delete: %v", err)
+	}
+	if len(messagesAfter.Messages) != 0 {
+		t.Fatalf("expected real and synthetic message copies to be removed, got %+v", messagesAfter.Messages)
 	}
 }
 
@@ -2346,7 +2789,7 @@ func TestNewBrokerPrunesStateOutsideManifestTopology(t *testing.T) {
 		t.Fatalf("mkdir manifest dir: %v", err)
 	}
 	rawManifest := `{
-  "name": "DunderIA",
+  "name": "MaestrIA",
   "lead": "ceo",
   "members": [
     {"slug":"ceo","name":"CEO","role":"CEO","system":true},
@@ -3011,6 +3454,7 @@ func TestNormalizeChannelSlugStripsLeadingHash(t *testing.T) {
 func TestChannelDescriptionsAreVisibleButContentStaysRestricted(t *testing.T) {
 	oldPathFn := brokerStatePath
 	tmpDir := t.TempDir()
+	isolateCompanyManifestForTest(t, tmpDir)
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
 	defer func() { brokerStatePath = oldPathFn }()
 	b := NewBroker()
@@ -3100,6 +3544,7 @@ func TestChannelDescriptionsAreVisibleButContentStaysRestricted(t *testing.T) {
 func TestChannelUpdateMutatesDescriptionAndMembers(t *testing.T) {
 	oldPathFn := brokerStatePath
 	tmpDir := t.TempDir()
+	isolateCompanyManifestForTest(t, tmpDir)
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
 	defer func() { brokerStatePath = oldPathFn }()
 
@@ -3176,6 +3621,30 @@ func TestChannelUpdateMutatesDescriptionAndMembers(t *testing.T) {
 	}
 	if containsString(payload.Channel.Disabled, "scriptwriter") {
 		t.Fatalf("expected disabled list to drop removed/now-enabled members, got %+v", payload.Channel.Disabled)
+	}
+}
+
+func isolateCompanyManifestForTest(t *testing.T, tmpDir string) {
+	t.Helper()
+	t.Setenv("WUPHF_COMPANY_FILE", filepath.Join(tmpDir, "company.json"))
+	if err := company.SaveManifest(company.Manifest{
+		Name: "Test Office",
+		Lead: "ceo",
+		Members: []company.MemberSpec{
+			{Slug: "ceo", Name: "CEO", Role: "CEO", System: true},
+			{Slug: "you", Name: "You", Role: "Operator"},
+			{Slug: "pm", Name: "Product Manager", Role: "Product Manager"},
+			{Slug: "fe", Name: "Frontend Engineer", Role: "Frontend Engineer"},
+			{Slug: "cmo", Name: "CMO", Role: "CMO"},
+			{Slug: "research-lead", Name: "Research Lead", Role: "Research"},
+			{Slug: "scriptwriter", Name: "Scriptwriter", Role: "Scripts"},
+			{Slug: "growth-ops", Name: "Growth Ops", Role: "Growth"},
+		},
+		Channels: []company.ChannelSpec{
+			{Slug: "general", Name: "general", Members: []string{"ceo", "you", "pm", "fe", "cmo", "research-lead", "scriptwriter", "growth-ops"}},
+		},
+	}); err != nil {
+		t.Fatalf("save manifest: %v", err)
 	}
 }
 
@@ -3290,6 +3759,7 @@ func TestNormalizeLoadedStateDeduplicatesChannelsBySlug(t *testing.T) {
 func TestTaskAndRequestViewsRejectNonMembers(t *testing.T) {
 	oldPathFn := brokerStatePath
 	tmpDir := t.TempDir()
+	isolateCompanyManifestForTest(t, tmpDir)
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
 	defer func() { brokerStatePath = oldPathFn }()
 
@@ -4486,7 +4956,7 @@ func TestEnsurePlannedTaskDoesNotReuseMismatchedExplicitWorkspace(t *testing.T) 
 	b.tasks = []teamTask{{
 		ID:        "task-old",
 		Channel:   "convenios-web-azure",
-		Title:     "Revisao tecnica abrangente da base DunderIA",
+		Title:     "Revisao tecnica abrangente da base MaestrIA",
 		Details:   "Produzir relatorio .md priorizado.",
 		Owner:     "reviewer",
 		Status:    "in_progress",
@@ -4592,7 +5062,7 @@ func TestBrokerTaskPlanAcceptsExternalWorkspaceMetadata(t *testing.T) {
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
 	defer func() { brokerStatePath = oldPathFn }()
 
-	workspacePath := filepath.Join(t.TempDir(), "external-plan-repo")
+	workspacePath := filepath.Join(t.TempDir(), ".wuphf", "cache", "external-plan-repo")
 	initUsableGitWorktree(t, workspacePath)
 
 	b := NewBroker()
@@ -7055,7 +7525,7 @@ func TestBrokerSyncTaskWorktreeReplacesStaleAssignedPath(t *testing.T) {
 	}
 }
 
-func TestBrokerSyncTaskWorktreeUsesChannelLinkedRepoInsteadOfDunderiaWorktree(t *testing.T) {
+func TestBrokerSyncTaskWorktreeUsesChannelLinkedRepoInsteadOfMaestrIAWorktree(t *testing.T) {
 	oldPrepare := prepareTaskWorktree
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
 		t.Fatalf("prepareTaskWorktree should not be called for linked channel repo task %s", taskID)
@@ -7384,6 +7854,7 @@ func TestHandleChannelsRemoveProtectedChannelRequiresForce(t *testing.T) {
 func TestHandleChannelsCreateUserChannelMarksProtected(t *testing.T) {
 	oldPathFn := brokerStatePath
 	tmpDir := t.TempDir()
+	isolateCompanyManifestForTest(t, tmpDir)
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
 	defer func() { brokerStatePath = oldPathFn }()
 
@@ -7414,6 +7885,26 @@ func TestHandleChannelsCreateUserChannelMarksProtected(t *testing.T) {
 	}
 	if !ch.Protected {
 		t.Fatalf("expected newly created user channel to be protected: %+v", ch)
+	}
+	manifest, err := company.LoadManifest()
+	if err != nil {
+		t.Fatalf("load manifest: %v", err)
+	}
+	foundInManifest := false
+	for _, spec := range manifest.Channels {
+		if spec.Slug == "migracao-convenios" {
+			foundInManifest = true
+			if spec.Name != "Migração Convenios" || spec.Description != "Controle de migração" {
+				t.Fatalf("expected created channel metadata in manifest, got %+v", spec)
+			}
+			if !containsString(spec.Members, "ceo") || !containsString(spec.Members, "you") {
+				t.Fatalf("expected created channel members in manifest, got %+v", spec.Members)
+			}
+			break
+		}
+	}
+	if !foundInManifest {
+		t.Fatalf("expected created channel to be persisted to manifest, got %+v", manifest.Channels)
 	}
 
 	body = bytes.NewBufferString(`{"action":"remove","slug":"migracao-convenios"}`)
@@ -7606,6 +8097,7 @@ func TestBrokerCompleteAlreadyDoneTaskStaysApproved(t *testing.T) {
 func TestBrokerBridgeEndpointRecordsVisibleBridge(t *testing.T) {
 	oldPathFn := brokerStatePath
 	tmpDir := t.TempDir()
+	isolateCompanyManifestForTest(t, tmpDir)
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
 	defer func() { brokerStatePath = oldPathFn }()
 
@@ -8755,6 +9247,168 @@ func TestBrokerExternalQueueDeduplication(t *testing.T) {
 	}
 	if queue3[0].Content != "msg three" {
 		t.Fatalf("expected 'msg three', got %q", queue3[0].Content)
+	}
+}
+
+func TestBrokerEmitTelegramHumanAttentionAlertsForAwaitingTask(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	b.mu.Lock()
+	b.channels = append(b.channels, teamChannel{
+		Slug:    "general",
+		Name:    "general",
+		Members: []string{"human", "ceo"},
+		Surface: &channelSurface{Provider: "telegram", RemoteID: "-100"},
+	})
+	b.tasks = []teamTask{{
+		ID:                  "task-77",
+		Channel:             "general",
+		Title:               "Approve rollout",
+		Status:              "pending",
+		Owner:               "human",
+		TaskType:            "human_action",
+		AwaitingHuman:       true,
+		AwaitingHumanSince:  "2026-04-29T12:00:00Z",
+		AwaitingHumanReason: "Need your command before continuing.",
+	}}
+	b.mu.Unlock()
+
+	count, err := b.EmitTelegramHumanAttentionAlerts()
+	if err != nil {
+		t.Fatalf("EmitTelegramHumanAttentionAlerts: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected one alert, got %d", count)
+	}
+
+	queue := b.ExternalQueue("telegram")
+	if len(queue) != 1 {
+		t.Fatalf("expected one telegram queue message, got %d: %+v", len(queue), queue)
+	}
+	if queue[0].Kind != "automation" || queue[0].Source != "telegram_alert" {
+		t.Fatalf("expected telegram alert automation, got %+v", queue[0])
+	}
+	if !strings.Contains(queue[0].Content, "Approve rollout") || !strings.Contains(queue[0].Content, "Need your command") {
+		t.Fatalf("expected alert content to include task title and reason, got %q", queue[0].Content)
+	}
+
+	count, err = b.EmitTelegramHumanAttentionAlerts()
+	if err != nil {
+		t.Fatalf("second EmitTelegramHumanAttentionAlerts: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected duplicate scan to emit no alerts, got %d", count)
+	}
+	if queue := b.ExternalQueue("telegram"); len(queue) != 0 {
+		t.Fatalf("expected no duplicate telegram queue message, got %+v", queue)
+	}
+}
+
+func TestBrokerEmitTelegramHumanAttentionAlertsUsesFallbackTelegramChannel(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	b.mu.Lock()
+	b.channels = []teamChannel{
+		teamChannel{Slug: "work", Name: "work", Members: []string{"human", "ceo"}},
+		teamChannel{
+			Slug:    "telegram-alerts",
+			Name:    "telegram-alerts",
+			Members: []string{"human"},
+			Surface: &channelSurface{Provider: "telegram", RemoteID: "0", Mode: "private"},
+		},
+	}
+	b.requests = []humanInterview{{
+		ID:        "request-9",
+		Status:    "open",
+		From:      "ceo",
+		Channel:   "work",
+		Title:     "Choose migration path",
+		Question:  "Should we continue with the safe path?",
+		CreatedAt: "2026-04-29T12:00:00Z",
+		UpdatedAt: "2026-04-29T12:05:00Z",
+	}}
+	b.mu.Unlock()
+
+	count, err := b.EmitTelegramHumanAttentionAlerts()
+	if err != nil {
+		t.Fatalf("EmitTelegramHumanAttentionAlerts: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected one alert, got %d", count)
+	}
+
+	queue := b.ExternalQueue("telegram")
+	if len(queue) != 1 {
+		t.Fatalf("expected one telegram queue message, got %d: %+v", len(queue), queue)
+	}
+	if queue[0].Channel != "telegram-alerts" {
+		t.Fatalf("expected fallback telegram channel, got %q", queue[0].Channel)
+	}
+	if !strings.Contains(queue[0].Content, "#work") || !strings.Contains(queue[0].Content, "Should we continue") {
+		t.Fatalf("expected alert content to mention source channel and question, got %q", queue[0].Content)
+	}
+}
+
+func TestBrokerPendingTelegramAlertDeletionsAfterHumanInputResolves(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	b.mu.Lock()
+	b.channels = append(b.channels, teamChannel{
+		Slug:    "general",
+		Name:    "general",
+		Members: []string{"human", "ceo"},
+		Surface: &channelSurface{Provider: "telegram", RemoteID: "-100"},
+	})
+	b.tasks = []teamTask{{
+		ID:                  "task-77",
+		Channel:             "general",
+		Title:               "Approve rollout",
+		Status:              "pending",
+		Owner:               "human",
+		TaskType:            "human_action",
+		AwaitingHuman:       true,
+		AwaitingHumanReason: "Need your command before continuing.",
+	}}
+	b.mu.Unlock()
+
+	eventID := "telegram-human-attention:task-77"
+	if err := b.RecordTelegramAlertDelivery(eventID, "-100", 123); err != nil {
+		t.Fatalf("RecordTelegramAlertDelivery: %v", err)
+	}
+	if pending := b.PendingTelegramAlertDeletions(); len(pending) != 0 {
+		t.Fatalf("expected no deletion while task awaits human, got %+v", pending)
+	}
+
+	b.mu.Lock()
+	b.tasks[0].AwaitingHuman = false
+	b.tasks[0].Status = "done"
+	b.mu.Unlock()
+
+	pending := b.PendingTelegramAlertDeletions()
+	if len(pending) != 1 {
+		t.Fatalf("expected one pending deletion after resolution, got %+v", pending)
+	}
+	if pending[0].ChatID != "-100" || pending[0].MessageID != 123 || pending[0].EventID != eventID {
+		t.Fatalf("unexpected pending deletion: %+v", pending[0])
+	}
+
+	if err := b.MarkTelegramAlertDeleted(eventID); err != nil {
+		t.Fatalf("MarkTelegramAlertDeleted: %v", err)
+	}
+	if pending := b.PendingTelegramAlertDeletions(); len(pending) != 0 {
+		t.Fatalf("expected no pending deletions after mark deleted, got %+v", pending)
 	}
 }
 

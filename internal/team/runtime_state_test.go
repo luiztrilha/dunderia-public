@@ -279,7 +279,7 @@ func TestBuildRuntimeSnapshotFormatsRecoveryAndCapabilities(t *testing.T) {
 		"Binary: /usr/bin/tmux",
 		"Version: tmux 3.4a",
 		"Inside tmux: yes",
-		"DunderIA session: running (2 attached, 4 windows)",
+		"MaestrIA session: running (2 attached, 4 windows)",
 		"scratch: 1 attached, 1 windows",
 		"Runtime capabilities:",
 		"Capability registry:",

@@ -39,7 +39,7 @@ func cmdHelp(ctx *SlashContext, args string) error {
 		"  /provider              Switch LLM provider\n\n" +
 		"  /help                  This help\n" +
 		"  /clear                 Clear messages\n" +
-		"  /quit                  Exit DunderIA"
+		"  /quit                  Exit MaestrIA"
 	ctx.AddMessage("system", help)
 	return nil
 }

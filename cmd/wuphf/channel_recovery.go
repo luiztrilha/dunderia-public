@@ -143,7 +143,7 @@ func buildRecoveryLines(workspace workspaceUIState, contentWidth int, tasks []ch
 	if !workspace.BrokerConnected && len(snapshot.Tasks) == 0 && len(snapshot.Requests) == 0 && len(snapshot.Recent) == 0 {
 		lines = append(lines,
 			renderedLine{Text: ""},
-			renderedLine{Text: muted.Render("  Offline preview. Launch DunderIA to hydrate the runtime state and recovery summary.")},
+			renderedLine{Text: muted.Render("  Offline preview. Launch MaestrIA to hydrate the runtime state and recovery summary.")},
 			renderedLine{Text: muted.Render("  The recovery view will highlight focus, next steps, and recent changes once the office is live.")},
 		)
 		return lines

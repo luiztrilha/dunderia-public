@@ -76,6 +76,7 @@ type Launcher struct {
 	headlessDeferredLead map[string]*headlessCodexTurn
 	webMode              bool
 	noOpen               bool
+	telegramCancel       context.CancelFunc
 
 	notifyMu            sync.Mutex
 	notifyLastDelivered map[string]time.Time
@@ -268,6 +269,7 @@ func (l *Launcher) Launch() error {
 	if err := l.broker.Start(); err != nil {
 		return fmt.Errorf("start broker: %w", err)
 	}
+	l.startTelegramTransportLoop()
 	go l.warmRuntimeReadiness()
 	go l.restoreDeferredCloudStateAsync()
 
@@ -275,7 +277,6 @@ func (l *Launcher) Launch() error {
 	if l.pack != nil && len(l.pack.DefaultSkills) > 0 {
 		l.broker.SeedDefaultSkills(l.pack.DefaultSkills)
 	}
-	l.seedStarterKitBootstrap()
 
 	// Kill any existing session
 	_ = exec.Command("tmux", "-L", tmuxSocketName, "kill-session", "-t", l.sessionName).Run()
@@ -1798,6 +1799,7 @@ func (l *Launcher) processDueSchedulerJobs() {
 		return
 	}
 	for _, job := range jobs {
+		_ = l.broker.UpdateSchedulerJobState(job.Slug, time.Time{}, "running")
 		switch strings.TrimSpace(job.TargetType) {
 		case "task":
 			l.processDueTaskJob(job)
@@ -2459,6 +2461,10 @@ func (l *Launcher) Kill() error {
 	if l.headlessCancel != nil {
 		l.headlessCancel()
 	}
+	if l.telegramCancel != nil {
+		l.telegramCancel()
+		l.telegramCancel = nil
+	}
 	if l.broker != nil {
 		l.broker.Stop()
 	}
@@ -3064,17 +3070,19 @@ func (l *Launcher) buildMessageWorkPacket(msg channelMessage, slug string) strin
 		}
 	}
 	// Walk up the reply chain to find the ultimate thread root (the original human
-	// ask) before filtering. This ensures that for a deep thread — human ask (X) →
-	// CEO delegation (Y) → specialist response (Z) — all participants see X as the
-	// anchor, not just the immediate parent. For top-level messages (ReplyTo == ""),
-	// ultimateThreadRoot returns "" and the function falls back to recent channel
-	// context automatically.
+	// ask) before filtering. For top-level messages, avoid ambient channel context:
+	// fast consecutive asks should stay independent instead of being blended into
+	// the next agent turn.
 	threadRoot := l.ultimateThreadRoot(channel, msg.ReplyTo)
-	if ctx := l.buildNotificationContextForOwner(channel, msg.ID, threadRoot, slug, 4); ctx != "" {
-		lines = append(lines, ctx)
+	if threadRoot != "" {
+		if ctx := l.buildNotificationContextForOwner(channel, msg.ID, threadRoot, slug, 4); ctx != "" {
+			lines = append(lines, ctx)
+		}
 	}
-	if brief := fetchChannelMemoryBrief(channel, strings.TrimSpace(msg.Title+" "+msg.Content), l.broker); brief != "" {
-		lines = append(lines, brief)
+	if strings.TrimSpace(msg.ReplyTo) != "" {
+		if brief := fetchChannelMemoryBrief(channel, strings.TrimSpace(msg.Title+" "+msg.Content), l.broker); brief != "" {
+			lines = append(lines, brief)
+		}
 	}
 	if slug == l.officeLeadSlug() {
 		// Always use AllTasks (pass "") so the CEO sees tasks across all channels,
@@ -3692,6 +3700,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- team_poll: LAST RESORT — read recent messages only when pushed context is genuinely missing something you need. Do NOT call this by default; the pushed notification already contains thread context, task state, and active agents.\n")
 		sb.WriteString("- team_bridge: Carry context from one channel into another (CEO only).\n")
 		sb.WriteString("- team_task: Create and assign tasks so ownership is explicit.\n")
+		sb.WriteString("- team_skill_list / team_skill_view: Discover visible skills as compact metadata, then inspect only the specific playbook you need. Use these before loading or paraphrasing skill content.\n")
 		sb.WriteString("- team_skill_run: Invoke a saved skill by name when the request matches one. Use this BEFORE routing or replying — it returns the canonical playbook content to follow and logs a visible skill_invocation in the channel.\n")
 		sb.WriteString("- team_action_connections / team_action_search / team_action_knowledge: inspect connected external systems and the exact action/workflow schema before you improvise. If connection listing is flaky, do NOT stop there; search/knowledge still give you the real action contract.\n")
 		sb.WriteString("- team_action_execute / team_action_workflow_execute: use these for real external reads, writes, and workflow runs. Prefer dry_run only when the task or policy says preview/mock first. When the provider is One and there is exactly one connected account for that platform, you may omit connection_key and let the runtime auto-resolve it.\n")
@@ -3765,6 +3774,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("21. If a task shows a worktree path, that path is the working_directory for local file and bash tools on that task\n")
 		sb.WriteString("22. After you have posted the needed update, decision, delegation, or human question for the current packet, stop. Do not linger in the same turn waiting for teammates to answer.\n\n")
 		sb.WriteString("== SKILL & AGENT AWARENESS ==\n")
+		sb.WriteString("Use team_skill_list to discover candidate playbooks and team_skill_view to inspect a specific skill only when needed. Do not load or paraphrase every skill up front.\n")
 		sb.WriteString("When a request matches an existing skill (by name, trigger, or tags), you MUST invoke it via team_skill_run(skill_name) BEFORE doing the work. That tool bumps usage, logs a skill_invocation in the channel, and returns the skill's canonical content — follow those steps exactly, don't freelance.\n")
 		sb.WriteString("When delegating to a specialist, tell them which skill to run (by slug) so they call team_skill_run before acting. Never paraphrase a skill's steps into a delegation message — the skill IS the spec.\n")
 		sb.WriteString("You can propose new skills when you notice a repeated workflow worth codifying.\n")
@@ -3807,6 +3817,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- team_poll: LAST RESORT — read recent messages only when pushed context is genuinely missing something you need. Do NOT call this by default; the pushed notification already contains thread context and task state.\n")
 		sb.WriteString("- team_bridge: CEO-only bridge for cross-channel context. Ask the CEO to use it.\n")
 		sb.WriteString("- team_task: Claim, complete, block, or release tasks in your domain.\n")
+		sb.WriteString("- team_skill_list / team_skill_view: Discover visible skills as compact metadata, then inspect only the specific playbook you need. Use these before loading or paraphrasing skill content.\n")
 		sb.WriteString("- team_skill_run: When @ceo tells you to run a skill, or when the request clearly matches one, call team_skill_run(skill_name) BEFORE doing the work. It returns the canonical step-by-step content — follow it exactly instead of freelancing. Failing to invoke the skill leaves the office with no trace that the playbook was actually used.\n")
 		sb.WriteString("- team_action_connections / team_action_search / team_action_knowledge: inspect connected external systems and the exact action/workflow schema before you improvise. If connection listing is flaky, do NOT stop there; search/knowledge still give you the real action contract.\n")
 		sb.WriteString("- team_action_execute / team_action_workflow_execute: use these for real external reads, writes, and workflow runs. Prefer dry_run only when the task or policy says preview/mock first. When the provider is One and there is exactly one connected account for that platform, you may omit connection_key and let the runtime auto-resolve it.\n")
@@ -4747,6 +4758,7 @@ func (l *Launcher) LaunchWeb(webPort int) error {
 	if err := l.broker.Start(); err != nil {
 		return fmt.Errorf("start broker: %w", err)
 	}
+	l.startTelegramTransportLoop()
 	if err := writeOfficePIDFile(); err != nil {
 		return fmt.Errorf("write office pid: %w", err)
 	}
@@ -4755,7 +4767,6 @@ func (l *Launcher) LaunchWeb(webPort int) error {
 	if l.pack != nil && len(l.pack.DefaultSkills) > 0 {
 		l.broker.SeedDefaultSkills(l.pack.DefaultSkills)
 	}
-	l.seedStarterKitBootstrap()
 
 	l.broker.SetGenerateMemberFn(l.GenerateMemberTemplateFromPrompt)
 	l.broker.SetGenerateChannelFn(l.GenerateChannelTemplateFromPrompt)

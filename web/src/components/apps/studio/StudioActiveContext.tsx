@@ -24,6 +24,10 @@ function formatLivenessLabel(raw?: string): string {
   return (raw || 'liveness').replace(/_/g, ' ')
 }
 
+function formatQueueLabel(raw?: string): string {
+  return (raw || 'active').replace(/[\s-]+/g, ' ')
+}
+
 function livenessTone(raw?: string): { bg: string; fg: string; dot: string } {
   switch ((raw || '').trim().toLowerCase()) {
     case 'advanced':
@@ -51,6 +55,15 @@ export function StudioActiveContext({
   const flows = context.flows ?? []
   const tasks = context.tasks ?? []
   const workspaces = context.workspaces ?? []
+  const queueRows = Object.entries(
+    tasks.reduce<Record<string, number>>((acc, task) => {
+      const key = (task.queue_key || 'active').replace(/[\s-]+/g, '_')
+      acc[key] = (acc[key] ?? 0) + 1
+      return acc
+    }, {}),
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
 
   return (
     <section
@@ -178,6 +191,15 @@ export function StudioActiveContext({
           </ContextPane>
 
           <ContextPane title={t('apps.studio.hotTasks')}>
+            {queueRows.length > 0 ? (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {queueRows.map(([queue, count]) => (
+                  <span key={queue} style={pillStyle('rgba(111, 118, 132, 0.12)', 'var(--text-secondary)')}>
+                    {formatQueueLabel(queue)} · {count}
+                  </span>
+                ))}
+              </div>
+            ) : null}
             {(tasks.length > 0 ? tasks : []).slice(0, 5).map((task) => (
               <div
                 key={task.id}
@@ -196,11 +218,26 @@ export function StudioActiveContext({
                   <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
                     {task.channel ? `#${task.channel}` : 'no-channel'}
                     {task.owner ? ` · @${task.owner}` : ''}
+                    {task.queue_key ? ` · ${formatQueueLabel(task.queue_key)}` : ''}
                     {task.workspace_path ? ` · ${task.workspace_path}` : ''}
                   </span>
+                  {task.outcome ? (
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                      {task.outcome}
+                    </span>
+                  ) : null}
+                  {task.latest_plan_summary ? (
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.4 }}>
+                      plan: {task.latest_plan_summary}
+                    </span>
+                  ) : null}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'right' }}>
                   <div>{task.status || 'n/a'}</div>
+                  {task.outcome_status ? <div>{task.outcome_status.replace(/_/g, ' ')}</div> : null}
+                  {typeof task.eval_count === 'number' && task.eval_count > 0 ? <div>{task.eval_count} evals{task.eval_severity ? ` · ${task.eval_severity}` : ''}</div> : null}
+                  {typeof task.artifact_count === 'number' && task.artifact_count > 0 ? <div>{task.artifact_count} artifacts</div> : null}
+                  {typeof task.plan_revision_count === 'number' && task.plan_revision_count > 0 ? <div>{task.plan_revision_count} plans</div> : null}
                   {task.liveness_state ? (
                     <LivenessBadge
                       state={task.liveness_state}

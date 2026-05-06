@@ -1,15 +1,15 @@
 ---
 name: dunderia-plan-to-tasks
 description: >
-  Convert a plan into executable DunderIA tasks or task lanes. Use when asked to
+  Convert a plan into executable MaestrIA tasks or task lanes. Use when asked to
   break down work for the office, turn strategy into assignments, or prepare
   parallel agent work while preserving explicit blockers, owners, and human
   approval boundaries.
 ---
 
-# DunderIA Plan To Tasks
+# MaestrIA Plan To Tasks
 
-Use this skill to translate a plan into work the DunderIA office can actually execute.
+Use this skill to translate a plan into work the MaestrIA office can actually execute.
 
 ## Rules
 
@@ -31,7 +31,7 @@ Use this skill to translate a plan into work the DunderIA office can actually ex
 
 ## Task Shape
 
-Prefer this shape when proposing DunderIA tasks:
+Prefer this shape when proposing MaestrIA tasks:
 
 ```text
 Task: <verb + object>

@@ -9,6 +9,7 @@ export const ALL_APPS = [
   { id: 'activity', icon: '\uD83D\uDCE6', nameKey: 'sidebar.apps.activity' },
   { id: 'receipts', icon: '\uD83E\uDDFE', nameKey: 'sidebar.apps.receipts' },
   { id: 'health-check', icon: '\uD83D\uDD0D', nameKey: 'sidebar.apps.healthCheck' },
+  { id: 'browser-lab', icon: '\u25C9', nameKey: 'sidebar.apps.browserLab' },
   { id: 'settings', icon: '\u2699', nameKey: 'sidebar.apps.settings' },
 ] as const
 

@@ -131,6 +131,9 @@ func TestLauncherSessionObservabilitySnapshotIncludesQueuesAndActivity(t *testin
 	if eng.LivenessState != "advanced" || eng.LivenessTaskID != "task-9" {
 		t.Fatalf("expected liveness observability, got %+v", eng)
 	}
+	if eng.NormalizedStatus != "working" {
+		t.Fatalf("expected normalized working status, got %+v", eng)
+	}
 }
 
 func TestSessionObservabilityFormatLinesIncludesQueueAndTask(t *testing.T) {
@@ -177,6 +180,7 @@ func TestSessionObservabilityFormatLinesIncludesQueueAndTask(t *testing.T) {
 			Slug:                 "eng",
 			Channel:              "engineering",
 			Status:               "active",
+			NormalizedStatus:     "stale",
 			Activity:             "running",
 			QueueDepth:           1,
 			QuickReplyQueueDepth: 1,
@@ -206,7 +210,7 @@ func TestSessionObservabilityFormatLinesIncludesQueueAndTask(t *testing.T) {
 		"Cloud backup error: temporary gcs 429",
 		"Observability history: 2026-04-23T12:05:00Z due=1 req=1 gh=3",
 		"HTTP hot path: /messages max=40ms last=25ms requests=4",
-		"@eng · #engineering · status=active · activity=running · queue=1 · quick=1 · task=task-9 · wd=/tmp/task-9 · liveness=plan_only · detail=running tests · liveness_reason=agent only described future work without durable task progress",
+		"@eng · #engineering · status=active · normalized=stale · activity=running · queue=1 · quick=1 · task=task-9 · wd=/tmp/task-9 · liveness=plan_only · detail=running tests · liveness_reason=agent only described future work without durable task progress",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("expected %q in %q", want, text)

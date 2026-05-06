@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useOfficeMembers } from '../../hooks/useMembers'
 import { useAppStore } from '../../stores/app'
 import { showNotice } from '../ui/Toast'
-import { Autocomplete, applyAutocomplete, type AutocompleteItem } from './Autocomplete'
+import { Autocomplete, applyAutocomplete, useSlashCommands, type AutocompleteItem } from './Autocomplete'
 import { dispatchSlashCommand } from '../../lib/slashCommands'
 import { useDurableMessageComposer } from '../../hooks/useDurableMessageComposer'
 import { useRequests } from '../../hooks/useRequests'
@@ -16,6 +16,7 @@ export function Composer() {
   const setActiveThreadId = useAppStore((s) => s.setActiveThreadId)
   const setActiveThreadReplyTo = useAppStore((s) => s.setActiveThreadReplyTo)
   const { data: officeMembers = [] } = useOfficeMembers()
+  const slashCommands = useSlashCommands()
   const [caret, setCaret] = useState(0)
   const [acItems, setAcItems] = useState<AutocompleteItem[]>([])
   const [acIdx, setAcIdx] = useState(0)
@@ -80,6 +81,7 @@ export function Composer() {
         },
         resetRequiresConfirm: true,
         helpMode: 'composer',
+        helpCommands: slashCommands.map((command) => command.name),
       })) {
         clearComposer()
         return
@@ -96,7 +98,7 @@ export function Composer() {
       }
       showNotice(message, 'error')
     }
-  }, [text, isSending, blockingPending, currentChannel, setActiveThreadId, setActiveThreadReplyTo, queryClient, clearComposer, sendMessage, t])
+  }, [text, isSending, blockingPending, currentChannel, setActiveThreadId, setActiveThreadReplyTo, queryClient, clearComposer, sendMessage, t, slashCommands])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (acItems.length > 0) {

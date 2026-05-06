@@ -685,7 +685,7 @@ func buildTaskGitHubIssueBody(task *teamTask, repoCtx *taskGitHubRepoContext) st
 	lines := []string{
 		taskGitHubMarker(strings.TrimSpace(task.ID)),
 		"DUNDERIA-ARTIFACT: issue",
-		fmt.Sprintf("Imported from DunderIA task `%s`.", strings.TrimSpace(task.ID)),
+		fmt.Sprintf("Imported from MaestrIA task `%s`.", strings.TrimSpace(task.ID)),
 	}
 	if channel := normalizeChannelSlug(task.Channel); channel != "" {
 		lines = append(lines, "DUNDERIA-CHANNEL: "+channel)
@@ -751,7 +751,7 @@ func buildTaskGitHubPRBody(task *teamTask) string {
 	lines = append(lines,
 		taskGitHubMarker(strings.TrimSpace(task.ID)),
 		"DUNDERIA-ARTIFACT: pr",
-		fmt.Sprintf("Imported from DunderIA task `%s`.", strings.TrimSpace(task.ID)),
+		fmt.Sprintf("Imported from MaestrIA task `%s`.", strings.TrimSpace(task.ID)),
 	)
 	if channel := normalizeChannelSlug(task.Channel); channel != "" {
 		lines = append(lines, "DUNDERIA-CHANNEL: "+channel)
@@ -2054,6 +2054,7 @@ func findTaskGitHubArtifactByMarker(repoCtx *taskGitHubRepoContext, taskID, kind
 	defer cancel()
 	out, err := taskGitHubRunCommand(ctx, repoCtx.RootPath, "gh",
 		"api",
+		"--method", "GET",
 		"search/issues",
 		"-f", "q="+query,
 		"-f", "per_page=1",

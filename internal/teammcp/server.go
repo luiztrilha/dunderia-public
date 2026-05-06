@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -21,6 +22,7 @@ import (
 const defaultBrokerTokenFile = brokeraddr.DefaultTokenFile
 
 var reconfigureOfficeSessionFn = reconfigureLiveOffice
+var taskReferencePattern = regexp.MustCompile(`(?i)\btask-[0-9]+\b`)
 
 func boolPtr(v bool) *bool { return &v }
 
@@ -512,6 +514,14 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 			"team_memory_promote",
 			"Promote one of your private notes into shared durable memory after it becomes canonical.",
 		), handleTeamMemoryPromote)
+		mcp.AddTool(server, readOnlyTool(
+			"team_skill_list",
+			"List visible team skills as compact metadata. Use this to discover matching playbooks before loading full skill content.",
+		), handleTeamSkillList)
+		mcp.AddTool(server, readOnlyTool(
+			"team_skill_view",
+			"Inspect one visible team skill without invoking it. Use this when team_skill_list suggests a possible match and you need the full playbook.",
+		), handleTeamSkillView)
 		mcp.AddTool(server, officeWriteTool(
 			"team_skill_run",
 			"Invoke a named team skill. When the human's request matches an available skill, call this BEFORE replying — do not freelance. Bumps the skill's usage, logs a skill_invocation to the channel, and returns the skill's canonical step-by-step content for you to follow.",
@@ -658,6 +668,14 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 		"team_status",
 		"Share a short status update.",
 	), handleTeamStatus)
+	mcp.AddTool(server, readOnlyTool(
+		"team_skill_list",
+		"List visible team skills as compact metadata. Use this to discover matching playbooks before loading full skill content.",
+	), handleTeamSkillList)
+	mcp.AddTool(server, readOnlyTool(
+		"team_skill_view",
+		"Inspect one visible team skill without invoking it. Use this when team_skill_list suggests a possible match and you need the full playbook.",
+	), handleTeamSkillView)
 	mcp.AddTool(server, officeWriteTool(
 		"team_skill_run",
 		"Invoke a named team skill. When the request matches an available skill (see the skill list in your prompt), call this BEFORE doing the work — do not freelance. Bumps the skill's usage, logs a skill_invocation in the channel so the office sees you followed the playbook, and returns the skill's canonical step-by-step content for you to execute.",
@@ -2003,6 +2021,12 @@ func handleHumanMessage(ctx context.Context, _ *mcp.CallToolRequest, args HumanM
 	ctxTarget := resolveConversationContext(ctx, slug, args.Channel, args.ReplyToID)
 	channel := ctxTarget.Channel
 	replyTo := ctxTarget.ReplyToID
+	if strings.TrimSpace(args.Channel) == "" && strings.TrimSpace(args.ReplyToID) == "" {
+		if taskContext := referencedTaskConversationContext(ctx, slug, args.Title, args.Content); taskContext.Channel != "" {
+			channel = taskContext.Channel
+			replyTo = taskContext.ReplyToID
+		}
+	}
 
 	kind := strings.ToLower(strings.TrimSpace(args.Kind))
 	switch kind {
@@ -2428,6 +2452,35 @@ func resolveConversationContext(ctx context.Context, slug, requestedChannel, req
 		replyTo = defaultReplyTargetForChannel(ctx, slug, channel)
 	}
 	return conversationContext{Channel: channel, ReplyToID: replyTo, Source: "fallback"}
+}
+
+func referencedTaskIDs(texts ...string) []string {
+	seen := map[string]struct{}{}
+	out := []string{}
+	for _, text := range texts {
+		for _, match := range taskReferencePattern.FindAllString(strings.TrimSpace(text), -1) {
+			taskID := strings.ToLower(strings.TrimSpace(match))
+			if taskID == "" {
+				continue
+			}
+			if _, ok := seen[taskID]; ok {
+				continue
+			}
+			seen[taskID] = struct{}{}
+			out = append(out, taskID)
+		}
+	}
+	return out
+}
+
+func referencedTaskConversationContext(ctx context.Context, slug string, texts ...string) conversationContext {
+	for _, taskID := range referencedTaskIDs(texts...) {
+		if located := findTaskContextByID(ctx, slug, taskID); located.Channel != "" {
+			located.Source = "task_reference"
+			return located
+		}
+	}
+	return conversationContext{}
 }
 
 func fetchAccessibleChannels(ctx context.Context, slug string) []brokerChannelSummary {

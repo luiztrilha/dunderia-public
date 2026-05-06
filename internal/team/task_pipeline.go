@@ -1,8 +1,12 @@
 package team
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
+
+	"github.com/nex-crm/wuphf/internal/config"
 )
 
 type taskPipelineTemplate struct {
@@ -120,6 +124,357 @@ func normalizeTaskPlan(task *teamTask) {
 		task.ReviewState = "approved"
 	}
 	task.PipelineStage = taskStageForStatus(task)
+	normalizeTaskOutcomeAndQueue(task)
+	normalizeTaskLimits(task)
+	evaluateTaskSignals(task, firstNonEmpty(task.UpdatedAt, task.CreatedAt))
+}
+
+func normalizeTaskOutcomeStatus(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "pending", "needs_evidence", "verified", "waived":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return ""
+	}
+}
+
+func normalizeTaskQueueKey(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, " ", "_")
+	value = strings.ReplaceAll(value, "-", "_")
+	return value
+}
+
+func applyTaskOutcomeInput(task *teamTask, outcome, outcomeStatus, evidence, queueKey, now string) {
+	if task == nil {
+		return
+	}
+	if next := strings.TrimSpace(outcome); next != "" {
+		task.Outcome = next
+	}
+	if next := strings.TrimSpace(evidence); next != "" {
+		task.OutcomeEvidence = next
+		task.OutcomeVerifiedAt = strings.TrimSpace(now)
+		if normalizeTaskOutcomeStatus(outcomeStatus) == "" {
+			task.OutcomeStatus = "verified"
+		}
+	}
+	if next := normalizeTaskOutcomeStatus(outcomeStatus); next != "" {
+		task.OutcomeStatus = next
+		if next == "verified" && strings.TrimSpace(task.OutcomeVerifiedAt) == "" {
+			task.OutcomeVerifiedAt = strings.TrimSpace(now)
+		}
+	}
+	if next := normalizeTaskQueueKey(queueKey); next != "" {
+		task.QueueKey = next
+	}
+}
+
+func normalizeTaskOutcomeAndQueue(task *teamTask) {
+	if task == nil {
+		return
+	}
+	task.Outcome = strings.TrimSpace(task.Outcome)
+	task.OutcomeEvidence = strings.TrimSpace(task.OutcomeEvidence)
+	task.OutcomeStatus = normalizeTaskOutcomeStatus(task.OutcomeStatus)
+	if task.Outcome != "" {
+		switch {
+		case task.OutcomeStatus == "":
+			if strings.TrimSpace(task.OutcomeEvidence) != "" {
+				task.OutcomeStatus = "verified"
+			} else if normalizeTaskStatus(task.Status) == "done" {
+				task.OutcomeStatus = "needs_evidence"
+			} else {
+				task.OutcomeStatus = "pending"
+			}
+		case task.OutcomeStatus == "verified" && strings.TrimSpace(task.OutcomeVerifiedAt) == "" && strings.TrimSpace(task.OutcomeEvidence) != "":
+			task.OutcomeVerifiedAt = strings.TrimSpace(task.UpdatedAt)
+		}
+	}
+	task.QueueKey = deriveTaskQueueKey(task)
+}
+
+type taskGoalContext struct {
+	Company  string
+	Goals    string
+	Priority string
+}
+
+func currentTaskGoalContext() taskGoalContext {
+	data, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		return taskGoalContext{}
+	}
+	var cfg config.Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return taskGoalContext{}
+	}
+	return taskGoalContext{
+		Company:  strings.TrimSpace(cfg.CompanyName),
+		Goals:    strings.TrimSpace(cfg.CompanyGoals),
+		Priority: strings.TrimSpace(cfg.CompanyPriority),
+	}
+}
+
+func applyTaskOperatorContract(task *teamTask, goalCtx taskGoalContext) {
+	if task == nil {
+		return
+	}
+	applyTaskCompletionContract(task)
+	applyTaskGoalPath(task, goalCtx)
+	applyTaskQueueContract(task)
+	applyTaskPlanningContract(task)
+	applyTaskLearningCandidate(task)
+}
+
+func applyTaskCompletionContract(task *teamTask) {
+	if task == nil {
+		return
+	}
+	required := taskCompletionEvidenceRequired(task)
+	satisfied := taskCompletionEvidenceSatisfied(task)
+	task.CompletionEvidenceRequired = required
+	task.CompletionEvidenceSatisfied = satisfied
+	task.CompletionBlocker = ""
+	if required && !satisfied {
+		task.CompletionBlocker = "Completion requires outcome evidence or a durable artifact before this task can be marked done."
+	}
+}
+
+func taskCompletionEvidenceRequired(task *teamTask) bool {
+	if task == nil {
+		return false
+	}
+	if task.AwaitingHuman || strings.EqualFold(strings.TrimSpace(task.TaskType), "human_action") {
+		return false
+	}
+	if strings.TrimSpace(task.Outcome) != "" {
+		return true
+	}
+	if taskNeedsStructuredReview(task) {
+		return true
+	}
+	switch strings.TrimSpace(task.ExecutionMode) {
+	case "local_worktree", "external_workspace", "live_external":
+		return true
+	}
+	switch strings.TrimSpace(task.TaskType) {
+	case "feature", "bugfix", "incident", "launch", "research":
+		return true
+	}
+	return false
+}
+
+func taskCompletionEvidenceSatisfied(task *teamTask) bool {
+	if task == nil {
+		return false
+	}
+	if strings.TrimSpace(task.OutcomeEvidence) != "" {
+		return true
+	}
+	return taskHasExternalPublication(task)
+}
+
+func applyTaskGoalPath(task *teamTask, goalCtx taskGoalContext) {
+	if task == nil {
+		return
+	}
+	var path []string
+	add := func(label, value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		path = append(path, label+": "+truncateSummary(value, 140))
+	}
+	add("Empresa", goalCtx.Company)
+	add("Objetivo", goalCtx.Goals)
+	add("Prioridade", goalCtx.Priority)
+	add("Entrega", task.DeliveryID)
+	add("Canal", normalizeChannelSlug(task.Channel))
+	add("Fluxo", task.PipelineID)
+	add("Etapa", task.PipelineStage)
+	if len(task.DependsOn) > 0 {
+		add("Depende de", strings.Join(task.DependsOn, ", "))
+	}
+	add("Resultado esperado", task.Outcome)
+	task.GoalPath = uniqueStrings(path)
+	task.GoalSummary = strings.Join(task.GoalPath, " -> ")
+}
+
+func deriveTaskQueueKey(task *teamTask) string {
+	if task == nil {
+		return "active"
+	}
+	status := normalizeTaskStatus(task.Status)
+	switch {
+	case task.AwaitingHuman || strings.EqualFold(strings.TrimSpace(task.TaskType), "human_action"):
+		return "human"
+	case task.Blocked || status == "blocked":
+		return "blocked"
+	case status == "review" || strings.EqualFold(strings.TrimSpace(task.ReviewState), "ready_for_review"):
+		return "review"
+	case status == "done" || status == "canceled" || status == "failed":
+		return "history"
+	case status == "open" && strings.TrimSpace(task.Owner) == "":
+		return "intake"
+	}
+	if explicit := normalizeTaskQueueKey(task.QueueKey); explicit != "" {
+		return explicit
+	}
+	switch strings.TrimSpace(task.ExecutionMode) {
+	case "local_worktree", "external_workspace":
+		return "workspace"
+	}
+	if taskType := normalizeTaskQueueKey(task.TaskType); taskType != "" {
+		return taskType
+	}
+	return "active"
+}
+
+func applyTaskQueueContract(task *teamTask) {
+	if task == nil {
+		return
+	}
+	task.QueueKey = deriveTaskQueueKey(task)
+	task.QueueLabel = taskQueueLabel(task.QueueKey)
+	task.QueuePriority = taskQueuePriority(task)
+	task.QueueReason = taskQueueReason(task)
+	task.QueueSLAAt = firstNonEmpty(task.DueAt, task.RecheckAt, task.ReminderAt, task.FollowUpAt)
+}
+
+func taskQueueLabel(queueKey string) string {
+	switch normalizeTaskQueueKey(queueKey) {
+	case "human":
+		return "Human decision"
+	case "blocked":
+		return "Blocked"
+	case "review":
+		return "Review"
+	case "workspace":
+		return "Workspace"
+	case "history":
+		return "History"
+	case "intake":
+		return "Intake"
+	case "feature":
+		return "Feature"
+	case "bugfix":
+		return "Bugfix"
+	case "incident":
+		return "Incident"
+	default:
+		return "Active"
+	}
+}
+
+func taskQueuePriority(task *teamTask) string {
+	if task == nil {
+		return ""
+	}
+	if task.AwaitingHuman || strings.EqualFold(task.QueueKey, "human") || task.Blocked || strings.EqualFold(normalizeTaskStatus(task.Status), "blocked") {
+		return "high"
+	}
+	if taskCompletionEvidenceRequired(task) && !taskCompletionEvidenceSatisfied(task) {
+		return "medium"
+	}
+	if strings.EqualFold(normalizeTaskStatus(task.Status), "review") || strings.EqualFold(task.ReviewState, "ready_for_review") {
+		return "medium"
+	}
+	return "normal"
+}
+
+func taskQueueReason(task *teamTask) string {
+	if task == nil {
+		return ""
+	}
+	switch normalizeTaskQueueKey(task.QueueKey) {
+	case "human":
+		return "Waiting for a human decision before agents continue."
+	case "blocked":
+		return firstNonEmpty(task.AwaitingHumanReason, task.CompletionBlocker, "Blocked until the blocker is resolved.")
+	case "review":
+		return "Ready for review or approval."
+	case "workspace":
+		return "Requires a concrete workspace or worktree execution path."
+	case "history":
+		return "Terminal work retained for audit and learning."
+	case "intake":
+		return "Needs ownership before execution starts."
+	}
+	if taskCompletionEvidenceRequired(task) && !taskCompletionEvidenceSatisfied(task) {
+		return "Needs outcome evidence or an artifact before closure."
+	}
+	return "Ready for normal execution."
+}
+
+func applyTaskPlanningContract(task *teamTask) {
+	if task == nil {
+		return
+	}
+	task.PlanRequired = taskNeedsDeepPlan(task)
+	task.PlanStatus = "not_required"
+	task.PlanBlocker = ""
+	task.LatestPlanSummary = ""
+	if latest := latestTaskPlanRevision(task); latest != nil {
+		task.PlanStatus = firstNonEmpty(normalizeTaskPlanRevisionStatus(latest.Status), "draft")
+		task.LatestPlanSummary = strings.TrimSpace(latest.Summary)
+		if task.PlanRequired && task.PlanStatus == "draft" {
+			task.PlanBlocker = "Plan exists but is still draft; mark it ready or approve it before high-confidence execution."
+		}
+		return
+	}
+	if task.PlanRequired {
+		task.PlanStatus = "missing"
+		task.PlanBlocker = "Deep planning is recommended before execution because this task has code, workspace, review, or delivery risk."
+	}
+}
+
+func taskNeedsDeepPlan(task *teamTask) bool {
+	if task == nil {
+		return false
+	}
+	if task.AwaitingHuman || strings.EqualFold(strings.TrimSpace(task.TaskType), "human_action") {
+		return false
+	}
+	if taskNeedsStructuredReview(task) {
+		return true
+	}
+	switch strings.TrimSpace(task.ExecutionMode) {
+	case "local_worktree", "external_workspace", "live_external":
+		return true
+	}
+	switch strings.TrimSpace(task.TaskType) {
+	case "feature", "bugfix", "incident", "launch":
+		return true
+	}
+	return len(task.DependsOn) > 0 || strings.TrimSpace(task.DeliveryID) != ""
+}
+
+func applyTaskLearningCandidate(task *teamTask) {
+	if task == nil {
+		return
+	}
+	task.LearningCandidate = nil
+	if normalizeTaskStatus(task.Status) != "done" {
+		return
+	}
+	evidence := strings.TrimSpace(task.OutcomeEvidence)
+	if evidence == "" && len(task.Artifacts) == 0 && latestTaskPlanRevision(task) == nil {
+		return
+	}
+	title := strings.TrimSpace(firstNonEmpty(task.Outcome, task.Title))
+	if title == "" {
+		return
+	}
+	task.LearningCandidate = &taskLearningCandidate{
+		Recommended: true,
+		Kind:        "playbook",
+		Title:       truncateSummary(title, 120),
+		Summary:     truncateSummary(firstNonEmpty(evidence, task.Details, task.Title), 220),
+		SkillName:   "learned-" + strings.TrimSpace(task.ID),
+		Reason:      "Completed work has evidence, artifacts, or a plan that can seed future execution.",
+	}
 }
 
 func requestIsResolvedLocked(requests []humanInterview, requestID string) bool {

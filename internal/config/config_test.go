@@ -249,7 +249,7 @@ func TestSaveMirrorsConfigWhenCloudBackupEnabled(t *testing.T) {
 		defer restore()
 
 		err := Save(Config{
-			CompanyName:         "DunderIA",
+			CompanyName:         "MaestrIA",
 			CloudBackupProvider: backup.ProviderGCS,
 			CloudBackupBucket:   "dunderia-backups",
 			CloudBackupPrefix:   "office-a",
@@ -266,7 +266,7 @@ func TestSaveMirrorsConfigWhenCloudBackupEnabled(t *testing.T) {
 		if sink.puts[0].contentType != "application/json" {
 			t.Fatalf("unexpected content type %q", sink.puts[0].contentType)
 		}
-		if !strings.Contains(sink.puts[0].body, `"company_name": "DunderIA"`) {
+		if !strings.Contains(sink.puts[0].body, `"company_name": "MaestrIA"`) {
 			t.Fatalf("expected mirrored config body, got %s", sink.puts[0].body)
 		}
 		if _, ok := sink.body["office-a/config/config.last-good.json"]; !ok {
@@ -293,7 +293,7 @@ func TestLoadFallsBackToCloudBackupWhenLocalConfigMissing(t *testing.T) {
 
 		sink := &fakeBackupSink{
 			body: map[string]string{
-				"office-a/config/config.json": `{"company_name":"DunderIA","cloud_backup_provider":"gcs","cloud_backup_bucket":"dunderia-backups","cloud_backup_prefix":"office-a"}`,
+				"office-a/config/config.json": `{"company_name":"MaestrIA","cloud_backup_provider":"gcs","cloud_backup_bucket":"dunderia-backups","cloud_backup_prefix":"office-a"}`,
 			},
 		}
 		restore := backup.SetSinkFactoryForTest(func(_ context.Context, settings backup.Settings) (backup.Sink, error) {
@@ -305,7 +305,7 @@ func TestLoadFallsBackToCloudBackupWhenLocalConfigMissing(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Load failed: %v", err)
 		}
-		if cfg.CompanyName != "DunderIA" {
+		if cfg.CompanyName != "MaestrIA" {
 			t.Fatalf("expected cloud-restored config, got %+v", cfg)
 		}
 		if _, err := os.Stat(ConfigPath()); err != nil {
@@ -326,7 +326,7 @@ func TestLoadFallsBackToCloudBackupUsingBootstrapFile(t *testing.T) {
 
 		sink := &fakeBackupSink{
 			body: map[string]string{
-				"office-a/config/config.json": `{"company_name":"DunderIA","cloud_backup_provider":"gcs","cloud_backup_bucket":"dunderia-backups","cloud_backup_prefix":"office-a"}`,
+				"office-a/config/config.json": `{"company_name":"MaestrIA","cloud_backup_provider":"gcs","cloud_backup_bucket":"dunderia-backups","cloud_backup_prefix":"office-a"}`,
 			},
 		}
 		restore := backup.SetSinkFactoryForTest(func(_ context.Context, settings backup.Settings) (backup.Sink, error) {
@@ -341,7 +341,7 @@ func TestLoadFallsBackToCloudBackupUsingBootstrapFile(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Load failed: %v", err)
 		}
-		if cfg.CompanyName != "DunderIA" {
+		if cfg.CompanyName != "MaestrIA" {
 			t.Fatalf("expected cloud-restored config, got %+v", cfg)
 		}
 	})

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { getCommandManifest, type CommandManifestEntry } from '../../api/client'
 import { useOfficeMembers } from '../../hooks/useMembers'
 
 export interface AutocompleteItem {
@@ -15,11 +17,16 @@ export interface AutocompleteItem {
 
 export interface SlashCommand {
   name: string
-  descKey: string
+  desc?: string
+  descKey?: string
   icon: string
+  category?: string
+  mutating?: boolean
+  requiresConfirmation?: boolean
+  topologySensitive?: boolean
 }
 
-export const SLASH_COMMANDS: SlashCommand[] = [
+export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
   { name: '/clear', descKey: 'messages.slash.clear', icon: '\uD83E\uDDF9' },
   { name: '/help', descKey: 'messages.slash.help', icon: '\u2753' },
   { name: '/reset', descKey: 'messages.slash.reset', icon: '\uD83D\uDD04' },
@@ -40,6 +47,74 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: '/threads', descKey: 'messages.slash.threads', icon: '\uD83E\uDDF5' },
   { name: '/provider', descKey: 'messages.slash.provider', icon: '\u2699' },
 ]
+
+const COMMAND_ICONS: Record<string, string> = {
+  '/1o1': '\uD83D\uDCAC',
+  '/calendar': '\uD83D\uDCC5',
+  '/cancel': '\u274C',
+  '/clear': '\uD83E\uDDF9',
+  '/collab': '\uD83E\uDD1D',
+  '/doctor': '\uD83E\uDE7A',
+  '/focus': '\uD83C\uDFAF',
+  '/help': '\u2753',
+  '/pause': '\u23F8',
+  '/policies': '\uD83D\uDCDC',
+  '/provider': '\u2699',
+  '/recover': '\uD83D\uDD01',
+  '/requests': '\uD83D\uDD14',
+  '/reset': '\uD83D\uDD04',
+  '/resume': '\u25B6',
+  '/search': '\uD83D\uDD0E',
+  '/skills': '\u26A1',
+  '/task': '\u2705',
+  '/tasks': '\uD83D\uDCCB',
+  '/threads': '\uD83E\uDDF5',
+}
+
+const CATEGORY_ICONS: Record<string, string> = {
+  channel: '#',
+  diagnostics: '\uD83E\uDE7A',
+  navigation: '\uD83E\uDDED',
+  runtime: '\u2699',
+  task: '\u2705',
+}
+
+function commandIcon(command: CommandManifestEntry): string {
+  return COMMAND_ICONS[command.name] ?? CATEGORY_ICONS[command.category] ?? '/'
+}
+
+function commandFromManifest(command: CommandManifestEntry): SlashCommand {
+  return {
+    name: command.name,
+    desc: command.description,
+    icon: commandIcon(command),
+    category: command.category,
+    mutating: command.mutating,
+    requiresConfirmation: command.requires_confirmation,
+    topologySensitive: command.topology_sensitive,
+  }
+}
+
+export function slashCommandDescription(command: SlashCommand, t: (key: string) => string): string {
+  return command.desc ?? (command.descKey ? t(command.descKey) : '')
+}
+
+export function useSlashCommands(): SlashCommand[] {
+  const manifestQuery = useQuery({
+    queryKey: ['commands', 'manifest', 'web'],
+    queryFn: () => getCommandManifest({ surface: 'web' }),
+    staleTime: 60_000,
+    retry: 1,
+  })
+
+  return useMemo(() => {
+    const manifestCommands = manifestQuery.data?.commands ?? []
+    if (manifestCommands.length === 0) {
+      return FALLBACK_SLASH_COMMANDS
+    }
+    return manifestCommands.map(commandFromManifest)
+  }, [manifestQuery.data?.commands])
+}
 
 interface AutocompleteProps {
   /** Current composer text. */
@@ -62,6 +137,7 @@ interface AutocompleteProps {
 export function Autocomplete({ value, caret, selectedIdx, onItems, onPick }: AutocompleteProps) {
   const { t } = useTranslation()
   const { data: members = [] } = useOfficeMembers()
+  const slashCommands = useSlashCommands()
   const listRef = useRef<HTMLDivElement>(null)
 
   const items = useMemo<AutocompleteItem[]>(() => {
@@ -69,10 +145,10 @@ export function Autocomplete({ value, caret, selectedIdx, onItems, onPick }: Aut
     if (!trigger) return []
     if (trigger.kind === 'slash') {
       const q = trigger.query.toLowerCase()
-      return SLASH_COMMANDS
+      return slashCommands
         .filter((c) => c.name.slice(1).toLowerCase().startsWith(q))
         .slice(0, 8)
-        .map((c) => ({ insert: c.name, label: c.name, desc: t(c.descKey), icon: c.icon }))
+        .map((c) => ({ insert: c.name, label: c.name, desc: slashCommandDescription(c, t), icon: c.icon }))
     }
     const q = trigger.query.toLowerCase()
     return members
@@ -91,7 +167,7 @@ export function Autocomplete({ value, caret, selectedIdx, onItems, onPick }: Aut
         desc: m.name,
         icon: m.emoji || '\uD83E\uDD16',
       }))
-  }, [value, caret, members, t])
+  }, [value, caret, members, slashCommands, t])
 
   useEffect(() => {
     onItems(items)

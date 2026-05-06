@@ -28,7 +28,7 @@ func (l *Launcher) GenerateMemberTemplateFromPrompt(request string) (generatedMe
 	}
 	systemPrompt := l.buildPrompt(l.officeLeadSlug()) + `
 
-You are designing a NEW office teammate template for DunderIA.
+You are designing a NEW office teammate template for MaestrIA.
 Return exactly one JSON object and nothing else.
 Do not wrap it in markdown fences.
 Do not explain your reasoning.
@@ -108,7 +108,7 @@ func (l *Launcher) GenerateChannelTemplateFromPrompt(request string) (generatedC
 	}
 	systemPrompt := l.buildPrompt(l.officeLeadSlug()) + `
 
-You are designing a NEW office channel for DunderIA.
+You are designing a NEW office channel for MaestrIA.
 Return exactly one JSON object and nothing else.
 Do not wrap it in markdown fences.
 Do not explain your reasoning.

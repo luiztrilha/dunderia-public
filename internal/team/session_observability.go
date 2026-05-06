@@ -13,6 +13,7 @@ type SessionAgentObservability struct {
 	Slug                 string `json:"slug"`
 	Channel              string `json:"channel,omitempty"`
 	Status               string `json:"status,omitempty"`
+	NormalizedStatus     string `json:"normalized_status,omitempty"`
 	Activity             string `json:"activity,omitempty"`
 	Detail               string `json:"detail,omitempty"`
 	QueueDepth           int    `json:"queue_depth,omitempty"`
@@ -131,6 +132,9 @@ func (s SessionObservabilitySnapshot) FormatLines() []string {
 		}
 		if strings.TrimSpace(agent.Status) != "" {
 			parts = append(parts, "status="+agent.Status)
+		}
+		if strings.TrimSpace(agent.NormalizedStatus) != "" && strings.TrimSpace(agent.NormalizedStatus) != strings.TrimSpace(agent.Status) {
+			parts = append(parts, "normalized="+agent.NormalizedStatus)
 		}
 		if strings.TrimSpace(agent.Activity) != "" {
 			parts = append(parts, "activity="+agent.Activity)
@@ -371,6 +375,7 @@ func (l *Launcher) SessionObservabilitySnapshot() SessionObservabilitySnapshot {
 		if entry.Activity == "" {
 			entry.Activity = "idle"
 		}
+		entry.NormalizedStatus = normalizeSessionAgentRuntimeStatus(entry)
 		if entry.Status == "active" {
 			snapshot.ActiveAgents++
 		}

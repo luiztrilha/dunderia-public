@@ -86,6 +86,7 @@ export function StudioOfficeSnapshot({
   const packageData = bootstrapPackage?.package
   const workflows = workflowOptions(bootstrapPackage)
   const packageLabel = formatPackageLabel(packageData)
+  const runtimeDoctor = environment.runtime_doctor
 
   return (
     <section
@@ -160,6 +161,56 @@ export function StudioOfficeSnapshot({
             </div>
           )}
         </SnapshotCard>
+
+        {runtimeDoctor ? (
+          <SnapshotCard title={t('apps.studio.runtimeDoctor')} tone={statusColor(runtimeDoctor.status)}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(runtimeDoctor.checks ?? []).slice(0, 3).map((check) => {
+                const tone = statusColor(check.severity === 'fail' ? 'blocked' : check.severity === 'warn' ? 'degraded' : 'ok')
+                return (
+                  <div
+                    key={check.id}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                      padding: '9px 11px',
+                      borderRadius: 12,
+                      background: tone.bg,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: tone.fg }}>{check.label}</span>
+                      <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em', color: tone.fg }}>{check.severity}</span>
+                    </div>
+                    <span style={{ fontSize: 12, lineHeight: 1.45, color: tone.fg }}>{check.summary}</span>
+                    {check.next_step ? (
+                      <span style={{ fontSize: 11, lineHeight: 1.4, color: tone.fg, opacity: 0.82 }}>{check.next_step}</span>
+                    ) : null}
+                  </div>
+                )
+              })}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, color: 'var(--text-secondary)', fontSize: 11 }}>
+                <span>{t('apps.studio.webDist')}: {runtimeDoctor.web_dist?.source || 'n/a'}</span>
+                <span>{t('apps.studio.processes')}: {runtimeDoctor.processes?.length ?? 0}</span>
+                {runtimeDoctor.web_dist?.index_hash ? <span>sha {runtimeDoctor.web_dist.index_hash}</span> : null}
+              </div>
+              {(runtimeDoctor.restart_advice?.required || runtimeDoctor.secret_audit || runtimeDoctor.backup_policy) ? (
+                <div style={{ display: 'grid', gap: 6, color: 'var(--text-secondary)', fontSize: 11, lineHeight: 1.45 }}>
+                  {runtimeDoctor.restart_advice?.required ? (
+                    <span>{t('apps.studio.restartRequired')}: {runtimeDoctor.restart_advice.summary}</span>
+                  ) : null}
+                  {runtimeDoctor.secret_audit ? (
+                    <span>{t('apps.studio.secretAudit')}: {runtimeDoctor.secret_audit.plaintext_config_count} plaintext · {runtimeDoctor.secret_audit.secret_env_count} env</span>
+                  ) : null}
+                  {runtimeDoctor.backup_policy ? (
+                    <span>{t('apps.studio.backupPolicy')}: {runtimeDoctor.backup_policy.local_snapshot_count} local · {runtimeDoctor.backup_policy.cloud_enabled ? runtimeDoctor.backup_policy.cloud_provider || 'cloud' : 'local only'}</span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </SnapshotCard>
+        ) : null}
 
         <SnapshotCard title={t('apps.studio.bootstrap')} tone={officeTone}>
           <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-secondary)' }}>{office.bootstrap.summary}</div>

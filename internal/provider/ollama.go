@@ -81,7 +81,10 @@ func CreateOllamaStreamFnWithContext(reqCtx context.Context, baseURL, model stri
 			}
 			req.Header.Set("Content-Type", "application/json")
 
-			client := &http.Client{Timeout: 2 * time.Minute}
+			// Do not set an HTTP-client deadline here. Local Ollama models can spend
+			// more than two minutes before finishing larger office prompts; the caller's
+			// context already carries the launcher turn timeout and cancellation policy.
+			client := &http.Client{}
 			resp, err := client.Do(req)
 			if err != nil {
 				ch <- agent.StreamChunk{Type: "error", Content: fmt.Sprintf("ollama request failed: %v", err)}

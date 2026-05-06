@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import {
   getActions,
+  getActivity,
   getDecisions,
   getWatchdogs,
   getScheduler,
   getUsage,
   type Task,
   type OfficeMember,
+  type ActivityEvent,
 } from '../../api/client'
 import { formatTokens } from '../../lib/format'
 import { InsightsList, type Insight } from '../activity/InsightsList'
@@ -66,6 +68,10 @@ interface SchedulerJobRaw {
   kind?: string
   next_run?: string
   due_at?: string
+  concurrency_policy?: string
+  catch_up_policy?: string
+  max_parallel?: number
+  running_count?: number
 }
 
 function normalizeStatus(raw: string): string {
@@ -83,11 +89,18 @@ function classifyMemberActivity(member: OfficeMember, t: TFunction): { state: st
 export function ArtifactsApp() {
   const { t } = useTranslation()
   const refetchInterval = useBrokerRefetchInterval(15_000)
-  const tasks = useOfficeTasks({ includeDone: true, fallbackMs: 15_000 })
+  const tasks = useOfficeTasks({ includeDone: true, fallbackMs: 15_000, lite: true })
 
   const actions = useQuery({
     queryKey: ['activity-actions'],
     queryFn: () => getActions() as Promise<{ actions: ActionRecord[] }>,
+    refetchInterval,
+    staleTime: 30_000,
+  })
+
+  const activity = useQuery({
+    queryKey: ['activity-ledger'],
+    queryFn: () => getActivity({ limit: 160 }),
     refetchInterval,
     staleTime: 30_000,
   })
@@ -123,7 +136,7 @@ export function ArtifactsApp() {
   const members = useOfficeMembers()
 
   const isLoading =
-    tasks.isLoading || actions.isLoading || decisions.isLoading ||
+    tasks.isLoading || actions.isLoading || activity.isLoading || decisions.isLoading ||
     watchdogs.isLoading || scheduler.isLoading || usage.isLoading || members.isLoading
 
   if (isLoading) {
@@ -136,6 +149,7 @@ export function ArtifactsApp() {
 
   const allTasks = tasks.data?.tasks ?? []
   const allActions = ((actions.data as { actions?: ActionRecord[] })?.actions ?? []).slice()
+  const allActivity = (activity.data?.events ?? []) as ActivityEvent[]
   const allDecisions = ((decisions.data as { decisions?: DecisionRecord[] })?.decisions ?? []).slice()
   const allWatchdogs = ((watchdogs.data as { watchdogs?: WatchdogRecord[] })?.watchdogs ?? []).slice()
   const allJobs = (scheduler.data?.jobs ?? []) as unknown as SchedulerJobRaw[]
@@ -148,6 +162,9 @@ export function ArtifactsApp() {
   })
   const blockedTasks = allTasks.filter((t) => normalizeStatus(t.status) === 'blocked')
   const liveAgents = allMembers.filter((m) => m.slug !== 'human' && m.slug !== 'you' && classifyMemberActivity(m, t).state !== 'lurking')
+  const resultProducts = allTasks.flatMap((task) => (task.artifacts ?? []).map((artifact) => ({ task, artifact })))
+    .filter(({ artifact }) => artifact.path || artifact.url || artifact.preview_url || artifact.summary)
+    .sort((a, b) => String(b.artifact.updated_at ?? b.artifact.created_at ?? '').localeCompare(String(a.artifact.updated_at ?? a.artifact.created_at ?? '')))
 
   allActions.sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
   allDecisions.sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
@@ -173,26 +190,15 @@ export function ArtifactsApp() {
     })),
   ]
 
-  const timelineEvents: TimelineEvent[] = [
-    ...allDecisions
-      .filter((d) => d.created_at)
-      .map<TimelineEvent>((d) => ({
-        type: d.blocking ? 'watchdog' : 'decision',
-        timestamp: d.created_at || '',
-        actor: d.owner,
-        content: d.summary || d.reason || d.kind || t('apps.artifacts.labels.decision'),
-        meta: [d.channel ? `#${d.channel}` : '', d.kind || ''].filter(Boolean).join(' · ') || undefined,
-      })),
-    ...allActions
-      .filter((a) => a.created_at)
-      .map<TimelineEvent>((a) => ({
-        type: 'action',
-        timestamp: a.created_at || '',
-        actor: a.actor,
-        content: a.summary || a.name || a.title || t('apps.artifacts.labels.action'),
-        meta: [a.channel ? `#${a.channel}` : '', a.kind || a.type || ''].filter(Boolean).join(' · ') || undefined,
-      })),
-  ]
+  const timelineEvents: TimelineEvent[] = allActivity
+    .filter((event) => event.timestamp)
+    .map<TimelineEvent>((event) => ({
+      type: event.type === 'watchdog' ? 'watchdog' : event.type === 'decision' ? 'decision' : 'action',
+      timestamp: event.timestamp || '',
+      actor: event.actor,
+      content: event.summary || event.title || event.kind || event.type,
+      meta: [event.channel ? `#${event.channel}` : '', event.type, event.kind || '', event.related_id || ''].filter(Boolean).join(' · ') || undefined,
+    }))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -289,6 +295,27 @@ export function ArtifactsApp() {
             />
           </ActivitySection>
 
+          <ActivitySection title="Resultados" meta={`${resultProducts.length} work products`}>
+            {resultProducts.length === 0 ? (
+              <EmptyState>Nenhum resultado registrado.</EmptyState>
+            ) : (
+              resultProducts.slice(0, 10).map(({ task, artifact }) => (
+                <ActivityItem
+                  key={`${task.id}-${artifact.id || artifact.path || artifact.url || artifact.preview_url}`}
+                  title={artifact.title || task.title || artifact.kind || 'Resultado'}
+                  body={artifact.summary || artifact.url || artifact.preview_url || artifact.path || ''}
+                  meta={[
+                    artifact.result_role || artifact.kind || '',
+                    task.channel ? `#${task.channel}` : '',
+                    artifact.state || '',
+                    artifact.validated_at ? `validado ${new Date(artifact.validated_at).toLocaleString()}` : '',
+                  ].filter(Boolean)}
+                  kindLabel={artifact.result_role || artifact.kind || 'work product'}
+                />
+              ))
+            )}
+          </ActivitySection>
+
           <ActivitySection title={t('apps.artifacts.sections.recentActivity')} meta={t('apps.artifacts.sections.recentActivityMeta', { count: timelineEvents.length })}>
             <Timeline
               events={timelineEvents}
@@ -309,6 +336,9 @@ export function ArtifactsApp() {
                   meta={[
                     job.channel ? `#${job.channel}` : '',
                     job.provider ?? '',
+                    job.concurrency_policy ? `concorrencia: ${job.concurrency_policy}` : '',
+                    job.catch_up_policy ? `catch-up: ${job.catch_up_policy}` : '',
+                    typeof job.running_count === 'number' && job.running_count > 0 ? `rodando: ${job.running_count}/${job.max_parallel || 1}` : '',
                     (job.next_run || job.due_at) ? new Date(job.next_run || job.due_at || '').toLocaleString() : '',
                   ].filter(Boolean)}
                   kindLabel={job.status || t('apps.artifacts.labels.scheduled')}

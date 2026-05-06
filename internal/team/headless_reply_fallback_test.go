@@ -84,6 +84,36 @@ func TestPublishHeadlessFallbackReplyKeepsHumanReadableToolFailureSummary(t *tes
 	}
 }
 
+func TestPublishHeadlessFallbackReplyStripsRouteMarkerFromContent(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	ensureTestMemberAccess(b, "general", "ceo", "CEO")
+	root, err := b.PostMessage("you", "general", "@ceo reply here", []string{"ceo"}, "")
+	if err != nil {
+		t.Fatalf("seed root: %v", err)
+	}
+
+	l := &Launcher{broker: b}
+	notification := fmt.Sprintf(`Reply using team_broadcast with my_slug "ceo" and channel "general" reply_to_id "%s". [WUPHF_REPLY_ROUTE channel="general" reply_to_id="%s"]`, root.ID, root.ID)
+	text := "[WUPHF_REPLY_ROUTE channel=\"general\" reply_to_id=\"other\"]\nUseful reply."
+	l.publishHeadlessFallbackReply("ceo", notification, text, time.Now().UTC())
+
+	last := b.AllMessages()[len(b.AllMessages())-1]
+	if last.ReplyTo != root.ID {
+		t.Fatalf("expected fallback route to stay on notification target, got %+v", last)
+	}
+	if strings.Contains(last.Content, "WUPHF_REPLY_ROUTE") {
+		t.Fatalf("expected internal route marker to be stripped, got %q", last.Content)
+	}
+	if last.Content != "Useful reply." {
+		t.Fatalf("unexpected fallback content %q", last.Content)
+	}
+}
+
 func TestPublishHeadlessFallbackReplySkipsMixedRuntimePayloadAndProse(t *testing.T) {
 	oldPathFn := brokerStatePath
 	tmpDir := t.TempDir()

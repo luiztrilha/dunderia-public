@@ -13,6 +13,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/nex-crm/wuphf/internal/commands"
 	"github.com/nex-crm/wuphf/internal/config"
 	"github.com/nex-crm/wuphf/internal/team"
 	"github.com/nex-crm/wuphf/internal/tui"
@@ -210,7 +211,7 @@ func TestChannelViewUsesOfficeHeaderAndComposer(t *testing.T) {
 	m.height = 30
 
 	view := stripANSI(m.View())
-	if !strings.Contains(view, "The DunderIA Office") || !strings.Contains(view, "Message #general") {
+	if !strings.Contains(view, "The MaestrIA Office") || !strings.Contains(view, "Message #general") {
 		t.Fatalf("expected office chrome, got %q", view)
 	}
 }
@@ -228,7 +229,7 @@ func TestChannelViewUsesOneOnOneChrome(t *testing.T) {
 	if !strings.Contains(view, "1:1 with CEO") {
 		t.Fatalf("expected 1o1 header, got %q", view)
 	}
-	if strings.Contains(view, "The DunderIA Office") || strings.Contains(view, "Message #general") {
+	if strings.Contains(view, "The MaestrIA Office") || strings.Contains(view, "Message #general") {
 		t.Fatalf("expected office chrome to be hidden in 1o1 mode, got %q", view)
 	}
 }
@@ -439,7 +440,7 @@ func TestProviderSelectionSavesCodexAndRequestsRestart(t *testing.T) {
 	if done.posting {
 		t.Fatal("expected provider selection to clear posting state after completion")
 	}
-	if !strings.Contains(done.notice, "Claude teammate panes were stopped.") || !strings.Contains(done.notice, "Restart DunderIA to launch the headless Codex office runtime.") {
+	if !strings.Contains(done.notice, "Claude teammate panes were stopped.") || !strings.Contains(done.notice, "Restart MaestrIA to launch the headless Codex office runtime.") {
 		t.Fatalf("expected codex restart notice, got %q", done.notice)
 	}
 
@@ -1591,8 +1592,44 @@ func TestSlashAutocompleteShowsAllCommandsOnSlash(t *testing.T) {
 	if !strings.Contains(view, "/init") || !strings.Contains(view, "/tasks") {
 		t.Fatalf("expected command list in autocomplete, got %q", view)
 	}
-	if !strings.Contains(view, "setup") || !strings.Contains(view, "navigate") {
+	if !strings.Contains(view, "setup") || !strings.Contains(view, "navigation") {
 		t.Fatalf("expected command categories in autocomplete, got %q", view)
+	}
+}
+
+func TestTUISlashCommandsComeFromCanonicalManifest(t *testing.T) {
+	manifest := commands.FilterCommandManifest(commands.BuildCommandManifest(), commands.SurfaceTUI)
+	want := make(map[string]string, len(manifest))
+	for _, entry := range manifest {
+		name := strings.TrimPrefix(entry.Name, "/")
+		if _, exists := want[name]; exists {
+			t.Fatalf("duplicate manifest command %q", entry.Name)
+		}
+		want[name] = entry.Description
+	}
+	if len(channelSlashCommands) != len(want) {
+		t.Fatalf("expected %d TUI commands, got %d", len(want), len(channelSlashCommands))
+	}
+	for _, command := range channelSlashCommands {
+		description, ok := want[command.Name]
+		if !ok {
+			t.Fatalf("TUI autocomplete command %q is missing from canonical manifest", command.Name)
+		}
+		if command.Description != description {
+			t.Fatalf("command %q description drift: %q != %q", command.Name, command.Description, description)
+		}
+	}
+}
+
+func TestSlashAutocompleteIncludesManifestBackedRequestsCommand(t *testing.T) {
+	m := newChannelModel(false)
+	m.input = []rune("/request")
+	m.inputPos = len(m.input)
+	m.updateInputOverlays()
+
+	view := stripANSI(m.autocomplete.View())
+	if !strings.Contains(view, "/requests") || !strings.Contains(view, "/request") {
+		t.Fatalf("expected request commands from canonical manifest, got %q", view)
 	}
 }
 
@@ -2718,7 +2755,7 @@ func TestChannelResetDoneImmediatelyRehydratesDirectMode(t *testing.T) {
 	if !strings.Contains(view, "Direct session reset. Agent pane reloaded in place.") {
 		t.Fatalf("expected direct-session empty state, got %q", view)
 	}
-	if strings.Contains(view, "Welcome to The DunderIA Office.") {
+	if strings.Contains(view, "Welcome to The MaestrIA Office.") {
 		t.Fatalf("expected office welcome to disappear in direct mode, got %q", view)
 	}
 }

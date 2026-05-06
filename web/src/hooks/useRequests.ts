@@ -12,12 +12,13 @@ export interface RequestsState {
   error: unknown
 }
 
-export function useRequests(): RequestsState {
+export function useRequests(options: { allChannels?: boolean } = {}): RequestsState {
   const currentChannel = useAppStore((s) => s.currentChannel)
+  const allChannels = options.allChannels ?? false
   const refetchInterval = useBrokerRefetchInterval(5000)
   const { data, isLoading, error } = useQuery({
-    queryKey: requestsKey(currentChannel, true),
-    queryFn: () => getRequests(currentChannel, true),
+    queryKey: requestsKey(currentChannel, allChannels),
+    queryFn: () => getRequests(currentChannel, allChannels),
     refetchInterval,
     staleTime: 30_000,
   })

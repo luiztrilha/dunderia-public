@@ -1,6 +1,6 @@
 # Agent Runtime Behavior Evals
 
-These eval cases are the DunderIA seed set inspired by Paperclip's agent behavior evals. They are written as behavior contracts first so they can later be backed by promptfoo, Go fixtures, or provider-specific harnesses.
+These eval cases are the MaestrIA seed set inspired by Paperclip's agent behavior evals. They are written as behavior contracts first so they can later be backed by promptfoo, Go fixtures, or provider-specific harnesses.
 
 ## Core Cases
 

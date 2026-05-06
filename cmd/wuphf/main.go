@@ -75,6 +75,27 @@ func printSubcommandHelp(sub string) {
 		fmt.Fprintln(os.Stderr, "  wuphf log                     List recent tasks")
 		fmt.Fprintln(os.Stderr, "  wuphf log <taskID>            Show one task in detail")
 		fmt.Fprintln(os.Stderr, "  wuphf log --agent eng         Filter to one agent")
+	case "doctor":
+		fmt.Fprintln(os.Stderr, "wuphf doctor — inspect setup and live runtime health")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Usage:")
+		fmt.Fprintln(os.Stderr, "  wuphf doctor")
+		fmt.Fprintln(os.Stderr, "  wuphf doctor --smoke")
+		fmt.Fprintln(os.Stderr, "  wuphf doctor --json")
+	case "release-check":
+		fmt.Fprintln(os.Stderr, "wuphf release-check — run the local release gate")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Usage:")
+		fmt.Fprintln(os.Stderr, "  wuphf release-check")
+		fmt.Fprintln(os.Stderr, "  wuphf release-check --json")
+		fmt.Fprintln(os.Stderr, "  wuphf release-check --skip-build")
+		fmt.Fprintln(os.Stderr, "  wuphf release-check --artifact docs/release-check-latest.json")
+	case "evals":
+		fmt.Fprintln(os.Stderr, "wuphf evals — run local behavior contracts")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Usage:")
+		fmt.Fprintln(os.Stderr, "  wuphf evals")
+		fmt.Fprintln(os.Stderr, "  wuphf evals --json")
 	case "mcp-team":
 		fmt.Fprintln(os.Stderr, "wuphf mcp-team — start the team MCP server (used by agents, not humans)")
 		fmt.Fprintln(os.Stderr, "")
@@ -152,6 +173,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s shred        Stop the running office without deleting local state\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s import --from legacy  Import from a running external orchestrator (auto-detect)\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s log          Show what your agents actually did (task receipts)\n", appName)
+		fmt.Fprintf(os.Stderr, "  %s doctor       Inspect setup, live runtime, web build, process hygiene, and smoke checks\n", appName)
+		fmt.Fprintf(os.Stderr, "  %s release-check Run build, focused tests, runtime smoke, readiness, and git hygiene\n", appName)
+		fmt.Fprintf(os.Stderr, "  %s evals        Run local behavior contracts for agent/runtime handoffs\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s secret       Manage the local encrypted secret store\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s repair-channel-memory  Rebuild channel memory from saved broker history\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s --cmd <cmd>  Run a command non-interactively\n", appName)
@@ -255,6 +279,15 @@ func main() {
 			return
 		case "log":
 			runLogCmd(args[1:])
+			return
+		case "doctor":
+			runDoctorCmd(args[1:])
+			return
+		case "release-check":
+			runReleaseCheckCmd(args[1:])
+			return
+		case "evals":
+			runEvalsCmd(args[1:])
 			return
 		case "secret":
 			runSecretCmd(args[1:])
@@ -360,7 +393,7 @@ func runTeam(args []string, packSlug string, unsafe bool, oneOnOne bool, opusCEO
 		return
 	}
 
-	fmt.Println("Team launched. Welcome to the DunderIA office. Attaching...")
+	fmt.Println("Team launched. Welcome to the MaestrIA office. Attaching...")
 	fmt.Println()
 	fmt.Println("  Ctrl+B arrow     switch between panes")
 	fmt.Println("  Ctrl+B { or }    swap panes left/right")

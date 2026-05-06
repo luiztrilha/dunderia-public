@@ -47,7 +47,6 @@ Copy-Children (Join-Path $kit "opencode\skills") (Join-Path $opencodeHome "skill
 
 Copy-Item -LiteralPath (Join-Path $kit "codex\AGENTS.validated.md") -Destination (Join-Path $codexHome "AGENTS.md") -Force
 Copy-Item -LiteralPath (Join-Path $kit "agents\skill-lock.json") -Destination (Join-Path $agentsHome ".skill-lock.json") -Force
-Copy-Item -LiteralPath (Join-Path $kit "policies.validated.md") -Destination (Join-Path $codexHome "policies.validated.md") -Force
 
 $configTarget = Join-Path $codexHome "config.toml"
 if ($OverwriteConfig -or -not (Test-Path -LiteralPath $configTarget)) {
@@ -56,4 +55,4 @@ if ($OverwriteConfig -or -not (Test-Path -LiteralPath $configTarget)) {
   Write-Host "Skipped existing config.toml. Review codex/config.sanitized.toml and merge manually."
 }
 
-Write-Host "Installed DunderIA validated profile into $HomeDir"
+Write-Host "Installed MaestrIA validated profile into $HomeDir"

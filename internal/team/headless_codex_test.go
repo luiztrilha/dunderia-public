@@ -479,7 +479,7 @@ func TestHeadlessCodexRunTurnReroutesLocalWorktreeToCodex(t *testing.T) {
 	b.tasks = append(b.tasks, teamTask{
 		ID:            "task-782",
 		Channel:       "general",
-		Title:         "Revisao tecnica priorizada da base DunderIA atual",
+		Title:         "Revisao tecnica priorizada da base MaestrIA atual",
 		Owner:         "reviewer",
 		Status:        "in_progress",
 		ExecutionMode: "local_worktree",
@@ -1553,7 +1553,7 @@ func TestSyncHeadlessCodexRuntimeConfigRewritesManagedMCPServers(t *testing.T) {
 	}
 	text := string(got)
 	if !strings.Contains(text, `D:/Repos/dunderia/scripts/launch_playwright_mcp.ps1`) {
-		t.Fatalf("expected runtime config to include DunderIA playwright launcher, got:\n%s", text)
+		t.Fatalf("expected runtime config to include MaestrIA playwright launcher, got:\n%s", text)
 	}
 	if strings.Contains(text, `D:/Repos/.openclaw/scripts/launch_playwright_mcp.ps1`) {
 		t.Fatalf("expected runtime config to drop legacy OpenClaw playwright launcher, got:\n%s", text)

@@ -1,12 +1,12 @@
 ---
 name: dunderia-doc-maintenance
 description: >
-  Audit DunderIA documentation against recent changes and update only factual
+  Audit MaestrIA documentation against recent changes and update only factual
   drift. Use after notable feature work, release prep, or when asked whether
   README, architecture, starter-kit, or development docs still match reality.
 ---
 
-# DunderIA Doc Maintenance
+# MaestrIA Doc Maintenance
 
 Detect documentation drift and fix it with minimal edits.
 
@@ -46,7 +46,7 @@ Add other docs only when the changed code clearly affects them.
 - Fix the fact, not the voice.
 - Do not reorganize docs during a maintenance pass.
 - Do not add new broad sections unless the user asked for a doc expansion.
-- Preserve DunderIA public naming and `wuphf` CLI compatibility wording.
+- Preserve MaestrIA public naming and `wuphf` CLI compatibility wording.
 - Keep Nex, Telegram, Composio, and other integrations optional unless the code proves otherwise.
 - Never add private paths, credentials, live office state, or customer context.
 

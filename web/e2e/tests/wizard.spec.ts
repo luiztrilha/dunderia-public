@@ -49,7 +49,7 @@ async function advanceToTaskStep(page: Page): Promise<void> {
   await page.getByRole('button', { name: /from scratch|do zero/i }).click();
   await page.getByRole('button', { name: /continue|continuar/i }).click();
 
-  await page.locator('#wiz-company').fill('DunderIA');
+  await page.locator('#wiz-company').fill('MaestrIA');
   await page.locator('#wiz-description').fill('Office hardening');
   await page.getByRole('button', { name: /review the team|revisar a equipe/i }).click();
 
@@ -67,7 +67,7 @@ async function advanceToSetupStep(page: Page): Promise<void> {
   await page.getByRole('button', { name: /from scratch|do zero/i }).click();
   await page.getByRole('button', { name: /continue|continuar/i }).click();
 
-  await page.locator('#wiz-company').fill('DunderIA');
+  await page.locator('#wiz-company').fill('MaestrIA');
   await page.locator('#wiz-description').fill('Office hardening');
   await page.getByRole('button', { name: /review the team|revisar a equipe/i }).click();
 

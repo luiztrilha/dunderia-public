@@ -485,7 +485,7 @@ func TestDefaultManifestHasNoSurface(t *testing.T) {
 	if len(manifest.Channels) != 1 || manifest.Channels[0].Slug != "general" {
 		t.Fatalf("expected only the general channel in the default manifest, got %+v", manifest.Channels)
 	}
-	expectedMembers := []string{"ceo", "pm", "research-lead", "estagiario", "backend", "frontend", "builder", "reviewer", "game-master"}
+	expectedMembers := []string{"ceo", "research-lead", "writer", "operator", "growth-ops", "monetization"}
 	if len(manifest.Members) != len(expectedMembers) {
 		t.Fatalf("expected %d default members, got %+v", len(expectedMembers), manifest.Members)
 	}
@@ -508,12 +508,12 @@ func TestDefaultManifestHasNoSurface(t *testing.T) {
 	}
 }
 
-func TestDefaultManifestUsesDunderIAOfficeName(t *testing.T) {
+func TestDefaultManifestUsesMaestrIAOfficeName(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("WUPHF_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
 	manifest := DefaultManifest()
-	if got, want := manifest.Name, "The DunderIA Office"; got != want {
+	if got, want := manifest.Name, "The MaestrIA Office"; got != want {
 		t.Fatalf("unexpected default manifest name: got %q want %q", got, want)
 	}
 }

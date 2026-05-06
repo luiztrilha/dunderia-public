@@ -8,7 +8,7 @@ import { useChannels } from '../../hooks/useChannels'
 import { useOfficeMembers } from '../../hooks/useMembers'
 import { searchMessages, type MessageSearchHit } from '../../api/client'
 import { showNotice } from '../ui/Toast'
-import { SLASH_COMMANDS } from '../messages/Autocomplete'
+import { slashCommandDescription, useSlashCommands } from '../messages/Autocomplete'
 import { dispatchSlashCommand } from '../../lib/slashCommands'
 
 type PaletteGroup = 'Channels' | 'Agents' | 'Commands' | 'Messages'
@@ -71,6 +71,7 @@ export function SearchModal() {
   const queryClient = useQueryClient()
   const { data: channels = [] } = useChannels()
   const { data: members = [] } = useOfficeMembers()
+  const slashCommands = useSlashCommands()
 
   const [query, setQuery] = useState('')
   const [selectedIdx, setSelectedIdx] = useState(0)
@@ -191,8 +192,8 @@ export function SearchModal() {
     }
 
     // Slash commands
-    for (const c of SLASH_COMMANDS) {
-      const desc = tr(c.descKey)
+    for (const c of slashCommands) {
+      const desc = slashCommandDescription(c, tr)
       const hay = `${c.name} ${desc}`.toLowerCase()
       if (q && !hay.includes(q.replace(/^\//, ''))) continue
       list.push({
@@ -217,6 +218,7 @@ export function SearchModal() {
             onChannelCleared: () => {
               queryClient.invalidateQueries({ queryKey: ['requests'] })
             },
+            helpCommands: slashCommands.map((command) => command.name),
           })
           close()
         },
@@ -248,7 +250,7 @@ export function SearchModal() {
     }
 
     return list
-  }, [query, channels, members, messageHits, setCurrentApp, setCurrentChannel, setActiveAgentSlug, setLastMessageId, setSearchOpen, enterDM, close, tr, currentChannel, setActiveThreadId, setActiveThreadReplyTo, queryClient])
+  }, [query, channels, members, messageHits, setCurrentApp, setCurrentChannel, setActiveAgentSlug, setLastMessageId, setSearchOpen, enterDM, close, tr, currentChannel, setActiveThreadId, setActiveThreadReplyTo, queryClient, slashCommands])
 
   // Clamp selection
   useEffect(() => {
@@ -376,6 +378,7 @@ interface CommandDeps {
   enterDM: (agentSlug: string, channelSlug: string) => void
   clearActiveThread: () => void
   onChannelCleared: () => void
+  helpCommands?: string[]
 }
 
 function dispatchPaletteCommand(name: string, deps: CommandDeps) {
@@ -389,6 +392,7 @@ function dispatchPaletteCommand(name: string, deps: CommandDeps) {
     clearActiveThread: deps.clearActiveThread,
     onChannelCleared: deps.onChannelCleared,
     helpMode: 'palette',
+    helpCommands: deps.helpCommands,
   })) {
     return
   }

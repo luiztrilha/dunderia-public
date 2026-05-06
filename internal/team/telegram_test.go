@@ -56,6 +56,36 @@ func TestTelegramTransportChatMap(t *testing.T) {
 	}
 }
 
+func TestTelegramTransportMapsPrivateRemoteID(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	b.mu.Lock()
+	b.channels = append(b.channels, teamChannel{
+		Slug:    "telegram-dm",
+		Name:    "Telegram DM",
+		Members: []string{"human"},
+		Surface: &channelSurface{
+			Provider: "telegram",
+			RemoteID: "12345",
+			Mode:     "private",
+		},
+	})
+	b.mu.Unlock()
+
+	transport := NewTelegramTransport(b, "fake-token")
+
+	if transport.DMChannel != "telegram-dm" {
+		t.Fatalf("expected DMChannel telegram-dm, got %q", transport.DMChannel)
+	}
+	if got := transport.ChatMap["12345"]; got != "telegram-dm" {
+		t.Fatalf("expected private chat id mapping to telegram-dm, got %q", got)
+	}
+}
+
 func TestTelegramInboundSummaryRedactsMessageContent(t *testing.T) {
 	msg := &telegramMsg{
 		Chat: telegramChat{
@@ -344,6 +374,101 @@ func TestTelegramSendToTelegramMocked(t *testing.T) {
 	}
 	if gotBody["text"] != "<b>@ceo</b>: test message" {
 		t.Fatalf("expected formatted text, got %q", gotBody["text"])
+	}
+}
+
+func TestTelegramSendToTelegramRecordsAlertDelivery(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	oldBase := telegramAPIBase
+	defer func() { telegramAPIBase = oldBase }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/sendMessage") {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		data, _ := json.Marshal(telegramAPIResponse{
+			OK:     true,
+			Result: json.RawMessage(`{"message_id":432}`),
+		})
+		w.Write(data)
+	}))
+	defer server.Close()
+	telegramAPIBase = server.URL
+
+	b := NewBroker()
+	transport := &TelegramTransport{
+		BotToken: "test-token",
+		Broker:   b,
+		client:   server.Client(),
+	}
+	msg := channelMessage{
+		From:    "wuphf",
+		Kind:    "automation",
+		Source:  "telegram_alert",
+		EventID: "telegram-human-attention:task-77",
+		Content: "MaestrIA needs your input.",
+	}
+
+	if err := transport.SendToTelegram("12345", msg); err != nil {
+		t.Fatalf("SendToTelegram: %v", err)
+	}
+
+	b.mu.Lock()
+	delivery, ok := b.telegramAlertDeliveries[msg.EventID]
+	b.mu.Unlock()
+	if !ok {
+		t.Fatalf("expected telegram alert delivery to be recorded")
+	}
+	if delivery.ChatID != "12345" || delivery.MessageID != 432 {
+		t.Fatalf("unexpected delivery: %+v", delivery)
+	}
+}
+
+func TestTelegramDeletesResolvedHumanAttentionAlert(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	oldBase := telegramAPIBase
+	defer func() { telegramAPIBase = oldBase }()
+
+	var gotBody map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/deleteMessage") {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
+			t.Fatalf("decode delete body: %v", err)
+		}
+		data, _ := json.Marshal(telegramAPIResponse{OK: true, Result: json.RawMessage(`true`)})
+		w.Write(data)
+	}))
+	defer server.Close()
+	telegramAPIBase = server.URL
+
+	b := NewBroker()
+	eventID := "telegram-human-attention:task-77"
+	if err := b.RecordTelegramAlertDelivery(eventID, "12345", 432); err != nil {
+		t.Fatalf("RecordTelegramAlertDelivery: %v", err)
+	}
+	transport := &TelegramTransport{
+		BotToken: "test-token",
+		Broker:   b,
+		client:   server.Client(),
+	}
+
+	transport.deleteResolvedHumanAttentionAlerts()
+
+	if gotBody["chat_id"] != "12345" || int64(gotBody["message_id"].(float64)) != 432 {
+		t.Fatalf("unexpected delete payload: %+v", gotBody)
+	}
+	if pending := b.PendingTelegramAlertDeletions(); len(pending) != 0 {
+		t.Fatalf("expected deletion to be marked, got pending %+v", pending)
 	}
 }
 

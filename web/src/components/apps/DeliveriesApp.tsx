@@ -47,7 +47,7 @@ function normalizeLocalPath(raw?: string): string {
   return (raw || '').trim().replace(/^["'`]+|["'`]+$/g, '')
 }
 
-function isLikelyDunderiaWorktree(path?: string): boolean {
+function isLikelyMaestrIAWorktree(path?: string): boolean {
   const normalized = normalizeLocalPath(path).toLowerCase()
   return normalized.includes('\\task-worktrees\\dunderia\\') || normalized.includes('/task-worktrees/dunderia/')
 }
@@ -189,7 +189,7 @@ function resolveDeliveryRepository(delivery: Delivery, unknownLabel: string): { 
         score += 500
         break
       case 'worktree':
-        score += isLikelyDunderiaWorktree(path) ? 420 : 120
+        score += isLikelyMaestrIAWorktree(path) ? 420 : 120
         break
       default:
         score += 40
@@ -314,10 +314,10 @@ function renderDeliveryGroups(
           onClick={() => setCollapsedGroups((current) => ({ ...current, [scopedKey]: !(current[scopedKey] ?? true) }))}
           aria-expanded={isExpanded}
         >
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, minWidth: 0 }}>
+          <div className="delivery-group-main">
             <span className={`delivery-group-chevron${isExpanded ? ' open' : ''}`}>▸</span>
             <div className="delivery-group-copy">
-              <div className="app-card-title" style={{ marginBottom: 0 }}>{group.label}</div>
+              <div className="app-card-title delivery-group-title">{group.label}</div>
               {group.basePath ? (
                 <div className="delivery-group-path" title={group.basePath}>{group.basePath}</div>
               ) : null}

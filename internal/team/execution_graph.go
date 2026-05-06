@@ -129,6 +129,9 @@ func (b *Broker) threadRootFromMessageIDLocked(startID string) string {
 	if root == "" {
 		return ""
 	}
+	if cached := strings.TrimSpace(b.messageThreadRootByID[root]); cached != "" {
+		return cached
+	}
 	for depth := 0; depth < 16; depth++ {
 		msg := b.findMessageByIDLocked(root)
 		if msg == nil {

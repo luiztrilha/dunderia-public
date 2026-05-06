@@ -29,7 +29,7 @@ export function SplashScreen({ onDone }: SplashScreenProps) {
       }}
       aria-label={t('splash.dismissAria')}
     >
-      <div className="launch-logo">DunderIA</div>
+      <div className="launch-logo">MaestrIA</div>
       <div className="launch-spinner" />
       <p className="launch-text">{t('splash.opening')}</p>
       <p className="launch-sub">{t('splash.subtitle')}</p>

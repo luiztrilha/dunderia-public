@@ -440,8 +440,8 @@ func renderSidebar(channels []channelInfo, members []channelMember, tasks []chan
 
 	var lines []string
 	lines = append(lines, "")
-	lines = append(lines, sidebarPlainRow(workspaceStyle.Render("DunderIA"), width))
-	lines = append(lines, sidebarPlainRow(workspaceMetaStyle.Render("The DunderIA Office"), width))
+	lines = append(lines, sidebarPlainRow(workspaceStyle.Render("MaestrIA"), width))
+	lines = append(lines, sidebarPlainRow(workspaceMetaStyle.Render("The MaestrIA Office"), width))
 	lines = append(lines, sidebarPlainRow(workspaceSummaryStyle.Render(summaryLine), width))
 	lines = append(lines, sidebarPlainRow(workspaceMetaStyle.Render("Ctrl+G channels · Ctrl+O apps · d DM agent"), width))
 	lines = append(lines, sidebarPlainRow(workspaceHintStyle.Render(hintLine), width))

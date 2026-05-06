@@ -1,4 +1,4 @@
-# Dunderia Remediation Program
+# MaestrIA Remediation Program
 
 This `openspec` tree tracks broad change programs that should not be executed as one opaque patch.
 

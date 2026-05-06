@@ -156,7 +156,7 @@ async function createWindow() {
     height: 900,
     minWidth: 1100,
     minHeight: 720,
-    title: 'DunderIA',
+    title: 'MaestrIA',
     backgroundColor: '#f7f3ec',
     autoHideMenuBar: true,
     webPreferences: {
@@ -184,7 +184,7 @@ function createTray() {
   const iconPath = path.join(repoRoot, 'web', 'public', 'favicon-32.png')
   const image = nativeImage.createFromPath(iconPath)
   tray = new Tray(image.isEmpty() ? nativeImage.createEmpty() : image)
-  tray.setToolTip('DunderIA')
+  tray.setToolTip('MaestrIA')
   tray.on('click', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show()
@@ -198,7 +198,7 @@ function updateTray() {
   if (!tray) return
   const brokerLabel = brokerProcess ? 'Runtime iniciado pelo desktop' : 'Runtime externo ou já ativo'
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'DunderIA', enabled: false },
+    { label: 'MaestrIA', enabled: false },
     { label: brokerLabel, enabled: false },
     { type: 'separator' },
     {
@@ -271,7 +271,7 @@ function applyBrowserLabWindowBounds() {
 
 function ensureBrowserLabWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) {
-    throw new Error('DunderIA window is not available')
+    throw new Error('MaestrIA window is not available')
   }
   if (browserLabWindow && !browserLabWindow.isDestroyed()) return browserLabWindow
 
@@ -414,7 +414,7 @@ ipcMain.handle('browser-lab:consume-selection', async () => {
 })
 
 app.whenReady().then(() => {
-  app.setAppUserModelId('DunderIA')
+  app.setAppUserModelId('MaestrIA')
   Menu.setApplicationMenu(null)
   createTray()
   createWindow().catch((err) => {

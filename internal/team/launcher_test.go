@@ -716,7 +716,7 @@ func TestBuildScopedMCPServerMapIncludesActiveTaskAndChannelLinkedMegamemoryServ
 	}
 }
 
-func TestDunderIAMCPConfigUsesRepoLocalFilesystemLauncher(t *testing.T) {
+func TestMaestrIAMCPConfigUsesRepoLocalFilesystemLauncher(t *testing.T) {
 	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatalf("resolve repo root: %v", err)
@@ -739,7 +739,7 @@ func TestDunderIAMCPConfigUsesRepoLocalFilesystemLauncher(t *testing.T) {
 
 	filesystem, ok := cfg.MCPServers["filesystem"]
 	if !ok {
-		t.Fatal("expected filesystem MCP server entry in DunderIA MCP config")
+		t.Fatal("expected filesystem MCP server entry in MaestrIA MCP config")
 	}
 
 	wantScript := "${workspaceFolder}/scripts/launch_filesystem_mcp.ps1"
@@ -2828,6 +2828,46 @@ func TestBuildMessageWorkPacketCEOScopesTasksToCurrentChannel(t *testing.T) {
 	}
 }
 
+func TestBuildMessageWorkPacketTopLevelDoesNotLeakRecentChannelContext(t *testing.T) {
+	oldPathFn := brokerStatePath
+	tmpDir := t.TempDir()
+	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
+	defer func() { brokerStatePath = oldPathFn }()
+
+	b := NewBroker()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	if _, err := b.PostMessage("you", "general", "first independent agenda item", nil, ""); err != nil {
+		t.Fatalf("post first item: %v", err)
+	}
+	msg, err := b.PostMessage("you", "general", "second independent agenda item", nil, "")
+	if err != nil {
+		t.Fatalf("post second item: %v", err)
+	}
+
+	l := &Launcher{
+		broker: b,
+		pack: &agent.PackDefinition{
+			LeadSlug: "ceo",
+			Agents:   []agent.AgentConfig{{Slug: "ceo", Name: "CEO"}},
+		},
+	}
+
+	packet := l.buildMessageWorkPacket(msg, "ceo")
+	if strings.Contains(packet, "[Recent channel]") {
+		t.Fatalf("top-level packet should not include ambient channel context: %q", packet)
+	}
+	if strings.Contains(packet, "first independent agenda item") {
+		t.Fatalf("top-level packet leaked previous independent ask: %q", packet)
+	}
+	if !strings.Contains(packet, "reply_to "+msg.ID) {
+		t.Fatalf("packet lost target route: %q", packet)
+	}
+}
+
 func TestResponseInstructionForTargetLeadFromSpecialist(t *testing.T) {
 	// When the CEO is woken by a specialist, the instruction should differ from
 	// when woken by the human. Specialist completion should prompt "stay quiet or
@@ -2948,7 +2988,7 @@ func TestBuildNotificationContextFallsBackToChannelWhenThreadEmpty(t *testing.T)
 	}
 }
 
-func TestBuildMessageWorkPacketIncludesChannelMemoryBrief(t *testing.T) {
+func TestBuildMessageWorkPacketIncludesChannelMemoryBriefForThreadReply(t *testing.T) {
 	oldPathFn := brokerStatePath
 	tmpDir := t.TempDir()
 	brokerStatePath = func() string { return filepath.Join(tmpDir, "broker-state.json") }
@@ -2971,7 +3011,11 @@ func TestBuildMessageWorkPacketIncludesChannelMemoryBrief(t *testing.T) {
 	}
 	b.mu.Unlock()
 
-	msg, err := b.PostMessage("you", "general", "@ceo can you unblock the login slice?", []string{"ceo"}, "")
+	root, err := b.PostMessage("you", "general", "Login slice discussion", nil, "")
+	if err != nil {
+		t.Fatalf("post root: %v", err)
+	}
+	msg, err := b.PostMessage("you", "general", "@ceo can you unblock the login slice?", []string{"ceo"}, root.ID)
 	if err != nil {
 		t.Fatalf("post trigger: %v", err)
 	}
@@ -3307,7 +3351,7 @@ func TestRelevantTaskForTargetIgnoresCanceledTask(t *testing.T) {
 	defer func() { brokerStatePath = oldPathFn }()
 
 	b := NewBroker()
-	if _, _, err := b.EnsureTask("general", "Revisao tecnica priorizada da base DunderIA atual", "Gerar relatorio priorizado da base.", "reviewer", "ceo", ""); err != nil {
+	if _, _, err := b.EnsureTask("general", "Revisao tecnica priorizada da base MaestrIA atual", "Gerar relatorio priorizado da base.", "reviewer", "ceo", ""); err != nil {
 		t.Fatalf("ensure task: %v", err)
 	}
 	b.mu.Lock()
@@ -3407,7 +3451,7 @@ func TestRelevantTaskForTargetPrefersExplicitWorkspaceMatch(t *testing.T) {
 	b := NewBroker()
 	ensureTestMemberAccess(b, "convenios-web-azure", "ceo", "CEO")
 	ensureTestMemberAccess(b, "convenios-web-azure", "reviewer", "Reviewer")
-	wrong, reused, err := b.EnsureTask("convenios-web-azure", "Revisao tecnica abrangente da base DunderIA", "Produzir relatorio .md priorizado.", "reviewer", "ceo", "")
+	wrong, reused, err := b.EnsureTask("convenios-web-azure", "Revisao tecnica abrangente da base MaestrIA", "Produzir relatorio .md priorizado.", "reviewer", "ceo", "")
 	if err != nil || reused {
 		t.Fatalf("ensure wrong task: %v reused=%v", err, reused)
 	}

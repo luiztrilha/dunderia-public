@@ -8,6 +8,7 @@ import (
 
 var headlessReplyRoutePattern = regexp.MustCompile(`team_broadcast with my_slug "[^"]+"(?:,| and) channel "([^"]+)"(?:,)? reply_to_id "([^"]+)"`)
 var headlessReplyRouteMarkerPattern = regexp.MustCompile(`WUPHF_REPLY_ROUTE channel="([^"]+)" reply_to_id="([^"]+)"`)
+var headlessReplyRouteMarkerLinePattern = regexp.MustCompile(`(?m)^\s*\[?WUPHF_REPLY_ROUTE channel="[^"]+" reply_to_id="[^"]+"\]?\s*$\n?`)
 var headlessExpectedReplyTargetPattern = regexp.MustCompile(`must reply(?: in thread| to) ([A-Za-z0-9_-]+)`)
 
 func headlessReplyRoute(notification string) (channel string, replyTo string, ok bool) {
@@ -42,7 +43,7 @@ func (l *Launcher) publishHeadlessFallbackReply(slug string, notification string
 	if l == nil || l.broker == nil {
 		return
 	}
-	text = strings.TrimSpace(text)
+	text = stripHeadlessReplyRouteMarkers(text)
 	if text == "" || !messageIsSubstantiveOfficeContent(text) {
 		return
 	}
@@ -71,6 +72,14 @@ func (l *Launcher) publishHeadlessFallbackReply(slug string, notification string
 		l.appendHeadlessFallbackLog(slug, "fallback-post-error: "+strings.TrimSpace(err.Error()))
 		l.publishTaskStateClaimNeutralFallback(slug, channel, replyTo, text, err)
 	}
+}
+
+func stripHeadlessReplyRouteMarkers(text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+	return strings.TrimSpace(headlessReplyRouteMarkerLinePattern.ReplaceAllString(text, ""))
 }
 
 func (l *Launcher) publishTaskStateClaimNeutralFallback(slug, channel, replyTo, blockedText string, postErr error) {

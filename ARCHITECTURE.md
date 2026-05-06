@@ -1,6 +1,6 @@
-# DunderIA Architecture
+# MaestrIA Architecture
 
-How DunderIA works under the hood, anchored to files you can open. `WUPHF` remains the historical codename in the binary and package paths, so the code still uses that name in many places.
+How MaestrIA works under the hood, anchored to files you can open. `WUPHF` remains the historical codename in the binary and package paths, so the code still uses that name in many places.
 
 ## The shape
 
@@ -39,7 +39,7 @@ How DunderIA works under the hood, anchored to files you can open. `WUPHF` remai
 | `internal/teammcp/` | The per-agent MCP tool surface. DM mode loads ~4 tools; office mode loads more |
 | `internal/agent/packs.go` | The team compositions (`starter`, `founding-team`, `coding-team`, `lead-gen-agency`, `revops`) — packs can also pre-seed default skills |
 | `web/index.html` | The office UI — channels, composer, live streams |
-| `mcp/` | MCP servers DunderIA ships for optional context, human-in-the-loop approvals, and related runtime helpers |
+| `mcp/` | MCP servers MaestrIA ships for optional context, human-in-the-loop approvals, and related runtime helpers |
 
 ## Runtime contract
 
@@ -67,10 +67,10 @@ With the file that implements each:
 
 ## Optional integrations
 
-- **Nex** (`internal/action/nex_client.go` + external `nex-mcp` binary): optional hosted context graph, notifications, email/CRM context. DunderIA keeps it opt-in instead of making it the default path.
+- **Nex** (`internal/action/nex_client.go` + external `nex-mcp` binary): optional hosted context graph, notifications, email/CRM context. MaestrIA keeps it opt-in instead of making it the default path.
 - **Telegram** (`internal/team/telegram.go`): bidirectional bridge via `/connect`.
 - **Composio** (`--action provider`): lets agents take real-world actions (send email, update CRM).
-All three are load-time optional. Core DunderIA is just `broker + launcher + headless runners + worktrees`.
+All three are load-time optional. Core MaestrIA is just `broker + launcher + headless runners + worktrees`.
 
 ## What's intentionally not here
 

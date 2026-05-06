@@ -17,6 +17,7 @@ import { ArtifactsApp } from './components/apps/ArtifactsApp'
 import { ReceiptsApp } from './components/apps/ReceiptsApp'
 import { HealthCheckApp } from './components/apps/HealthCheckApp'
 import { SettingsApp } from './components/apps/SettingsApp'
+import { BrowserLabApp } from './components/apps/BrowserLabApp'
 import { Wizard } from './components/onboarding/Wizard'
 import { AgentPanel } from './components/agents/AgentPanel'
 import { InterviewBar } from './components/messages/InterviewBar'
@@ -118,6 +119,7 @@ function MainContent() {
       activity: ArtifactsApp,
       receipts: ReceiptsApp,
       'health-check': HealthCheckApp,
+      'browser-lab': BrowserLabApp,
       settings: SettingsApp,
     }
     const Panel = panels[currentApp]
@@ -127,7 +129,7 @@ function MainContent() {
       </div>
     )
     return (
-      <div className="app-panel active">
+      <div className={`app-panel active app-panel-${currentApp}`}>
         <Suspense
           fallback={
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-tertiary)', fontSize: 14 }}>

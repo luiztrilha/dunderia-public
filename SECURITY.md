@@ -33,7 +33,7 @@ When you report an issue, include:
 
 ## Scope Notes
 
-DunderIA is local-first. Many risks are operational rather than hosted-service risks. In particular, reports are especially helpful for:
+MaestrIA is local-first. Many risks are operational rather than hosted-service risks. In particular, reports are especially helpful for:
 
 - credential handling
 - command execution boundaries

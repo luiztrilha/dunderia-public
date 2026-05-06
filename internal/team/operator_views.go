@@ -2,6 +2,7 @@ package team
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"regexp"
 	"sort"
@@ -77,25 +78,49 @@ func (b *Broker) handleDeliveries(w http.ResponseWriter, r *http.Request) {
 	channel := normalizeChannelSlug(r.URL.Query().Get("channel"))
 	allChannels := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("all_channels")), "true")
 	includeDone := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_done")), "true")
+	includeArchived := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_archived")), "true")
 	viewerSlug := strings.TrimSpace(r.URL.Query().Get("viewer_slug"))
 	if channel == "" && !allChannels {
 		channel = "general"
 	}
 
-	b.mu.Lock()
+	lockStartedAt := time.Now()
+	b.mu.RLock()
+	lockWait := time.Since(lockStartedAt)
 	if !allChannels && !b.canAccessChannelLocked(viewerSlug, channel) {
-		b.mu.Unlock()
+		b.mu.RUnlock()
 		http.Error(w, "channel access denied", http.StatusForbidden)
 		return
 	}
-	deliveries := b.buildDeliveriesLocked(channel, allChannels, includeDone)
-	b.mu.Unlock()
+	snapshot := b.operatorViewSnapshotLocked()
+	b.mu.RUnlock()
+
+	deliveries := snapshot.buildDeliveriesLocked(channel, allChannels, includeDone, includeArchived)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"channel":    channel,
 		"deliveries": deliveries,
 	})
+	if brokerDebugHTTPTimingEnabled() {
+		log.Printf("broker http timing path=%s channel=%s all_channels=%t include_done=%t lock_wait=%s total=%s deliveries=%d", r.URL.Path, channel, allChannels, includeDone, lockWait, time.Since(lockStartedAt), len(deliveries))
+	}
+}
+
+func (b *Broker) operatorViewSnapshotLocked() *Broker {
+	if b == nil {
+		return &Broker{}
+	}
+	snapshot := &Broker{
+		tasks:                 append([]teamTask(nil), b.tasks...),
+		requests:              append([]humanInterview(nil), b.requests...),
+		executionNodes:        append([]executionNode(nil), b.executionNodes...),
+		messages:              append([]channelMessage(nil), b.messages...),
+		actions:               append([]officeActionLog(nil), b.actions...),
+		channels:              append([]teamChannel(nil), b.channels...),
+		messageThreadRootByID: cloneStringMap(b.messageThreadRootByID),
+	}
+	return snapshot
 }
 
 func (b *Broker) buildOperatorTasksLocked(channel string, allChannels, includeDone bool, statusFilter, mySlug string) []teamTask {
@@ -119,7 +144,9 @@ func (b *Broker) buildOperatorTasksLocked(channel string, allChannels, includeDo
 		copyTask := task
 		copyTask.SourceTaskID = firstNonEmpty(copyTask.SourceTaskID, derivedSourceTaskID(copyTask))
 		copyTask.DeliveryID = b.deliveryKeyForTaskLocked(copyTask)
+		b.attachTaskLivenessHistoryLocked(&copyTask, 5)
 		applyDeliveryProgress(&copyTask, progressByDelivery)
+		normalizeTaskOutcomeAndQueue(&copyTask)
 		result = append(result, copyTask)
 	}
 
@@ -130,6 +157,9 @@ func (b *Broker) buildOperatorTasksLocked(channel string, allChannels, includeDo
 
 	for _, req := range b.requests {
 		if !requestIsActive(req) {
+			continue
+		}
+		if strings.TrimSpace(req.ArchivedAt) != "" {
 			continue
 		}
 		reqChannel := normalizeChannelSlug(req.Channel)
@@ -147,6 +177,7 @@ func (b *Broker) buildOperatorTasksLocked(channel string, allChannels, includeDo
 			continue
 		}
 		applyDeliveryProgress(&viewTask, progressByDelivery)
+		normalizeTaskOutcomeAndQueue(&viewTask)
 		result = append(result, viewTask)
 		threadRoot := b.threadKeyForRequestLocked(req)
 		if threadRoot != "" {
@@ -179,6 +210,7 @@ func (b *Broker) buildOperatorTasksLocked(channel string, allChannels, includeDo
 			continue
 		}
 		applyDeliveryProgress(&viewTask, progressByDelivery)
+		normalizeTaskOutcomeAndQueue(&viewTask)
 		result = append(result, viewTask)
 	}
 
@@ -204,6 +236,8 @@ func (b *Broker) buildOperatorTasksLiteLocked(channel string, allChannels, inclu
 		}
 		copyTask := task
 		copyTask.SourceTaskID = firstNonEmpty(copyTask.SourceTaskID, derivedSourceTaskID(copyTask))
+		b.attachTaskLivenessHistoryLocked(&copyTask, 5)
+		normalizeTaskOutcomeAndQueue(&copyTask)
 		result = append(result, copyTask)
 	}
 
@@ -214,6 +248,9 @@ func (b *Broker) buildOperatorTasksLiteLocked(channel string, allChannels, inclu
 
 	for _, req := range b.requests {
 		if !requestIsActive(req) {
+			continue
+		}
+		if strings.TrimSpace(req.ArchivedAt) != "" {
 			continue
 		}
 		reqChannel := normalizeChannelSlug(req.Channel)
@@ -230,6 +267,7 @@ func (b *Broker) buildOperatorTasksLiteLocked(channel string, allChannels, inclu
 		if statusFilter != "" && strings.TrimSpace(viewTask.Status) != statusFilter {
 			continue
 		}
+		normalizeTaskOutcomeAndQueue(&viewTask)
 		result = append(result, viewTask)
 		if threadRoot := firstNonEmpty(b.threadRootFromMessageIDLocked(strings.TrimSpace(req.ReplyTo)), strings.TrimSpace(req.ReplyTo)); threadRoot != "" {
 			requestRoots[reqChannel+"|"+threadRoot] = struct{}{}
@@ -260,6 +298,7 @@ func (b *Broker) buildOperatorTasksLiteLocked(channel string, allChannels, inclu
 		if statusFilter != "" && strings.TrimSpace(viewTask.Status) != statusFilter {
 			continue
 		}
+		normalizeTaskOutcomeAndQueue(&viewTask)
 		result = append(result, viewTask)
 	}
 
@@ -309,6 +348,8 @@ func liteHumanActionTaskFromRequest(req humanInterview) teamTask {
 		SourceTaskID:           strings.TrimSpace(req.SourceTaskID),
 		HumanOptions:           append([]interviewOption(nil), req.Options...),
 		HumanRecommendedID:     strings.TrimSpace(req.RecommendedID),
+		ReadAt:                 strings.TrimSpace(req.ReadAt),
+		ArchivedAt:             strings.TrimSpace(req.ArchivedAt),
 	}
 }
 
@@ -399,6 +440,8 @@ func (b *Broker) humanActionTaskFromRequestLocked(req humanInterview) teamTask {
 		DeliveryID:             b.deliveryKeyForRequestLocked(req),
 		HumanOptions:           append([]interviewOption(nil), req.Options...),
 		HumanRecommendedID:     strings.TrimSpace(req.RecommendedID),
+		ReadAt:                 strings.TrimSpace(req.ReadAt),
+		ArchivedAt:             strings.TrimSpace(req.ArchivedAt),
 	}
 	return task
 }
@@ -612,7 +655,7 @@ func buildRecommendationPrompt(req humanInterview) string {
 	return strings.Join(lines, "\n")
 }
 
-func (b *Broker) buildDeliveriesLocked(channel string, allChannels, includeDone bool) []deliveryView {
+func (b *Broker) buildDeliveriesLocked(channel string, allChannels, includeDone, includeArchived bool) []deliveryView {
 	allTasksByID := make(map[string]teamTask, len(b.tasks))
 	for _, task := range b.tasks {
 		allTasksByID[strings.TrimSpace(task.ID)] = task
@@ -636,6 +679,9 @@ func (b *Broker) buildDeliveriesLocked(channel string, allChannels, includeDone 
 	}
 
 	for _, task := range b.tasks {
+		if !includeArchived && strings.TrimSpace(task.ArchivedAt) != "" {
+			continue
+		}
 		taskChannel := normalizeChannelSlug(task.Channel)
 		if taskChannel == "" {
 			taskChannel = "general"
@@ -652,6 +698,9 @@ func (b *Broker) buildDeliveriesLocked(channel string, allChannels, includeDone 
 	}
 
 	for _, req := range b.requests {
+		if !includeArchived && strings.TrimSpace(req.ArchivedAt) != "" {
+			continue
+		}
 		reqChannel := normalizeChannelSlug(req.Channel)
 		if reqChannel == "" {
 			reqChannel = "general"
@@ -726,7 +775,7 @@ func (b *Broker) buildDeliveriesLocked(channel string, allChannels, includeDone 
 }
 
 func (b *Broker) deliveryProgressIndexLocked(channel string, allChannels, includeDone bool) map[string]deliveryView {
-	deliveries := b.buildDeliveriesLocked(channel, allChannels, includeDone)
+	deliveries := b.buildDeliveriesLocked(channel, allChannels, includeDone, false)
 	index := make(map[string]deliveryView, len(deliveries))
 	for _, delivery := range deliveries {
 		index[delivery.ID] = delivery
@@ -969,7 +1018,7 @@ func deliveryWorkspaceCandidateScore(path, artifactKind string) int {
 	case "workspace":
 		score += 500
 	case "worktree":
-		if isLikelyDunderiaTaskWorktree(path) {
+		if isLikelyMaestrIATaskWorktree(path) {
 			score += 420
 		} else {
 			score += 120
@@ -1035,7 +1084,7 @@ func normalizeRepositoryTokenForDelivery(value string) string {
 	return builder.String()
 }
 
-func isLikelyDunderiaTaskWorktree(path string) bool {
+func isLikelyMaestrIATaskWorktree(path string) bool {
 	path = strings.ToLower(strings.TrimSpace(strings.ReplaceAll(path, "/", `\`)))
 	return strings.Contains(path, `\task-worktrees\dunderia\`)
 }
@@ -1082,6 +1131,19 @@ func (b *deliveryAccumulator) addTaskArtifacts(task teamTask) {
 	}
 	if url := publicationURL(task.PRPublication); url != "" {
 		appendArtifact(deliveryArtifact{Kind: "pull_request", Title: "Pull request", URL: url, State: publicationStatus(task.PRPublication), UpdatedAt: strings.TrimSpace(task.UpdatedAt), RelatedID: strings.TrimSpace(task.ID)})
+	}
+	for _, artifact := range task.Artifacts {
+		kind := normalizeTaskArtifactKind(artifact.Kind)
+		appendArtifact(deliveryArtifact{
+			Kind:      kind,
+			Title:     firstNonEmpty(strings.TrimSpace(artifact.Title), strings.TrimSpace(artifact.Path), strings.TrimSpace(artifact.URL), kind),
+			Summary:   strings.TrimSpace(artifact.Summary),
+			State:     strings.TrimSpace(artifact.State),
+			Path:      strings.TrimSpace(artifact.Path),
+			URL:       strings.TrimSpace(artifact.URL),
+			UpdatedAt: firstNonEmpty(strings.TrimSpace(artifact.UpdatedAt), strings.TrimSpace(task.UpdatedAt)),
+			RelatedID: strings.TrimSpace(task.ID),
+		})
 	}
 	for _, match := range artifactPathPattern.FindAllString(strings.TrimSpace(task.Details), -1) {
 		appendArtifact(deliveryArtifact{Kind: "document", Title: match, Path: match, UpdatedAt: strings.TrimSpace(task.UpdatedAt), RelatedID: strings.TrimSpace(task.ID)})

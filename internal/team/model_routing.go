@@ -204,6 +204,10 @@ func (l *Launcher) selectConservativeModelProfile(slug, prompt string, task *tea
 			profile = modelProfileDeep
 			reasons = appendReason(reasons, "workspace_execution")
 		}
+		if task.PlanRequired {
+			profile = modelProfileDeep
+			reasons = appendReason(reasons, "plan_required")
+		}
 	}
 
 	if len([]rune(strings.TrimSpace(prompt))) > 6000 {
@@ -249,10 +253,10 @@ func taskModelRoutingText(task *teamTask) string {
 		task.Details,
 		task.TaskType,
 		task.PipelineID,
-		task.PipelineStage,
 		task.ExecutionMode,
-		task.ReviewState,
-		task.ProgressBasis,
+		task.QueueReason,
+		task.GoalSummary,
+		task.LatestPlanSummary,
 	}, "\n")
 }
 

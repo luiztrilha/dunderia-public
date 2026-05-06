@@ -25,7 +25,7 @@ export function AppList({ compact = false }: AppListProps) {
     refetchInterval,
     staleTime: 30_000,
   })
-  const requestsState = useRequests()
+  const requestsState = useRequests({ allChannels: true })
 
   const waitingOnHumanCount = (tasksQuery.data?.tasks ?? []).filter(isHumanActionTask).length
   const deliveries = deliveriesQuery.data?.deliveries ?? []

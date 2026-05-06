@@ -36,7 +36,7 @@ func initGitHubPublicationRepo(t *testing.T) (string, string) {
 
 	run("init", "-b", "main")
 	run("config", "user.email", "dunderia@example.com")
-	run("config", "user.name", "DunderIA Tests")
+	run("config", "user.name", "MaestrIA Tests")
 	if err := os.WriteFile(filepath.Join(repo, "README.md"), []byte("# repo\n"), 0o644); err != nil {
 		t.Fatalf("write readme: %v", err)
 	}

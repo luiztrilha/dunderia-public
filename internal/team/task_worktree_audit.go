@@ -61,6 +61,9 @@ func (b *Broker) EnsureTaskWorktreeAuditJob() error {
 			continue
 		}
 		current := normalizeSchedulerJob(b.scheduler[i])
+		if strings.EqualFold(current.Status, "canceled") {
+			return nil
+		}
 		if current.Kind != desired.Kind || current.Label != desired.Label || current.TargetType != desired.TargetType ||
 			current.TargetID != desired.TargetID || current.Channel != desired.Channel || current.IntervalMinutes != desired.IntervalMinutes {
 			current.Kind = desired.Kind

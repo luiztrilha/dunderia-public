@@ -542,6 +542,15 @@ func taskWorktreeSourceLooksUsable(path string) bool {
 	return strings.EqualFold(strings.TrimSpace(string(out)), "true")
 }
 
+func taskExternalWorkspacePathLooksUsable(path string) bool {
+	path = filepath.Clean(strings.TrimSpace(path))
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
 func gitWorkspaceIdentity(path string) string {
 	path = filepath.Clean(strings.TrimSpace(path))
 	if path == "" {

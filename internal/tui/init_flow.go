@@ -237,7 +237,7 @@ func ProviderOptions() []PickerOption {
 }
 
 // MemoryOptions returns the picker options for organizational memory backend
-// selection. Order matches the neutral local-first default for DunderIA today.
+// selection. Order matches the neutral local-first default for MaestrIA today.
 func MemoryOptions() []PickerOption {
 	return []PickerOption{
 		{
@@ -402,7 +402,7 @@ func (f InitFlowModel) readinessChecks() []initReadinessCheck {
 		{
 			Label:  "tmux office runtime",
 			Status: readinessStatusForBool(binaryAvailable("tmux")),
-			Detail: binaryReadinessDetail("tmux", "DunderIA can open the office panes.", "Install tmux before launching the office."),
+			Detail: binaryReadinessDetail("tmux", "MaestrIA can open the office panes.", "Install tmux before launching the office."),
 		},
 		{
 			Label:  "LLM runtime",
@@ -503,7 +503,7 @@ func memoryReadinessDetail(backend string) string {
 	case config.MemoryBackendNone:
 		return "Local-only memory. Durable state stays in broker persistence and cloud backup."
 	default:
-		return "Shared org memory is currently disabled in DunderIA."
+		return "Shared org memory is currently disabled in MaestrIA."
 	}
 }
 
@@ -552,7 +552,7 @@ func (f InitFlowModel) phaseText() (heading, instructions string) {
 	case InitProviderChoice:
 		return "Choose LLM Provider", "Select your preferred AI provider for the office runtime."
 	case InitMemoryChoice:
-		return "Choose Memory Backend", "DunderIA currently runs with local-only memory. Cloud backup, if configured, persists the durable state."
+		return "Choose Memory Backend", "MaestrIA currently runs with local-only memory. Cloud backup, if configured, persists the durable state."
 	case InitBlueprintChoice, InitPackChoice:
 		return "Choose Operation Template", "Select the blueprint or template that will seed your startup."
 	case InitDone:

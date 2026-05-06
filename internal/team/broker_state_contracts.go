@@ -271,7 +271,20 @@ func resolveSchedulerJobState(job schedulerJob, status string, nextRun, now time
 	}
 	job.Status = nextStatus
 	if !now.IsZero() {
-		job.LastRun = now.UTC().Format(time.RFC3339)
+		stamp := now.UTC().Format(time.RFC3339)
+		switch nextStatus {
+		case "running":
+			job.LastStartedAt = stamp
+			job.RunningCount++
+		case "scheduled", "sleeping", "deferred", "done", "failed", "canceled":
+			job.LastRun = stamp
+			if job.RunningCount > 0 {
+				job.RunningCount--
+			}
+			job.LastFinishedAt = stamp
+		default:
+			job.LastRun = stamp
+		}
 	}
 	if !nextRun.IsZero() {
 		job.NextRun = nextRun.UTC().Format(time.RFC3339)
