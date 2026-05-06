@@ -20,6 +20,11 @@ Treat this as a reference profile, not a drop-in restore of a private machine.
 3. Replace placeholders in `config/codex/config.sanitized.toml`.
 4. Create your own private approval rules from `config/rules/default.rules`.
 
+For long-form guidance about designing, vetting, installing, and maintaining
+skills, use the public `TectrilhaSkills` guide:
+
+https://github.com/luiztrilha/TectrilhaSkills
+
 ## Safety Notes
 
 The private runtime snapshot remains outside this public repo. This public package
