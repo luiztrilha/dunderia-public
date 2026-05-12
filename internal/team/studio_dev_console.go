@@ -1700,6 +1700,9 @@ func studioRecentDecisionsByChannel(decisions []officeDecisionRecord) map[string
 		if _, ok := out[channel]; ok {
 			continue
 		}
+		if !studioDecisionLooksSubstantive(decision) {
+			continue
+		}
 		out[channel] = decision
 	}
 	return out
@@ -2086,11 +2089,79 @@ func studioMessageLooksSubstantive(msg channelMessage) bool {
 	if content == "" || strings.HasPrefix(content, "[STATUS]") {
 		return false
 	}
+	if isHumanRequestAnswerReceipt(msg) {
+		return false
+	}
+	if studioOperationalMessageLooksLikeNoise(content) {
+		return false
+	}
 	switch normalizeActorSlug(msg.From) {
 	case "", "watchdog", "wuphf", "scheduler":
 		return false
 	default:
 		return true
+	}
+}
+
+func studioDecisionLooksSubstantive(decision officeDecisionRecord) bool {
+	summary := strings.TrimSpace(decision.Summary)
+	if summary == "" {
+		return false
+	}
+	normalized := strings.ToLower(summary)
+	if strings.Contains(normalized, "has not answered a pending message") {
+		return false
+	}
+	if strings.Contains(normalized, "still needs to move") && strings.Contains(normalized, " thread msg") {
+		return false
+	}
+	if strings.Contains(normalized, "request sla escalated for") {
+		return false
+	}
+	if strings.Contains(normalized, "still waiting on") {
+		return false
+	}
+	if strings.HasPrefix(summary, "Answered @") && strings.Contains(summary, "'s request") {
+		return false
+	}
+	if strings.HasPrefix(summary, "Rejected @") && strings.Contains(summary, "'s request") {
+		return false
+	}
+	return true
+}
+
+func studioOperationalMessageLooksLikeNoise(content string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(content))
+	if normalized == "" {
+		return false
+	}
+	switch {
+	case strings.Contains(normalized, "did not acknowledge a direct mention in time"):
+		return true
+	case strings.Contains(normalized, "did not acknowledge this demand in time"):
+		return true
+	case strings.Contains(normalized, "tentei publicar a confirmação no thread"):
+		return true
+	case strings.Contains(normalized, "tentei publicar a confirmacao no thread"):
+		return true
+	case strings.Contains(normalized, "não consegui publicar") && strings.Contains(normalized, "no thread"):
+		return true
+	case strings.Contains(normalized, "nao consegui publicar") && strings.Contains(normalized, "no thread"):
+		return true
+	case strings.Contains(normalized, "resposta em thread não foi aceita"):
+		return true
+	case strings.Contains(normalized, "resposta em thread nao foi aceita"):
+		return true
+	case strings.Contains(normalized, "post no thread") && strings.Contains(normalized, "bloqueado"):
+		return true
+	case strings.Contains(normalized, "broker bloqueou"):
+		return true
+	case strings.Contains(normalized, "broker recusou"):
+		return true
+	case strings.Contains(normalized, "broker retornou"):
+		return true
+	default:
+		return false
 	}
 }
 

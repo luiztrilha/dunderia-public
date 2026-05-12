@@ -24,8 +24,12 @@ function readStoredValue<T>(key: string, fallback: T, hydrate?: (stored: T, fall
 
 function writeStoredValue<T>(key: string, value: T, serialize?: (value: T) => T): void {
   if (!canUseStorage()) return
-  const persisted = serialize ? serialize(value) : value
-  window.localStorage.setItem(key, JSON.stringify(persisted))
+  try {
+    const persisted = serialize ? serialize(value) : value
+    window.localStorage.setItem(key, JSON.stringify(persisted))
+  } catch {
+    // Storage can be unavailable or quota-limited; drafts should degrade to memory-only.
+  }
 }
 
 export function usePersistentDraft<T>(
@@ -52,12 +56,20 @@ export function usePersistentDraft<T>(
   const clear = useCallback(() => {
     setValue(initialValue)
     if (!canUseStorage()) return
-    window.localStorage.removeItem(storageKey)
+    try {
+      window.localStorage.removeItem(storageKey)
+    } catch {
+      // Ignore storage cleanup failures.
+    }
   }, [initialValue, storageKey])
 
   const clearStorage = useCallback(() => {
     if (!canUseStorage()) return
-    window.localStorage.removeItem(storageKey)
+    try {
+      window.localStorage.removeItem(storageKey)
+    } catch {
+      // Ignore storage cleanup failures.
+    }
   }, [storageKey])
 
   return {

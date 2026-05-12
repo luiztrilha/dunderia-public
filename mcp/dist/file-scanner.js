@@ -3,20 +3,29 @@
  * and ingests them into WUPHF via the developer API.
  */
 import { readdirSync, statSync, readFileSync } from "node:fs";
-import { join, relative, extname } from "node:path";
+import { join, relative, extname, resolve, sep } from "node:path";
 import { readManifest, writeManifest, isChanged, markIngested } from "./file-manifest.js";
+function isWithinWorkspace(root, candidate) {
+    const relativePath = relative(root, candidate);
+    return relativePath === "" || (!relativePath.startsWith("..") && !relativePath.includes(`..${sep}`) && !/^[a-zA-Z]:/.test(relativePath));
+}
 function walkDir(dir, cwd, config, depth, results) {
     if (depth > config.scanDepth)
         return;
+    const resolvedDir = resolve(dir);
+    if (!isWithinWorkspace(cwd, resolvedDir))
+        return;
     let entries;
     try {
-        entries = readdirSync(dir, { withFileTypes: true });
+        entries = readdirSync(resolvedDir, { withFileTypes: true });
     }
     catch {
         return;
     }
     for (const entry of entries) {
-        const fullPath = join(dir, entry.name);
+        const fullPath = resolve(join(resolvedDir, entry.name));
+        if (!isWithinWorkspace(cwd, fullPath))
+            continue;
         if (entry.isDirectory()) {
             if (config.ignoreDirs.includes(entry.name))
                 continue;
@@ -40,6 +49,7 @@ export async function scanAndIngest(client, rateLimiter, cwd, config) {
     const result = { scanned: 0, ingested: 0, skipped: 0, errors: 0 };
     if (!config.enabled)
         return result;
+    cwd = resolve(cwd);
     const manifest = readManifest();
     const candidates = [];
     walkDir(cwd, cwd, config, 0, candidates);

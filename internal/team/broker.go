@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,6 +55,7 @@ var atomicReplaceBrokerStateFile = atomicfile.Replace
 var studioPackageGenerator = provider.RunCodexOneShot
 
 var externalRetryAfterPattern = regexp.MustCompile(`(?i)retry after ([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.+-]+Z?)`)
+var externalTryAgainInSecondsPattern = regexp.MustCompile(`(?i)(?:try again|retry) in ([0-9]+(?:\.[0-9]+)?)s\b`)
 var brokerTextMentionPattern = regexp.MustCompile(`(^|[^A-Za-z0-9._-])@([a-z0-9][a-z0-9-]*)`)
 var brokerTaskReferencePattern = regexp.MustCompile(`(?i)\btask-[0-9]+\b`)
 var runBrokerCloudBackupAsync = func(fn func()) { go fn() }
@@ -1306,6 +1308,7 @@ type Broker struct {
 	readiness                  brokerReadinessSnapshot
 	httpMetrics                map[string]brokerHTTPMetric
 	deferredCloudRestore       brokerDeferredCloudRestore
+	loadedFromLastGoodSnapshot bool
 }
 
 type startupReconcileGuardSummary struct {
@@ -1560,8 +1563,26 @@ func (b *Broker) syncTaskWorktreeLocked(task *teamTask) error {
 			b.appendTaskDetailsWithRecovery(task, fmt.Sprintf("Recovered workspace path from linked channel repo: %s", linkedWorkspace))
 		}
 	}
-	switch strings.ToLower(strings.TrimSpace(task.Status)) {
-	case "done", "canceled", "cancelled", "failed":
+	terminalStatus := strings.ToLower(strings.TrimSpace(task.Status))
+	if taskUsesExternalWorkspace(task) {
+		switch terminalStatus {
+		case "done", "canceled", "cancelled", "failed":
+			task.WorkspacePath = ""
+			task.WorktreePath = ""
+			task.WorktreeBranch = ""
+			return nil
+		}
+	}
+	switch terminalStatus {
+	case "done":
+		if strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") &&
+			strings.EqualFold(strings.TrimSpace(task.ReviewState), "approved") {
+			return nil
+		}
+		task.WorktreePath = ""
+		task.WorktreeBranch = ""
+		return nil
+	case "canceled", "cancelled", "failed":
 		task.WorktreePath = ""
 		task.WorktreeBranch = ""
 		return nil
@@ -1592,7 +1613,7 @@ func (b *Broker) syncTaskWorktreeLocked(task *teamTask) error {
 	}
 
 	if taskUsesExternalWorkspace(task) {
-		switch strings.ToLower(strings.TrimSpace(task.Status)) {
+		switch terminalStatus {
 		case "canceled", "cancelled", "failed":
 			task.WorkspacePath = ""
 			task.WorktreePath = ""
@@ -2447,7 +2468,7 @@ func (b *Broker) findRedundantOperationalRollCallLocked(from, channel, replyTo, 
 		if strings.TrimSpace(node.RootMessageID) != rootID || !executionNodeIsOpen(node) {
 			continue
 		}
-		owner := strings.TrimSpace(node.OwnerAgent)
+		owner := normalizeActorSlug(node.OwnerAgent)
 		if owner == "" || isHumanLikeActor(owner) || isSystemActor(owner) {
 			continue
 		}
@@ -2457,8 +2478,7 @@ func (b *Broker) findRedundantOperationalRollCallLocked(from, channel, replyTo, 
 		return nil
 	}
 	currentCovered := make(map[string]struct{})
-	for _, slug := range uniqueSlugs(tagged) {
-		slug = strings.TrimSpace(slug)
+	for _, slug := range uniqueActorSlugs(tagged) {
 		if _, ok := pending[slug]; ok {
 			currentCovered[slug] = struct{}{}
 		}
@@ -3147,7 +3167,14 @@ func externalWorkflowRetryAfter(err error, now time.Time) (time.Time, bool) {
 	if err == nil {
 		return time.Time{}, false
 	}
-	matches := externalRetryAfterPattern.FindStringSubmatch(err.Error())
+	detail := err.Error()
+	if matches := externalTryAgainInSecondsPattern.FindStringSubmatch(detail); len(matches) >= 2 {
+		seconds, parseErr := strconv.ParseFloat(strings.TrimSpace(matches[1]), 64)
+		if parseErr == nil && seconds > 0 {
+			return now.Add(time.Duration(seconds * float64(time.Second))), true
+		}
+	}
+	matches := externalRetryAfterPattern.FindStringSubmatch(detail)
 	if len(matches) < 2 {
 		return time.Time{}, false
 	}
@@ -3294,6 +3321,49 @@ func (b *Broker) handleWebToken(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"token": b.token})
+}
+
+func (b *Broker) requestMatchesWebUIOrigin(r *http.Request) bool {
+	allowed := make(map[string]struct{}, len(b.webUIOrigins))
+	for _, origin := range b.webUIOrigins {
+		origin = strings.TrimSpace(origin)
+		if origin != "" {
+			allowed[origin] = struct{}{}
+		}
+	}
+	if len(allowed) == 0 {
+		return true
+	}
+	if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" && origin != "null" {
+		_, ok := allowed[origin]
+		return ok
+	}
+	if ref := strings.TrimSpace(r.Header.Get("Referer")); ref != "" {
+		parsed, err := url.Parse(ref)
+		if err != nil {
+			return false
+		}
+		_, ok := allowed[parsed.Scheme+"://"+parsed.Host]
+		return ok
+	}
+	if host := strings.TrimSpace(r.Host); host != "" {
+		if _, ok := allowed["http://"+host]; ok {
+			return true
+		}
+		if _, ok := allowed["https://"+host]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func requestMethodRequiresWebUIOrigin(method string) bool {
+	switch strings.ToUpper(strings.TrimSpace(method)) {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return false
+	default:
+		return true
+	}
 }
 
 func (b *Broker) handleEvents(w http.ResponseWriter, r *http.Request) {
@@ -3475,6 +3545,11 @@ func (b *Broker) ServeWebUI(port int) {
 	mux.HandleFunc("/login", b.handleWebLogin)
 	// Token endpoint — no auth needed, same origin
 	mux.HandleFunc("/api-token", func(w http.ResponseWriter, r *http.Request) {
+		if !b.requestMatchesWebUIOrigin(r) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		setNoStoreCacheHeaders(w.Header())
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"token":      b.token,
@@ -3500,6 +3575,10 @@ func webUIStaticHandler(fileServer http.Handler) http.Handler {
 
 func (b *Broker) webUIProxyHandler(brokerURL, stripPrefix string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requestMethodRequiresWebUIOrigin(r.Method) && !b.requestMatchesWebUIOrigin(r) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		requestPath := strings.TrimSpace(r.URL.Path)
 		targetPath := r.URL.Path
 		if stripPrefix != "" {
@@ -4265,6 +4344,53 @@ func loadBrokerStateFromBytes(data []byte) (brokerState, error) {
 	return state, nil
 }
 
+func brokerStateShouldReplaceSnapshot(state brokerState, snapshotPath string) bool {
+	if !brokerStateShouldSnapshot(state) {
+		return false
+	}
+	snapshot, err := loadBrokerStateFile(snapshotPath)
+	if err != nil {
+		return true
+	}
+	return brokerStateRecoverableWorkScore(state) >= brokerStateRecoverableWorkScore(snapshot)
+}
+
+func (b *Broker) shouldReplaceBrokerSnapshotLocked(state brokerState, snapshotPath string) bool {
+	if snapshot, err := loadBrokerStateFile(snapshotPath); err == nil {
+		stateWorkScore := brokerStateRecoverableWorkScore(state)
+		snapshotWorkScore := brokerStateRecoverableWorkScore(snapshot)
+		if b != nil && b.loadedFromLastGoodSnapshot && stateWorkScore < snapshotWorkScore {
+			return false
+		}
+		if brokerStateHasStartupReconcileGuard(state) && stateWorkScore < snapshotWorkScore {
+			return false
+		}
+	}
+	return brokerStateShouldReplaceSnapshot(state, snapshotPath)
+}
+
+func brokerStateHasStartupReconcileGuard(state brokerState) bool {
+	for _, signal := range state.Signals {
+		if strings.EqualFold(strings.TrimSpace(signal.Kind), "startup_reconcile_guard") {
+			return true
+		}
+	}
+	return false
+}
+
+func brokerStateRecoverableWorkScore(state brokerState) int {
+	score := 0
+	score += len(state.Messages) * 10
+	score += len(state.Tasks) * 20
+	score += len(activeRequests(state.Requests)) * 10
+	score += len(state.Actions) * 4
+	return score
+}
+
+func brokerStateShouldRecoverFromSnapshot(state, snapshot brokerState) bool {
+	return brokerStateRecoverableWorkScore(state) == 0 && brokerStateRecoverableWorkScore(snapshot) > 0
+}
+
 func persistBrokerStateLocal(path, snapshotPath string, data []byte) error {
 	if len(data) == 0 {
 		return nil
@@ -4276,8 +4402,10 @@ func persistBrokerStateLocal(path, snapshotPath string, data []byte) error {
 		return err
 	}
 	if snapshotPath != "" {
-		if err := os.WriteFile(snapshotPath, data, 0o600); err != nil {
-			return err
+		if state, err := loadBrokerStateFromBytes(data); err == nil && brokerStateShouldReplaceSnapshot(state, snapshotPath) {
+			if err := os.WriteFile(snapshotPath, data, 0o600); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -4603,23 +4731,32 @@ func (b *Broker) persistStartupReconcileGuardLocked(validChannels map[string]str
 
 func (b *Broker) loadState() error {
 	path := brokerStatePath()
+	snapshotPath := brokerStateSnapshotPath()
+	loadedFromSnapshot := false
 	state, err := loadBrokerStateFile(path)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-		state = brokerState{}
-	}
-	snapshotPath := brokerStateSnapshotPath()
-	if snapshot, snapErr := loadBrokerStateFile(snapshotPath); snapErr == nil {
-		if brokerStateActivityScore(snapshot) > brokerStateActivityScore(state) {
+			snapshot, snapErr := loadBrokerStateFile(snapshotPath)
+			if snapErr != nil {
+				return err
+			}
 			state = snapshot
+			loadedFromSnapshot = true
+		} else {
+			state = brokerState{}
+		}
+	}
+	if snapshot, snapErr := loadBrokerStateFile(snapshotPath); snapErr == nil {
+		if brokerStateShouldRecoverFromSnapshot(state, snapshot) {
+			state = snapshot
+			loadedFromSnapshot = true
 		}
 	}
 	localScore := brokerStateActivityScore(state)
 	if err := b.applyLoadedStateLocked(state); err != nil {
 		return err
 	}
+	b.loadedFromLastGoodSnapshot = loadedFromSnapshot
 	b.deferredCloudRestore = brokerDeferredCloudRestore{
 		Pending:     resolvedCloudBackupSettings().Enabled(),
 		BaseCounter: b.counter,
@@ -4742,7 +4879,7 @@ func (b *Broker) saveLocked() error {
 	if err := atomicReplaceBrokerStateFile(tmp, path); err != nil {
 		return err
 	}
-	if brokerStateShouldSnapshot(state) {
+	if b.shouldReplaceBrokerSnapshotLocked(state, snapshotPath) {
 		snapshotTmp := snapshotPath + ".tmp"
 		if err := os.WriteFile(snapshotTmp, data, 0o600); err != nil {
 			return err
@@ -5011,7 +5148,33 @@ func repoRootForRuntimeDefaults() string {
 	return "."
 }
 
+func sameRuntimeStateRoot(statePath, manifestPath string) bool {
+	statePath = strings.TrimSpace(statePath)
+	manifestPath = strings.TrimSpace(manifestPath)
+	if statePath == "" || manifestPath == "" {
+		return false
+	}
+	stateRoot := filepath.Clean(filepath.Dir(filepath.Dir(statePath)))
+	manifestRoot := filepath.Clean(filepath.Dir(manifestPath))
+	if abs, err := filepath.Abs(stateRoot); err == nil {
+		stateRoot = abs
+	}
+	if abs, err := filepath.Abs(manifestRoot); err == nil {
+		manifestRoot = abs
+	}
+	return strings.EqualFold(stateRoot, manifestRoot)
+}
+
 func runtimeManifestDefaults() (company.Manifest, bool) {
+	manifestPath := company.ManifestPath()
+	if strings.TrimSpace(os.Getenv("WUPHF_COMPANY_FILE")) == "" &&
+		strings.TrimSpace(os.Getenv("NEX_COMPANY_FILE")) == "" &&
+		!sameRuntimeStateRoot(brokerStatePath(), manifestPath) {
+		return company.Manifest{}, false
+	}
+	if _, err := os.Stat(manifestPath); err != nil {
+		return company.Manifest{}, false
+	}
 	manifest, err := company.LoadRuntimeManifest(repoRootForRuntimeDefaults())
 	if err != nil {
 		return company.Manifest{}, false
@@ -5127,9 +5290,27 @@ func skillMutationChannel(channel string) string {
 
 func normalizeActorSlug(slug string) string {
 	slug = strings.ToLower(strings.TrimSpace(slug))
+	slug = strings.TrimLeft(slug, "@")
 	slug = strings.ReplaceAll(slug, " ", "-")
 	slug = strings.ReplaceAll(slug, "_", "-")
 	return slug
+}
+
+func uniqueActorSlugs(items []string) []string {
+	seen := make(map[string]struct{}, len(items))
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		item = normalizeActorSlug(item)
+		if item == "" {
+			continue
+		}
+		if _, ok := seen[item]; ok {
+			continue
+		}
+		seen[item] = struct{}{}
+		out = append(out, item)
+	}
+	return out
 }
 
 func (b *Broker) ensureDefaultChannelsLocked() {
@@ -5285,6 +5466,11 @@ func (b *Broker) normalizeLoadedStateLocked() {
 			b.messages[i].Channel = "general"
 			messagesMutated = true
 		}
+		normalizedTagged := uniqueActorSlugs(b.messages[i].Tagged)
+		if !sameNormalizedStringSlice(b.messages[i].Tagged, normalizedTagged) {
+			b.messages[i].Tagged = normalizedTagged
+			messagesMutated = true
+		}
 	}
 	b.normalizeExecutionNodesLocked()
 	b.normalizeActionIDsLocked()
@@ -5323,12 +5509,19 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		if strings.TrimSpace(b.tasks[i].Channel) == "" {
 			b.tasks[i].Channel = "general"
 		}
+		loadedReviewState := strings.TrimSpace(b.tasks[i].ReviewState)
 		b.tasks[i].ExecutionLock = normalizeTaskExecutionLock(b.tasks[i].ExecutionLock, time.Now().UTC())
 		normalizeTaskPlan(&b.tasks[i])
 		b.ensureTaskOwnerChannelMembershipLocked(b.tasks[i].Channel, b.tasks[i].Owner)
 		b.queueTaskBehindActiveOwnerLaneLocked(&b.tasks[i])
 		b.scheduleTaskLifecycleLocked(&b.tasks[i])
 		_ = b.syncTaskWorktreeLocked(&b.tasks[i])
+		if loadedReviewState == "" &&
+			strings.EqualFold(strings.TrimSpace(b.tasks[i].Status), "done") &&
+			strings.EqualFold(strings.TrimSpace(b.tasks[i].ExecutionMode), "local_worktree") {
+			b.tasks[i].WorktreePath = ""
+			b.tasks[i].WorktreeBranch = ""
+		}
 	}
 	b.resolveOrphanedTaskArtifactsLocked(time.Now().UTC().Format(time.RFC3339))
 	b.reconcileChannelMessageNotesLocked()
@@ -5422,10 +5615,73 @@ func (b *Broker) reconcileStateToManifestLocked(manifest company.Manifest) bool 
 		validChannels[slug] = struct{}{}
 	}
 	startupGuardTriggered := b.persistStartupReconcileGuardLocked(validChannels)
+	if b.loadedFromLastGoodSnapshot {
+		for _, slug := range b.recordBackedChannelSlugsLocked(validChannels) {
+			existing, ok := existingBySlug[slug]
+			if !ok {
+				continue
+			}
+			if strings.TrimSpace(existing.Name) == "" {
+				existing.Name = slug
+			}
+			if strings.TrimSpace(existing.CreatedBy) == "" {
+				existing.CreatedBy = "wuphf"
+			}
+			if strings.TrimSpace(existing.CreatedAt) == "" {
+				existing.CreatedAt = now
+			}
+			if strings.TrimSpace(existing.UpdatedAt) == "" {
+				existing.UpdatedAt = now
+			}
+			manifestChannels = append(manifestChannels, existing)
+			validChannels[slug] = struct{}{}
+		}
+	}
 	b.channels = manifestChannels
 	b.reconcileChannelStoreToManifestLocked(validChannels)
 	b.reconcileRecordsToManifestLocked(validMembers, validChannels)
 	return startupGuardTriggered
+}
+
+func (b *Broker) recordBackedChannelSlugsLocked(validChannels map[string]struct{}) []string {
+	if b == nil {
+		return nil
+	}
+	recordBacked := make(map[string]struct{})
+	add := func(raw string) {
+		slug := normalizeChannelSlug(raw)
+		if slug == "" || IsDMSlug(slug) {
+			return
+		}
+		if _, ok := validChannels[slug]; ok {
+			return
+		}
+		recordBacked[slug] = struct{}{}
+	}
+	for _, msg := range b.messages {
+		add(msg.Channel)
+	}
+	for _, task := range b.tasks {
+		add(task.Channel)
+	}
+	for _, req := range b.requests {
+		add(req.Channel)
+	}
+	for _, action := range b.actions {
+		add(action.Channel)
+	}
+	for _, node := range b.executionNodes {
+		add(node.Channel)
+	}
+	if len(recordBacked) == 0 {
+		return nil
+	}
+	slugs := make([]string, 0, len(recordBacked))
+	for slug := range recordBacked {
+		slugs = append(slugs, slug)
+	}
+	sort.Strings(slugs)
+	return slugs
 }
 
 func (b *Broker) reconcileRecordsToManifestLocked(validMembers, validChannels map[string]struct{}) {
@@ -5438,7 +5694,7 @@ func (b *Broker) reconcileRecordsToManifestLocked(validMembers, validChannels ma
 			return true
 		}
 		switch slug {
-		case "you", "human", "nex", "system":
+		case "you", "human", "ceo", "nex", "system":
 			return true
 		default:
 			_, ok := validMembers[slug]
@@ -5493,6 +5749,7 @@ func (b *Broker) reconcileRecordsToManifestLocked(validMembers, validChannels ma
 
 	filteredNodes := make([]executionNode, 0, len(b.executionNodes))
 	for _, node := range b.executionNodes {
+		node.OwnerAgent = normalizeActorSlug(node.OwnerAgent)
 		if !channelAllowed(node.Channel) || !memberAllowed(node.OwnerAgent) {
 			continue
 		}
@@ -6241,6 +6498,16 @@ func formatRequestAnswerMessage(req humanInterview, answer interviewAnswer) stri
 			return fmt.Sprintf("Asked @%s for more information: %s", req.From, custom)
 		}
 		return fmt.Sprintf("Asked @%s for more information.", req.From)
+	case "need_more_context":
+		if custom != "" {
+			return fmt.Sprintf("Human asked @%s for more context: %s", req.From, custom)
+		}
+		return fmt.Sprintf("Human asked @%s for more context.", req.From)
+	case "answer_directly":
+		if custom != "" {
+			return fmt.Sprintf("Human replied to @%s: %s", req.From, custom)
+		}
+		return fmt.Sprintf("Human chose to answer @%s directly.", req.From)
 	}
 	if custom != "" && strings.TrimSpace(answer.ChoiceText) != "" {
 		return fmt.Sprintf("Answered @%s's request with %s: %s", req.From, answer.ChoiceText, custom)
@@ -6677,6 +6944,19 @@ func (b *Broker) removeSchedulerJobBySlugLocked(slug string) bool {
 	}
 	b.scheduler = filtered
 	return removed
+}
+
+func (b *Broker) schedulerJobCanceledLocked(slug string) bool {
+	slug = strings.TrimSpace(slug)
+	if slug == "" {
+		return false
+	}
+	for _, job := range b.scheduler {
+		if strings.TrimSpace(job.Slug) == slug && strings.EqualFold(strings.TrimSpace(job.Status), "canceled") {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeSchedulerSlug(parts ...string) string {
@@ -10234,6 +10514,11 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	// routing (specialist → lead only) already handles that path, and
 	// auto-tagging agent replies causes broadcast loops.
 	replyTo := strings.TrimSpace(body.ReplyTo)
+	if err := b.validateReplyTargetChannelLocked(channel, replyTo); err != nil {
+		b.mu.Unlock()
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
 	clientID := strings.TrimSpace(body.ClientID)
 	if duplicate := b.findMessageByClientIDLocked(body.From, channel, clientID); duplicate != nil {
 		b.mu.Unlock()
@@ -10951,6 +11236,9 @@ func (b *Broker) PostMessage(from, channel, content string, tagged []string, rep
 		return channelMessage{}, fmt.Errorf("channel access denied")
 	}
 	replyTo = strings.TrimSpace(replyTo)
+	if err := b.validateReplyTargetChannelLocked(channel, replyTo); err != nil {
+		return channelMessage{}, err
+	}
 	content = stripHeadlessReplyRouteMarkers(content)
 	if !isHumanLikeActor(from) && !isSystemActor(from) && messageContentLooksLikeDisallowedAgentChannelContent(content) {
 		return channelMessage{}, fmt.Errorf("non-substantive agent chatter is not allowed in channel messages; publish only the substantive result")
@@ -11026,6 +11314,29 @@ func (b *Broker) PostMessage(from, channel, content string, tagged []string, rep
 	return msg, nil
 }
 
+func (b *Broker) validateReplyTargetChannelLocked(channel, replyTo string) error {
+	channel = normalizeChannelSlug(channel)
+	if channel == "" {
+		channel = "general"
+	}
+	replyTo = strings.TrimSpace(replyTo)
+	if replyTo == "" {
+		return nil
+	}
+	parent := b.findMessageByIDLocked(replyTo)
+	if parent == nil {
+		return nil
+	}
+	parentChannel := normalizeChannelSlug(parent.Channel)
+	if parentChannel == "" {
+		parentChannel = "general"
+	}
+	if parentChannel != channel {
+		return fmt.Errorf("reply target belongs to channel %q; clear reply_to or post to channel %q before posting to channel %q", parentChannel, parentChannel, channel)
+	}
+	return nil
+}
+
 func (b *Broker) ensureLeadTaggedMembersEnabledLocked(from, channel string, tagged []string) {
 	if b == nil || strings.TrimSpace(from) != "ceo" {
 		return
@@ -11071,7 +11382,7 @@ func (b *Broker) ensureLeadTaggedMembersEnabledLocked(from, channel string, tagg
 }
 
 func (b *Broker) normalizeTaggedSlugsLocked(from string, tagged []string, content string) []string {
-	normalized := uniqueSlugs(tagged)
+	normalized := uniqueActorSlugs(tagged)
 	if len(normalized) > 0 {
 		return normalized
 	}
@@ -11093,7 +11404,7 @@ func (b *Broker) normalizeTaggedSlugsLocked(from string, tagged []string, conten
 		}
 		filtered = append(filtered, slug)
 	}
-	return uniqueSlugs(filtered)
+	return uniqueActorSlugs(filtered)
 }
 
 func inferTaggedSlugsFromContent(content string) []string {
@@ -11111,7 +11422,7 @@ func inferTaggedSlugsFromContent(content string) []string {
 			out = append(out, slug)
 		}
 	}
-	return uniqueSlugs(out)
+	return uniqueActorSlugs(out)
 }
 
 func extractReferencedTaskIDs(content string) []string {
@@ -11217,6 +11528,10 @@ func (b *Broker) PostAutomationMessage(from, channel, title, content, eventID, s
 	if channel == "" {
 		channel = "general"
 	}
+	replyTo = strings.TrimSpace(replyTo)
+	if err := b.validateReplyTargetChannelLocked(channel, replyTo); err != nil {
+		return channelMessage{}, false, err
+	}
 	msg := channelMessage{
 		ID:          fmt.Sprintf("msg-%d", b.counter),
 		From:        from,
@@ -11227,8 +11542,8 @@ func (b *Broker) PostAutomationMessage(from, channel, title, content, eventID, s
 		EventID:     strings.TrimSpace(eventID),
 		Title:       strings.TrimSpace(title),
 		Content:     strings.TrimSpace(content),
-		Tagged:      tagged,
-		ReplyTo:     strings.TrimSpace(replyTo),
+		Tagged:      uniqueActorSlugs(tagged),
+		ReplyTo:     replyTo,
 		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 	}
 	if msg.Source == "" {
@@ -11471,7 +11786,7 @@ func coalesceLatestExecutionNodesByOwner(nodes []executionNode) []executionNode 
 	updatedByOwner := make(map[string]time.Time, len(nodes))
 
 	for _, node := range nodes {
-		owner := strings.TrimSpace(node.OwnerAgent)
+		owner := normalizeActorSlug(node.OwnerAgent)
 		if owner == "" {
 			continue
 		}
@@ -13060,10 +13375,15 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		if action == "complete" {
 			probe := *task
 			applyTaskOutcomeInput(&probe, body.Outcome, body.OutcomeStatus, body.OutcomeEvidence, body.QueueKey, now)
+			if handoff != nil {
+				probe.LastHandoff = handoff
+				probe.HandoffStatus = "accepted"
+			}
 			probe.Status = "done"
 			normalizeTaskPlan(&probe)
 			applyTaskCompletionContract(&probe)
-			if probe.CompletionEvidenceRequired && !probe.CompletionEvidenceSatisfied {
+			if probe.CompletionEvidenceRequired && !probe.CompletionEvidenceSatisfied &&
+				(strings.TrimSpace(probe.Outcome) != "" || !isHumanLikeActor(strings.TrimSpace(body.CreatedBy))) {
 				b.appendActionLocked("task_completion_blocked", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" [missing evidence]", 140), task.ID)
 				if err := b.saveLocked(); err != nil {
 					http.Error(w, "failed to persist broker state", http.StatusInternalServerError)

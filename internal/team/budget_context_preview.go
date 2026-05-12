@@ -255,14 +255,24 @@ func buildBudgetContextEstimate(task teamTask, messages []channelMessage, now ti
 	for _, revision := range task.PlanRevisions {
 		estimate.ApproxChars += len(revision.Summary) + len(revision.Content)
 	}
-	cutoff := now.Add(-24 * time.Hour)
+	referenceTime := now
+	for _, value := range []string{task.UpdatedAt, task.CreatedAt} {
+		if parsed := parseBrokerTimestamp(value); !parsed.IsZero() {
+			if parsed.Before(now.Add(-24 * time.Hour)) {
+				referenceTime = parsed
+			}
+			break
+		}
+	}
+	cutoff := referenceTime.Add(-24 * time.Hour)
+	upperBound := referenceTime.Add(24 * time.Hour)
 	for i := len(messages) - 1; i >= 0 && estimate.MessageCount < 50; i-- {
 		msg := messages[i]
 		if normalizeChannelSlug(msg.Channel) != channel {
 			continue
 		}
 		msgTime := parseBrokerTimestamp(msg.Timestamp)
-		if !msgTime.IsZero() && msgTime.Before(cutoff) {
+		if !msgTime.IsZero() && (msgTime.Before(cutoff) || msgTime.After(upperBound)) {
 			continue
 		}
 		if strings.Contains(strings.ToLower(msg.Content+" "+msg.Title), strings.ToLower(task.ID)) || estimate.MessageCount < 12 {

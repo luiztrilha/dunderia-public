@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/nex-crm/wuphf/internal/agent"
@@ -37,29 +38,15 @@ func RunGeminiOneShotWithModel(model, systemPrompt, prompt string) (string, erro
 }
 
 func RunGeminiOneShotWithModelContext(ctx context.Context, model, systemPrompt, prompt string) (string, error) {
-	apiKey := config.ResolveGeminiAPIKey()
-	if strings.TrimSpace(apiKey) == "" {
-		return "", fmt.Errorf("gemini api key not configured")
+	if !useGeminiAPIForOneShot() {
+		return RunGeminiCLIWithModelContext(ctx, model, systemPrompt, prompt)
 	}
-	fn := CreateGeminiStreamFnForModelContext(ctx, apiKey, model)
-	msgs := make([]agent.Message, 0, 2)
-	if strings.TrimSpace(systemPrompt) != "" {
-		msgs = append(msgs, agent.Message{Role: "system", Content: systemPrompt})
-	}
-	msgs = append(msgs, agent.Message{Role: "user", Content: prompt})
+	return RunGeminiAPIWithModelContext(ctx, model, systemPrompt, prompt)
+}
 
-	var parts []string
-	for chunk := range fn(msgs, nil) {
-		switch chunk.Type {
-		case "text":
-			if strings.TrimSpace(chunk.Content) != "" {
-				parts = append(parts, chunk.Content)
-			}
-		case "error":
-			return "", fmt.Errorf("%s", chunk.Content)
-		}
-	}
-	return strings.TrimSpace(strings.Join(parts, "")), nil
+func useGeminiAPIForOneShot() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("WUPHF_GEMINI_ONE_SHOT_MODE")))
+	return v == "api" || v == "sdk"
 }
 
 func RunOllamaOneShot(systemPrompt, prompt string) (string, error) {

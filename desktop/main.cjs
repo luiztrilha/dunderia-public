@@ -356,6 +356,21 @@ function normalizeBrowserLabBounds(bounds) {
   return next
 }
 
+function normalizeBrowserLabURL(raw) {
+  const value = String(raw || '').trim() || browserLabState.url
+  const candidate = /^[a-z][a-z\d+.-]*:/i.test(value) ? value : `http://${value}`
+  let parsed
+  try {
+    parsed = new URL(candidate)
+  } catch {
+    throw new Error('Browser Lab aceita apenas URLs http ou https.')
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Browser Lab aceita apenas URLs http ou https.')
+  }
+  return parsed.toString()
+}
+
 ipcMain.handle('browser-lab:set-bounds', (_event, bounds) => {
   ensureBrowserLabWindow()
   const next = normalizeBrowserLabBounds(bounds)
@@ -366,7 +381,7 @@ ipcMain.handle('browser-lab:set-bounds', (_event, bounds) => {
 
 ipcMain.handle('browser-lab:navigate', async (_event, url) => {
   const win = ensureBrowserLabWindow()
-  const nextURL = String(url || '').trim() || browserLabState.url
+  const nextURL = normalizeBrowserLabURL(url)
   browserLabState.url = nextURL
   browserLabState.ready = false
   await win.webContents.loadURL(nextURL)

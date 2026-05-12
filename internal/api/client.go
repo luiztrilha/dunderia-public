@@ -3,6 +3,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -56,7 +57,18 @@ func request[T any](c *Client, method, path string, body any, timeout time.Durat
 		reqBody = bytes.NewReader(b)
 	}
 
-	req, err := http.NewRequest(method, path, reqBody)
+	t := c.Timeout
+	if timeout > 0 {
+		t = timeout
+	}
+	ctx := context.Background()
+	if t > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, t)
+		defer cancel()
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, path, reqBody)
 	if err != nil {
 		return zero, fmt.Errorf("create request: %w", err)
 	}
@@ -67,12 +79,6 @@ func request[T any](c *Client, method, path string, body any, timeout time.Durat
 	if c.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	}
-
-	t := c.Timeout
-	if timeout > 0 {
-		t = timeout
-	}
-	c.HTTPClient.Timeout = t
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -112,9 +118,14 @@ func (c *Client) getRaw(path string, timeout time.Duration) (string, error) {
 	if timeout > 0 {
 		t = timeout
 	}
-	c.HTTPClient.Timeout = t
+	ctx := context.Background()
+	if t > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, t)
+		defer cancel()
+	}
 
-	req, err := http.NewRequest(http.MethodGet, path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
 	}

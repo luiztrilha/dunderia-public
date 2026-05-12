@@ -10,10 +10,7 @@ import { normalizeChannel } from '../../lib/messageThreads'
 import { getHumanAttentionRootIds } from '../../lib/threadAttention'
 import { useVirtualWindow } from '../../lib/virtualWindow'
 import { buildMessageFeedElements, buildRecentContextItems } from '../../lib/messageFeed'
-
-function isHumanAuthoredMessage(message: Message): boolean {
-  return message.from === 'you' || message.from === 'human'
-}
+import { isChannelFeedNoise } from '../../lib/messageSemantics'
 
 export function MessageFeed() {
   const { t } = useTranslation()
@@ -41,7 +38,7 @@ export function MessageFeed() {
 
   const humanAttentionRoots = useMemo(() => getHumanAttentionRootIds(executionNodes), [executionNodes])
 
-  const visibleMessages = useMemo(() => {
+  const channelMessages = useMemo(() => {
     const targetChannel = normalizeChannel(currentChannel)
     const replyCounts = new Map<string, number>()
 
@@ -52,7 +49,6 @@ export function MessageFeed() {
     }
 
     return messages
-      .filter((msg) => msg.content?.startsWith('[STATUS]') !== true)
       .filter((msg) => normalizeChannel(msg.channel || '') === targetChannel)
       .map((message) => ({
         ...message,
@@ -60,11 +56,16 @@ export function MessageFeed() {
       }))
   }, [messages, currentChannel])
 
-  const rootMessages = useMemo(
-    () => visibleMessages.filter((message) => !message.reply_to && isHumanAuthoredMessage(message)),
+  const visibleMessages = useMemo(
+    () => channelMessages.filter((message) => !isChannelFeedNoise(message)),
+    [channelMessages],
+  )
+
+  const topLevelMessages = useMemo(
+    () => visibleMessages.filter((message) => !message.reply_to),
     [visibleMessages],
   )
-  const feedMessages = rootMessages.length > 0 ? rootMessages : visibleMessages
+  const feedMessages = topLevelMessages.length > 0 ? topLevelMessages : visibleMessages
 
   const elements = useMemo(() => buildMessageFeedElements(feedMessages), [feedMessages])
   const recentContext = useMemo(() => buildRecentContextItems(feedMessages), [feedMessages])

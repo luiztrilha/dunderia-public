@@ -8,9 +8,10 @@ import (
 	"google.golang.org/genai"
 
 	"github.com/nex-crm/wuphf/internal/agent"
+	"github.com/nex-crm/wuphf/internal/config"
 )
 
-const GeminiDefaultModel = "gemini-3.1-pro-preview"
+const GeminiDefaultModel = "gemini-2.5-pro"
 
 // CreateGeminiStreamFn returns a StreamFn backed by the Gemini API.
 func CreateGeminiStreamFn(apiKey string) agent.StreamFn {
@@ -73,6 +74,32 @@ func resolveGeminiModel(model string) string {
 		return trimmed
 	}
 	return GeminiDefaultModel
+}
+
+func RunGeminiAPIWithModelContext(ctx context.Context, model, systemPrompt, prompt string) (string, error) {
+	apiKey := config.ResolveGeminiAPIKey()
+	if strings.TrimSpace(apiKey) == "" {
+		return "", fmt.Errorf("gemini api key not configured")
+	}
+	fn := CreateGeminiStreamFnForModelContext(ctx, apiKey, model)
+	msgs := make([]agent.Message, 0, 2)
+	if strings.TrimSpace(systemPrompt) != "" {
+		msgs = append(msgs, agent.Message{Role: "system", Content: systemPrompt})
+	}
+	msgs = append(msgs, agent.Message{Role: "user", Content: prompt})
+
+	var parts []string
+	for chunk := range fn(msgs, nil) {
+		switch chunk.Type {
+		case "text":
+			if strings.TrimSpace(chunk.Content) != "" {
+				parts = append(parts, chunk.Content)
+			}
+		case "error":
+			return "", fmt.Errorf("%s", chunk.Content)
+		}
+	}
+	return strings.TrimSpace(strings.Join(parts, "")), nil
 }
 
 // msgsToGenAIContents converts agent messages to the genai Content slice.

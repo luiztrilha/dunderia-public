@@ -127,6 +127,24 @@ Quando isso e feito:
 - imediatamente apos o envio da mensagem;
 - apenas para agentes relevantes;
 - sem polling ocioso.
+- quando a resposta esperada e de agente para agente em canal compartilhado ou follow-up roteado, o runtime instrui o reply em estilo `caveman`: texto terse, comprimido e tecnicamente exato, sem filler;
+- respostas voltadas ao humano continuam em prosa profissional normal.
+
+### Anexar arquivos como contexto
+
+No composer da Web UI, o botao de clipe permite anexar arquivos textuais a uma mensagem. Esta primeira versao nao cria um armazenamento separado de anexos: o navegador le o conteudo localmente, mostra os arquivos selecionados como chips removiveis e incorpora um bloco `Arquivos anexados para contexto` no corpo da mensagem enviada ao broker.
+
+Regras atuais:
+
+- ate 5 arquivos por mensagem;
+- arquivos textuais, codigo, Markdown, JSON, CSV, XML, YAML e logs entram com conteudo completo ate o limite;
+- PDF, DOCX, XLSX e PPTX tentam extracao local de texto no navegador. A extracao e de melhor esforco e pode ser parcial, especialmente em PDFs digitalizados ou documentos com layout complexo;
+- imagens, audio e video sao aceitos como anexos de midia com nome, tipo e tamanho, mas a Web UI nao executa OCR nem transcricao automaticamente nesse fluxo;
+- arquivos grandes sao truncados para caber no contexto da mensagem, com aviso visual;
+- nomes de arquivos sao normalizados antes de entrar no bloco de contexto para evitar que quebras de linha, barras ou caracteres de caminho alterem a estrutura da mensagem;
+- se a mensagem tiver apenas anexos, a UI envia um pedido padrao para usar os arquivos como contexto.
+
+Para OCR de imagem/PDF e transcricao de audio/video fora do composer, use os scripts locais `scripts\Invoke-LocalVisionInsight.ps1` e `scripts\Invoke-LocalMediaInsight.ps1`.
 
 ### Ao criar ou atualizar uma tarefa
 
@@ -184,12 +202,16 @@ Para codigo, uma conclusao saudavel normalmente inclui arquivos alterados, valid
 npx wuphf
 ```
 
+A Web UI local usa um proxy same-origin para falar com o broker. Requisicoes mutantes pelo proxy exigem `Origin`, `Referer` ou `Host` compativel com a porta local registrada da UI, e o endpoint `/api-token` tambem aplica essa verificacao antes de devolver o token do broker.
+
 ### Instalacao global
 
 ```powershell
 npm install -g wuphf
 wuphf
 ```
+
+O `postinstall` baixa o binario da release GitHub correspondente e valida o SHA-256 antes de extrair. Por padrao ele procura `checksums.txt` na mesma release; `WUPHF_RELEASE_SHA256` pode fornecer o hash esperado diretamente e `WUPHF_RELEASE_CHECKSUMS_URL` pode apontar para uma lista alternativa de checksums.
 
 ### Build local por fonte
 
@@ -334,6 +356,12 @@ Quando usado:
 Threads agrupam respostas relacionadas a uma mensagem ou tarefa.
 
 Mensagens novas no topo do canal sao tratadas como pedidos independentes no pacote enviado aos agentes. O launcher nao mistura automaticamente o historico recente nem a memoria do canal nesses turnos; contexto adicional entra quando a mensagem ja pertence a uma thread ou quando vem de uma tarefa.
+
+Ao responder em thread, o broker valida que `reply_to` pertence ao mesmo canal da mensagem nova. Se o ID apontar para uma mensagem de outro canal, a publicacao e recusada; publique no canal do thread original ou limpe `reply_to` para abrir um novo topico.
+
+Ferramentas do office com `channel` explicito nao herdam mais um `reply_to` implicito de outra thread do mesmo canal. Em canais compartilhados, agentes precisam informar `reply_to_id` para responder em thread; sem isso, a publicacao e recusada para evitar vazamento de contexto entre lanes.
+
+Tags de agentes sao normalizadas pelo broker antes de roteamento e grafo de execucao. Assim `@ceo`, `@frontend` e `@reviewer` viram `ceo`, `frontend` e `reviewer` no estado interno, evitando filas presas por donos inexistentes como `@ceo`.
 
 Ao excluir uma mensagem, o broker remove tambem a copia sintetica guardada na memoria do canal. Isso evita que mensagens apagadas reaparecam na timeline por terem sido restauradas de `shared_memory`.
 
@@ -916,7 +944,7 @@ A MaestrIA pode executar agentes usando providers diferentes.
 |---|---|---|
 | Claude Code | padrao ou `--provider claude-code` | Usa CLI local do Claude Code |
 | Codex | `--provider codex` | Usa runtime Codex local |
-| Gemini | `--provider gemini` | Usa API Gemini |
+| Gemini | `--provider gemini` | Usa o Gemini CLI instalado e autenticado pela conta Google local, com modelo padrao estavel `gemini-2.5-pro` |
 | Ollama | `--provider ollama` | Usa modelo local ja baixado |
 
 Exemplo:
@@ -963,8 +991,10 @@ Use `WUPHF_MODEL_ROUTE_<PROVIDER>_<PROFILE>`, com provider em maiusculas e hifen
 |---|---|
 | `WUPHF_MODEL_ROUTE_CLAUDE_CODE_DEEP` | Modelo Claude para perfil deep |
 | `WUPHF_MODEL_ROUTE_CODEX_PREMIUM` | Modelo Codex/OpenAI para perfil premium |
-| `WUPHF_MODEL_ROUTE_GEMINI_FAST` | Modelo Gemini API para perfil fast |
+| `WUPHF_MODEL_ROUTE_GEMINI_FAST` | Modelo Gemini para perfil fast |
 | `WUPHF_MODEL_ROUTE_OLLAMA_BALANCED` | Modelo local Ollama para perfil balanced |
+
+Sem override, o perfil Gemini balanceado/deep usa `gemini-2.5-pro`; o perfil rapido usa `gemini-2.5-flash-lite`. O one-shot/headless do Gemini usa o binario `gemini` do PATH por padrao, limpa variaveis de API key no subprocesso e reaproveita o login OAuth do Gemini CLI (`~/.gemini`). Para ambientes sem CLI autenticado, `WUPHF_GEMINI_ONE_SHOT_MODE=api` ativa explicitamente a rota SDK/API key.
 
 Quando e feito:
 
@@ -1002,6 +1032,8 @@ Como e feito:
 - agentes recebem ferramentas coerentes com seu papel;
 - ferramentas mutantes passam por request/aprovacao quando necessario.
 - skills usam disclosure progressivo: `team_skill_list` lista metadados compactos, `team_skill_view` abre uma skill especifica sem registrar invocacao, e `team_skill_run` continua sendo o caminho auditado que incrementa uso e registra `skill_invocation`.
+- o MCP auxiliar de scan resolve o diretorio solicitado contra o workspace atual e rejeita caminhos fora dele; `scan_files` tambem ignora entradas resolvidas que escapem por `..`, symlink ou caminho absoluto externo.
+- `ingest_context_files` nao le mais arquivos globais da home; ele ingere apenas arquivos de contexto dentro do workspace resolvido, como `CLAUDE.md`, `AGENTS.md` e `.wuphf/memory/*.md`.
 
 Quando importa:
 
@@ -1079,6 +1111,7 @@ Pode acontecer automaticamente:
 
 - ressurgir tarefa apos reinicio quando dono esta claro;
 - reencaminhar recibos de tarefa inacabada ao agente certo;
+- auditar periodicamente mensagens humanas que ainda nao receberam resposta de agente;
 - registrar watchdog/recovery quando runner falha ou silencia;
 - manter o mesmo dono ao tentar continuidade.
 
@@ -1096,6 +1129,16 @@ O app fecha durante uma tarefa em andamento.
 Na proxima inicializacao, o recovery detecta a tarefa e cria um caminho visivel:
 "task-123 ainda estava in_progress para eng; retomar ou marcar bloqueada?"
 ```
+
+### Mensagens sem resposta
+
+O watchdog cria um job recorrente `unanswered-message-audit` quando ha mensagens no broker. A cada ciclo, ele reusa a mesma leitura de mensagens humanas sem resposta usada pelo recovery de sessao, espera a mensagem ter pelo menos dois minutos e entao cria um alerta `agent_message_unanswered` para o agente esperado.
+
+Quando o alerta e novo, o broker tambem posta uma mensagem automatica no mesmo canal e na mesma thread, marcando o agente pendente. O alerta nao e recriado em cada ciclo: o `target_id` combina agente e mensagem pendente para deduplicar. Se qualquer agente responder diretamente a mensagem pendente, ou responder no root da mesma thread depois da submensagem humana, o alerta e resolvido automaticamente.
+
+Recibos de decisao humana gerados pelo fluxo de entrevista, como `Answered @...`, `Rejected @...`, `Human asked @...` ou `Human replied to @...`, nao entram no watchdog de mensagens sem resposta. Eles sao metadados de decisao, nao um novo pedido operacional. Na web, esses recibos, decisoes `has not answered a pending message`/`still needs to move`, esperas internas `Still waiting on...`, escalonamentos internos de SLA, nudges `Unanswered agent message` e avisos repetidos de bastidor como `did not acknowledge...`, `Nao consegui publicar...` ou `Tentei publicar a confirmacao no thread...` ficam fora do feed principal e dos resumos do cabecalho para manter o canal focado em pedido, execucao e resultado; o historico bruto continua disponivel via API/thread.
+
+Isso cobre casos como `@ceo` ou mensagens em DM de agente que ficaram paradas na tela. Mensagens recentes sao ignoradas para evitar ruido enquanto o runner ainda pode estar processando a primeira chamada.
 
 ## 18. Memoria E Logs
 
@@ -1402,6 +1445,8 @@ Quando usar:
 - executar workflow guiado;
 - diagnosticar bloqueios de runtime.
 
+O snapshot do Dev Console mostra a ultima decisao substantiva por canal, mas oculta recibos operacionais e lembretes de thread sem resposta para nao promover ruido de scheduler ao cabecalho do canal.
+
 ### Alertas Do Operador
 
 `/operator/alerts` consolida sinais operacionais em uma fila curta e read-only. Ele nao resolve nem aplica correcoes automaticamente.
@@ -1492,9 +1537,24 @@ Quando usado:
 - revisar a sequencia de liveness antes de aceitar uma conclusao;
 - decidir se deve acordar o agente, pedir evidencia, responder pedido humano ou abrir o trace completo.
 
+### Timeouts De Resposta E Fallback De Runtime
+
+Quando uma mensagem menciona um agente e ele nao responde no prazo de acknowledgement, o runtime agora aplica duas etapas:
+
+1. Se o agente parece ativo, o watchdog envia um nudge direto exigindo acknowledgement e resposta na thread.
+2. Se ainda nao houver resposta no proximo timeout, a demanda e redirecionada para o melhor fallback do canal ou para o CEO.
+
+Para tarefas executadas por agentes headless, um timeout de turno pode forcar uma nova tentativa usando outro provider disponivel apenas naquele turno. Essa troca nao altera a configuracao permanente do agente. O fluxo respeita `runtime_provider` e `runtime_model` explicitos da tarefa; tarefas com provider fixado nao sao desviadas automaticamente. Se nenhum provider alternativo estiver disponivel, ou se a tentativa alternativa tambem falhar, a tarefa segue para o fluxo normal de bloqueio/reconciliacao para revisao humana.
+
+Quando o provider retorna rate limit com uma janela longa, por exemplo `Try again in 231609s`, o runner nao fica girando em tentativas automaticas curtas. A tarefa e bloqueada com a janela de cooldown no detalhe; o operador pode aguardar, reatribuir ou acionar retry manual, mas o watchdog nao cria ruido repetindo a mesma falha.
+
+Esse comportamento ajuda especialmente quando um agente local via Ollama fica preso ou demora demais: o Ollama continua sendo o provider preferido do agente, mas o watchdog pode tentar Codex, Claude Code ou Gemini quando estiverem disponiveis e a tarefa permitir fallback.
+
 ## 25. Browser Lab
 
 Browser Lab e uma superficie para trabalho de navegador quando disponivel na UI. Ele serve para experimentos, verificacoes visuais e fluxos que dependem de browser.
+
+Na navegacao manual, o Browser Lab aceita apenas URLs `http://` e `https://`. Entradas sem esquema recebem `http://`; esquemas como `file:`, `javascript:` ou `data:` sao recusados na UI e tambem no processo desktop antes de chegar ao BrowserView.
 
 Quando uma verificacao de browser for relevante para uma tarefa, registre a inspecao como artefato `browser_inspection` no detalhe da tarefa em vez de deixar URL, seletor e screenshot apenas no texto do canal.
 
@@ -1509,6 +1569,10 @@ GET /files/context-handoff-preview?channel=general&viewer_slug=human
 ```
 
 Eles retornam `persisted:false` e mantem `mutation_enabled:false` ou `content_read_enabled:false` quando aplicavel.
+
+O preview de compatibilidade marca Gemini como `review`, nao `blocked`, quando a rota CLI/OAuth local esta em uso. O alerta restante significa que mudancas no tratamento de stdout/stderr do CLI devem ganhar fixture antes de refatorar o provider; nao impede o CEO ou outro agente com Gemini CLI autenticado de executar pela conta Google local.
+
+Para validar o caminho Gemini real, existe o smoke opt-in `WUPHF_LIVE_GEMINI_SMOKE=1 go test ./internal/provider -run TestRunGeminiOneShotLiveSmoke -count=1`. Ele usa o Gemini CLI/OAuth por padrao e fica pulado por padrao para nao depender de rede/quota. Se `WUPHF_GEMINI_ONE_SHOT_MODE=api` estiver definido, o mesmo teste valida a rota SDK/API key.
 
 Quando usar:
 
@@ -1634,7 +1698,7 @@ Problemas comuns:
 | Sintoma | O que verificar |
 |---|---|
 | UI nao conecta | broker em `7890`, web em `7891`, auth/token local |
-| Agente nao responde | provider, focus mode, mencao, runner, task owner |
+| Agente nao responde | timeout de acknowledgement, nudge do watchdog, redirecionamento de mencao, provider fallback, focus mode, runner, task owner |
 | Tarefa ficou parada | status, owner, execution lock, blocker, request pendente |
 | Telegram nao envia | token, canal mapeado, permissoes do bot, grupo descoberto |
 | Telegram nao apaga alerta | permissao de delete, registro de entrega, task ainda ativa |

@@ -258,10 +258,6 @@ func taskCompletionEvidenceRequired(task *teamTask) bool {
 	case "local_worktree", "external_workspace", "live_external":
 		return true
 	}
-	switch strings.TrimSpace(task.TaskType) {
-	case "feature", "bugfix", "incident", "launch", "research":
-		return true
-	}
 	return false
 }
 
@@ -270,6 +266,9 @@ func taskCompletionEvidenceSatisfied(task *teamTask) bool {
 		return false
 	}
 	if strings.TrimSpace(task.OutcomeEvidence) != "" {
+		return true
+	}
+	if task.LastHandoff != nil && strings.TrimSpace(task.LastHandoff.Summary) != "" && strings.EqualFold(strings.TrimSpace(task.HandoffStatus), "accepted") {
 		return true
 	}
 	return taskHasExternalPublication(task)

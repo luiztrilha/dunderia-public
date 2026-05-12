@@ -9,32 +9,31 @@
  * Uses the file manifest for change detection — unchanged files are skipped.
  */
 import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
-import { join, extname, basename } from "node:path";
-import { homedir } from "node:os";
+import { join, extname, basename, resolve, relative, sep } from "node:path";
 import { readManifest, writeManifest, isChanged, markIngested } from "./file-manifest.js";
-const CLAUDE_DIR = join(homedir(), ".claude");
 const INGEST_TIMEOUT_MS = 10_000;
 const MAX_FILE_SIZE = 100_000;
-function projectKey(cwd) {
-    return cwd
-        .trim()
-        .replace(/^[a-zA-Z]:/, (drive) => drive.slice(0, 1).toLowerCase())
-        .replace(/[\\/]+/g, "-")
-        .replace(/[^a-zA-Z0-9._-]/g, "-");
+function isWithinWorkspace(root, candidate) {
+    const relativePath = relative(root, candidate);
+    return relativePath === "" || (!relativePath.startsWith("..") && !relativePath.includes(`..${sep}`) && !/^[a-zA-Z]:/.test(relativePath));
+}
+function addContextFile(files, root, path, contextTag) {
+    const resolvedPath = resolve(path);
+    if (!isWithinWorkspace(root, resolvedPath))
+        return;
+    if (existsSync(resolvedPath)) {
+        files.push({ path: resolvedPath, contextTag });
+    }
 }
 function collectContextFiles(cwd) {
+    cwd = resolve(cwd);
     const files = [];
-    const key = projectKey(cwd);
-    const globalClaude = join(CLAUDE_DIR, "CLAUDE.md");
-    if (existsSync(globalClaude)) {
-        files.push({ path: globalClaude, contextTag: "claude-md:global" });
-    }
-    const projectClaude = join(cwd, "CLAUDE.md");
-    if (existsSync(projectClaude)) {
-        files.push({ path: projectClaude, contextTag: "claude-md:project" });
-    }
-    const memoryDir = join(CLAUDE_DIR, "projects", key, "memory");
+    addContextFile(files, cwd, join(cwd, "CLAUDE.md"), "claude-md:project");
+    addContextFile(files, cwd, join(cwd, "AGENTS.md"), "agents-md:project");
+    const memoryDir = resolve(join(cwd, ".wuphf", "memory"));
     if (existsSync(memoryDir)) {
+        if (!isWithinWorkspace(cwd, memoryDir))
+            return files;
         try {
             const entries = readdirSync(memoryDir, { withFileTypes: true });
             for (const entry of entries) {
@@ -42,9 +41,11 @@ function collectContextFiles(cwd) {
                     continue;
                 if (extname(entry.name).toLowerCase() !== ".md")
                     continue;
-                const fullPath = join(memoryDir, entry.name);
+                const fullPath = resolve(join(memoryDir, entry.name));
+                if (!isWithinWorkspace(cwd, fullPath))
+                    continue;
                 const name = basename(entry.name, ".md");
-                files.push({ path: fullPath, contextTag: `claude-memory:${name}` });
+                files.push({ path: fullPath, contextTag: `workspace-memory:${name}` });
             }
         }
         catch {

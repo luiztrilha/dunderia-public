@@ -15,10 +15,14 @@ function railForApp(app: string | null): PrimaryRail {
 
 function loadInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'slack'
-  const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
-  if (stored && (VALID_THEMES as readonly string[]).includes(stored)) {
-    document.documentElement.setAttribute('data-theme', stored)
-    return stored as Theme
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
+    if (stored && (VALID_THEMES as readonly string[]).includes(stored)) {
+      document.documentElement.setAttribute('data-theme', stored)
+      return stored as Theme
+    }
+  } catch {
+    // Storage may be blocked; fall back to the default theme.
   }
   document.documentElement.setAttribute('data-theme', 'slack')
   return 'slack'
@@ -119,7 +123,11 @@ export const useAppStore = create<AppStore>((set) => ({
   setTheme: (t) => {
     document.documentElement.setAttribute('data-theme', t)
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(THEME_STORAGE_KEY, t)
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, t)
+      } catch {
+        // Theme still applies for the current session.
+      }
     }
     set({ theme: t })
   },

@@ -188,6 +188,10 @@ export function BrowserLabApp() {
   const navigate = useCallback(() => {
     if (!browserLab) return
     const nextURL = normalizeBrowserLabURL(url)
+    if (!nextURL) {
+      setError('O Browser Lab aceita apenas URLs http ou https.')
+      return
+    }
     setUrl(nextURL)
     setCurrentURL(nextURL)
     setSelected(null)
@@ -389,11 +393,17 @@ export function BrowserLabApp() {
   )
 }
 
-function normalizeBrowserLabURL(raw: string): string {
+function normalizeBrowserLabURL(raw: string): string | null {
   const value = raw.trim()
   if (!value) return DEFAULT_BROWSER_LAB_URL
-  if (/^[a-z][a-z\d+.-]*:\/\//i.test(value)) return value
-  return `http://${value}`
+  const candidate = /^[a-z][a-z\d+.-]*:/i.test(value) ? value : `http://${value}`
+  try {
+    const parsed = new URL(candidate)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    return parsed.toString()
+  } catch {
+    return null
+  }
 }
 
 function formatElementName(element: BrowserLabElement): string {

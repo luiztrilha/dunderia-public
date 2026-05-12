@@ -1307,13 +1307,6 @@ func (b *Broker) EnsureGitHubPublicationAuditJob() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if len(b.tasks) == 0 {
-		if b.removeSchedulerJobBySlugLocked(taskGitHubAuditJobSlug) {
-			return b.saveLocked()
-		}
-		return nil
-	}
-
 	nextRun := time.Now().UTC().Add(taskGitHubAuditInterval).Format(time.RFC3339)
 	desired := normalizeSchedulerJob(schedulerJob{
 		Slug:            taskGitHubAuditJobSlug,
@@ -2054,8 +2047,8 @@ func findTaskGitHubArtifactByMarker(repoCtx *taskGitHubRepoContext, taskID, kind
 	defer cancel()
 	out, err := taskGitHubRunCommand(ctx, repoCtx.RootPath, "gh",
 		"api",
-		"--method", "GET",
 		"search/issues",
+		"--method", "GET",
 		"-f", "q="+query,
 		"-f", "per_page=1",
 	)
