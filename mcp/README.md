@@ -2,7 +2,7 @@
 
 `mcp/dist` is the runnable MCP runtime in this repo today.
 
-`mcp/dunderia-mcp-settings.json` is the tracked default MCP profile. It stays intentionally small and local-first:
+`mcp/dunderia-mcp-settings.json` is the tracked product-local MCP profile. It stays intentionally small and local-first:
 
 - `github`
 - `playwright`
@@ -11,6 +11,8 @@
 - repo-local `megamemory-dunderia`
 
 Expanding that profile to additional repos or servers is opt-in per workstation. It is not part of the base checked-in profile.
+
+For the active shared Codex workspace, prefer the neutral layer under `D:\Repos\scripts\mcp\` and `D:\Repos\config\codex\workspace-mcp-settings.json` instead of treating this repo-local profile as the machine-wide default.
 
 The profile is portable by design: it uses `powershell.exe` from `PATH`, `${workspaceFolder}` for repo-local launchers, and does not opt into `ExecutionPolicy Bypass`.
 

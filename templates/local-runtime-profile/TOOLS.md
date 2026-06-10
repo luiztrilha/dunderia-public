@@ -37,16 +37,15 @@ Notas locais e atalhos operacionais do workspace `D:\Repos`.
 - Dotnet direto:
   - `dotnet test D:\Repos\ConveniosWebBNB_Novo\ConveniosWebApi.sln`
 - Script local do repo:
-  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\dunderia\scripts\watch_legado_channel.ps1`
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\scripts\mcp\launch_github_mcp.ps1`
 - Wrapper-base do workspace para execucao mais previsivel:
-  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\scripts\Invoke-SafeWorkspaceCommand.ps1 -FilePath D:\Repos\dunderia\scripts\watch_legado_channel.ps1 -WorkingDirectory D:\Repos\dunderia`
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\scripts\Invoke-SafeWorkspaceCommand.ps1 -FilePath D:\Repos\scripts\mcp\launch_playwright_mcp.ps1 -WorkingDirectory D:\Repos`
 
 ### Gotcha de autostart
 
 - neste host, launchers de logon baseados em `pwsh` podem ser bloqueados por heuristica de antivirus/EDR antes mesmo da execucao do script
 - neste host, `wscript/cscript` + VBScript com health-check HTTP via `MSXML2.XMLHTTP` tambem pode ser bloqueado pela heuristica do antivirus
-- mecanismo canonico de autostart do workspace: task `DunderIA User Logon Bootstrap` chamando `D:\Repos\dunderia\scripts\windows\start_user_logon_bootstrap.ps1`
-- evidencia verificada em `2026-04-22`: `Start-ScheduledTask -TaskName 'DunderIA User Logon Bootstrap'` retornou `LastTaskResult=0` e atualizou `D:\Repos\dunderia\.wuphf\user-logon-bootstrap\bootstrap.jsonl`
+- este snapshot pode citar a task `DunderIA User Logon Bootstrap` como legado historico; nao a trate como bootstrap canonico do workspace
 
 ## Runtime ativo
 
@@ -62,28 +61,28 @@ Notas locais e atalhos operacionais do workspace `D:\Repos`.
   - `C:\Users\l.sousa\.codex\prompts\opsx-apply.md`
   - `C:\Users\l.sousa\.codex\prompts\opsx-archive.md`
 
-### DunderIA como infraestrutura local de MCP
+### Workspace como infraestrutura local de MCP
 
 - Catalogo MCP local:
-  - `D:\Repos\dunderia\mcp\dunderia-mcp-settings.json`
+  - `D:\Repos\config\codex\workspace-mcp-settings.json`
 - Launchers MCP ativos:
-  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\dunderia\scripts\launch_github_mcp.ps1`
-  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\dunderia\scripts\launch_playwright_mcp.ps1`
-  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\dunderia\scripts\launch_brave_mcp.ps1`
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\scripts\mcp\launch_github_mcp.ps1`
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\scripts\mcp\launch_playwright_mcp.ps1`
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\scripts\mcp\launch_brave_mcp.ps1`
 - GitHub MCP neste host:
   - o launcher usa `npx.cmd` em vez do shim PowerShell `npx.ps1`, evitando falha de autoload de modulo PowerShell
   - fallback explicito via GitHub CLI habilitado com `WUPHF_GITHUB_MCP_USE_GH_TOKEN=1`; reiniciar o Codex apos mudar variaveis persistidas com `setx`
-- Watcher local:
-  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\dunderia\scripts\watch_legado_channel.ps1`
+- Observacao:
+  - o snapshot pode conter referencias historicas ao produto `dunderia`, mas a camada ativa do workspace usa scripts neutros
 
 ### Local AI
 
 - Modulo base:
-  - `D:\Repos\dunderia\scripts\DunderIA.LocalAi.psm1`
+  - `D:\Repos\scripts\local-ai\DunderIA.LocalAi.psm1`
 - Insight visual:
-  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\dunderia\scripts\Invoke-LocalVisionInsight.ps1 -InputPath "D:\caminho\arquivo.pdf"`
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\scripts\local-ai\Invoke-LocalVisionInsight.ps1 -InputPath "D:\caminho\arquivo.pdf"`
 - Insight de media:
-  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\dunderia\scripts\Invoke-LocalMediaInsight.ps1 -InputPath "D:\caminho\arquivo.mp4"`
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Repos\scripts\local-ai\Invoke-LocalMediaInsight.ps1 -InputPath "D:\caminho\arquivo.mp4"`
 
 ## Legado arquivado
 
@@ -128,7 +127,7 @@ Regra pratica:
 - APIs Tectrilha: `D:\Repos\TectrilhaAPI`
 - WebForms compartilhado: `D:\Repos\SistemasCompartilhadosWebForms`
 - Transparencia Vue: `D:\Repos\TransparenciaWeb`
-- Integracao local: `D:\Repos\dunderia`
+- Integracao local legada / produto proprio: `D:\Repos\dunderia`
 
 ## Codex
 
@@ -149,7 +148,7 @@ Regra pratica:
 
 ## Regras praticas
 
-- Se o pedido for sobre configuracao ativa do ambiente, olhar primeiro `C:\Users\l.sousa\.codex\config.toml` e `D:\Repos\dunderia\mcp\dunderia-mcp-settings.json`
+- Se o pedido for sobre configuracao ativa do ambiente, olhar primeiro `C:\Users\l.sousa\.codex\config.toml` e `D:\Repos\config\codex\workspace-mcp-settings.json`
 - Se o pedido for sobre um repo, consultar primeiro o `AGENTS.md` do repo
 - Se o pedido for sobre legado OpenClaw, consultar primeiro `D:\Repos\_archive\openclaw-decom-2026-04-19`
 - Se um comando ou caminho virar recorrente, registrar aqui

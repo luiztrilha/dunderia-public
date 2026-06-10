@@ -12,6 +12,13 @@ The active private runtime lives outside this repo:
 
 This is the source of truth for the local machine. Do not infer active behavior from an exported template without checking the active paths above.
 
+The shared MCP launcher layer for that active workspace now lives under:
+
+- `D:\Repos\scripts\mcp`
+- `D:\Repos\config\codex\workspace-mcp-settings.json`
+
+Treat `dunderia` itself as product code or historical reference, not as the canonical shared MCP runtime for the workstation.
+
 ## Public Starter Kit
 
 The reusable public baseline lives in:
@@ -39,6 +46,8 @@ The broad reference snapshot lives in the public export repo:
 Treat it as reference-only material. It is useful for comparing what existed in a private runtime snapshot, but it should not be installed wholesale into this repo or into a live Codex profile.
 
 It includes extra material that the active Codex setup may not consume directly, including Claude plugin docs, Opencode skills, broad orientation docs and sanitized config examples.
+
+If an exported example still mentions repo-local launcher paths such as `${workspaceFolder}/scripts/...`, normalize it against the active neutral workspace layer before promoting it as guidance.
 
 ## Promotion Rules
 

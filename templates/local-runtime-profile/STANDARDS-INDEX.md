@@ -25,7 +25,7 @@ Regra principal:
 Observacao:
 
 - a memoria diaria continua em `memory/YYYY-MM-DD.md`
-- o runtime ativo do ambiente e `codex` + integracoes do `dunderia`
+- o runtime ativo do ambiente e `codex` + scripts neutros do workspace
 - o legado do OpenClaw fica somente em `_archive/openclaw-decom-2026-04-19/`
 
 ## Mapa por assunto
@@ -72,8 +72,8 @@ Use quando:
 ### Runtime ativo
 
 - `C:\Users\l.sousa\.codex\config.toml`
-- `D:\Repos\dunderia\mcp\dunderia-mcp-settings.json`
-- `D:\Repos\dunderia\scripts\`
+- `D:\Repos\config\codex\workspace-mcp-settings.json`
+- `D:\Repos\scripts\mcp\`
 
 Use quando:
 

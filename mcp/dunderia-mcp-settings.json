@@ -5,7 +5,7 @@
       "args": [
         "-NoProfile",
         "-File",
-        "${workspaceFolder}/scripts/launch_github_mcp.ps1"
+        "${workspaceFolder}/scripts/mcp/launch_github_mcp.ps1"
       ]
     },
     "playwright": {
@@ -13,7 +13,7 @@
       "args": [
         "-NoProfile",
         "-File",
-        "${workspaceFolder}/scripts/launch_playwright_mcp.ps1"
+        "${workspaceFolder}/scripts/mcp/launch_playwright_mcp.ps1"
       ],
       "tools": {
         "browser_click": { "approval_mode": "approve" },
@@ -43,7 +43,7 @@
       "args": [
         "-NoProfile",
         "-File",
-        "${workspaceFolder}/scripts/launch_brave_mcp.ps1"
+        "${workspaceFolder}/scripts/mcp/launch_brave_mcp.ps1"
       ]
     },
     "filesystem": {

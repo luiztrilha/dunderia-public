@@ -37,7 +37,7 @@ Aqui vivem:
 - contexto do workspace
 - memoria diaria e curada
 - configuracao canonica do Codex CLI local
-- integracoes locais do DunderIA usadas como infraestrutura de MCP
+- scripts neutros do workspace usados como infraestrutura de MCP
 - relatorios e artefatos humanos oficiais
 - repositorios principais de codigo
 - arquivos arquivados de sistemas descontinuados
@@ -62,8 +62,8 @@ Contrato atual do workspace:
 
 - OpenClaw foi descomissionado em `2026-04-19`
 - o runtime ativo de CLI e `codex` com config em `C:\Users\l.sousa\.codex\config.toml`
-- os launchers MCP ativos de GitHub, Playwright e Brave Search vivem em `D:\Repos\dunderia\scripts\`
-- o catalogo MCP de referencia do ambiente local vive em `D:\Repos\dunderia\mcp\dunderia-mcp-settings.json`
+- os launchers MCP ativos de GitHub, Playwright e Brave Search vivem em `D:\Repos\scripts\mcp\`
+- o catalogo MCP de referencia do ambiente local vive em `D:\Repos\config\codex\workspace-mcp-settings.json`
 - o legado do OpenClaw foi arquivado em `D:\Repos\_archive\openclaw-decom-2026-04-19`
 
 Regra pratica:
@@ -193,7 +193,7 @@ Convencao:
 - APIs compartilhadas fora do ecossistema ConveniosWeb: usar `TectrilhaAPI`
 - WebForms legado compartilhado: usar `SistemasCompartilhadosWebForms`
 - frontend do portal de transparencia em Vue: usar `TransparenciaWeb`
-- integracao local de MCP e runtime auxiliar: usar `dunderia`
+- runtime auxiliar de produto e referencia historica: usar `dunderia` apenas quando o assunto for o proprio produto
 
 ## Roteamento de pedidos de codigo
 

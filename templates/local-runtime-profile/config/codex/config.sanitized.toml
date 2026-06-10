@@ -21,7 +21,7 @@ sandbox = "elevated"
 [projects.'<REPO_ROOT>']
 trust_level = "trusted"
 
-[projects.'<DUNDERIA_REPO>']
+[projects.'<PRODUCT_REPO_OPTIONAL>']
 trust_level = "trusted"
 
 [mcp_servers.serena]
@@ -32,7 +32,7 @@ args = ["start-mcp-server", "--context", "codex", "--enable-web-dashboard", "Fal
 [mcp_servers.github]
 startup_timeout_sec = 60
 command = "powershell.exe"
-args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "<DUNDERIA_REPO>/scripts/launch_github_mcp.ps1"]
+args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "<WORKSPACE_ROOT>/scripts/mcp/launch_github_mcp.ps1"]
 
 [mcp_servers.github.env]
 WUPHF_GITHUB_MCP_USE_GH_TOKEN = "1"
@@ -52,7 +52,7 @@ approval_mode = "approve"
 [mcp_servers.playwright]
 startup_timeout_sec = 90
 command = "powershell.exe"
-args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "<DUNDERIA_REPO>/scripts/launch_playwright_mcp.ps1"]
+args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "<WORKSPACE_ROOT>/scripts/mcp/launch_playwright_mcp.ps1"]
 
 [features]
 multi_agent = true

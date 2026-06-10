@@ -1,3 +1,10 @@
+
+## Guardrails de codificacao
+
+- Arquivos temporarios ou de teste criados para validar uma tarefa devem ficar em pasta `Temp`/`tmp` do repo ou do workspace e ser removidos antes da conclusao, salvo instrucao explicita para preservar o artefato.
+- Nao alterar `ConnectionStrings`, nem mesmo para mascarar, ocultar ou substituir credenciais; se houver risco de segredo exposto, reporte o achado sem modificar o valor.
+- Nao alterar codificacao, hash, criptografia ou fluxo de senha apenas por parecer fraco ou legado; preservar compatibilidade ate haver instrucao explicita e plano de migracao validado.
+
 # Repo Agent Notes
 
 This fork is maintained as a local-first, multi-runtime office orchestration repo.
